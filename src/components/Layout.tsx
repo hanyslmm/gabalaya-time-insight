@@ -10,7 +10,8 @@ import {
   Clock, 
   Settings, 
   LogOut,
-  Languages
+  Languages,
+  Menu
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -21,6 +22,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { t, i18n } = useTranslation();
   const { user, logout } = useAuth();
   const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
   const toggleLanguage = () => {
     const newLang = i18n.language === 'en' ? 'ar' : 'en';
@@ -37,8 +39,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className="flex h-screen bg-gray-100">
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-black bg-opacity-50 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <div className="hidden md:flex md:w-64 md:flex-col">
+      <div className={`fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      } md:flex md:flex-col`}>
         <div className="flex min-h-0 flex-1 flex-col bg-gray-800">
           <div className="flex h-16 flex-shrink-0 items-center bg-gray-900 px-4">
             <h1 className="text-xl font-bold text-white">Gabalaya Finance</h1>
@@ -52,11 +64,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <Link
                     key={item.name}
                     to={item.href}
+                    onClick={() => setSidebarOpen(false)}
                     className={`${
                       isActive
                         ? 'bg-gray-900 text-white'
                         : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                    } group flex items-center px-2 py-2 text-sm font-medium rounded-md`}
+                    } group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors`}
                   >
                     <Icon className="mr-3 h-6 w-6 flex-shrink-0" />
                     {item.name}
@@ -68,8 +81,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="flex flex-shrink-0 bg-gray-700 p-4">
             <div className="flex items-center">
               <div className="ml-3">
-                <p className="text-sm font-medium text-white">{user?.full_name}</p>
-                <p className="text-xs font-medium text-gray-300">{user?.role}</p>
+                <p className="text-sm font-medium text-white">{user?.full_name || 'User'}</p>
+                <p className="text-xs font-medium text-gray-300">{user?.role || 'Admin'}</p>
               </div>
             </div>
           </div>
@@ -80,8 +93,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className="flex w-0 flex-1 flex-col overflow-hidden">
         <div className="relative z-10 flex h-16 flex-shrink-0 bg-white shadow">
           <div className="flex flex-1 justify-between px-4">
-            <div className="flex flex-1">
-              {/* Empty space for potential search bar */}
+            <div className="flex flex-1 items-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="md:hidden"
+              >
+                <Menu className="h-6 w-6" />
+              </Button>
             </div>
             <div className="ml-4 flex items-center md:ml-6 space-x-4">
               <Button
