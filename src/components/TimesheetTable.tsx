@@ -174,7 +174,6 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
                   <span>{t('name') || 'Name'}</span>
                   <Input
                     placeholder="Filter..."
-                    size="sm"
                     value={columnFilters.employee_name || ''}
                     onChange={(e) => updateColumnFilter('employee_name', e.target.value)}
                     className="h-6 text-xs"
