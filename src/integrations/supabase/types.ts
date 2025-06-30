@@ -9,6 +9,36 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      admin_users: {
+        Row: {
+          created_at: string
+          full_name: string | null
+          id: string
+          password_hash: string
+          role: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          password_hash: string
+          role?: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          password_hash?: string
+          role?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string
@@ -72,6 +102,42 @@ export type Database = {
           name_ar?: string
           price?: number
           start_date?: string
+        }
+        Relationships: []
+      }
+      employees: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string
+          hiring_date: string
+          id: string
+          phone_number: string | null
+          role: string
+          staff_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name: string
+          hiring_date: string
+          id?: string
+          phone_number?: string | null
+          role: string
+          staff_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          hiring_date?: string
+          id?: string
+          phone_number?: string | null
+          role?: string
+          staff_id?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -328,6 +394,95 @@ export type Database = {
         }
         Relationships: []
       }
+      timesheet_entries: {
+        Row: {
+          actual_hours: number | null
+          break_end: string | null
+          break_length: number | null
+          break_start: string | null
+          break_type: string | null
+          clock_in_date: string
+          clock_in_time: string
+          clock_out_date: string
+          clock_out_time: string
+          created_at: string
+          employee_id: string | null
+          employee_name: string
+          employee_note: string | null
+          id: string
+          is_split_calculation: boolean | null
+          manager_note: string | null
+          morning_hours: number | null
+          night_hours: number | null
+          no_show_reason: string | null
+          payroll_id: string | null
+          total_card_amount_flat: number
+          total_card_amount_split: number | null
+          total_hours: number
+          updated_at: string
+        }
+        Insert: {
+          actual_hours?: number | null
+          break_end?: string | null
+          break_length?: number | null
+          break_start?: string | null
+          break_type?: string | null
+          clock_in_date: string
+          clock_in_time: string
+          clock_out_date: string
+          clock_out_time: string
+          created_at?: string
+          employee_id?: string | null
+          employee_name: string
+          employee_note?: string | null
+          id?: string
+          is_split_calculation?: boolean | null
+          manager_note?: string | null
+          morning_hours?: number | null
+          night_hours?: number | null
+          no_show_reason?: string | null
+          payroll_id?: string | null
+          total_card_amount_flat?: number
+          total_card_amount_split?: number | null
+          total_hours?: number
+          updated_at?: string
+        }
+        Update: {
+          actual_hours?: number | null
+          break_end?: string | null
+          break_length?: number | null
+          break_start?: string | null
+          break_type?: string | null
+          clock_in_date?: string
+          clock_in_time?: string
+          clock_out_date?: string
+          clock_out_time?: string
+          created_at?: string
+          employee_id?: string | null
+          employee_name?: string
+          employee_note?: string | null
+          id?: string
+          is_split_calculation?: boolean | null
+          manager_note?: string | null
+          morning_hours?: number | null
+          night_hours?: number | null
+          no_show_reason?: string | null
+          payroll_id?: string | null
+          total_card_amount_flat?: number
+          total_card_amount_split?: number | null
+          total_hours?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timesheet_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           amount: number
@@ -437,6 +592,45 @@ export type Database = {
           role?: string
           updated_at?: string
           username?: string
+        }
+        Relationships: []
+      }
+      wage_settings: {
+        Row: {
+          created_at: string
+          default_flat_wage_rate: number
+          id: string
+          morning_end_time: string
+          morning_start_time: string
+          morning_wage_rate: number
+          night_end_time: string
+          night_start_time: string
+          night_wage_rate: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_flat_wage_rate?: number
+          id?: string
+          morning_end_time?: string
+          morning_start_time?: string
+          morning_wage_rate?: number
+          night_end_time?: string
+          night_start_time?: string
+          night_wage_rate?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_flat_wage_rate?: number
+          id?: string
+          morning_end_time?: string
+          morning_start_time?: string
+          morning_wage_rate?: number
+          night_end_time?: string
+          night_start_time?: string
+          night_wage_rate?: number
+          updated_at?: string
         }
         Relationships: []
       }

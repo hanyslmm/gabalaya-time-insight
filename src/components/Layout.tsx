@@ -1,0 +1,121 @@
+
+import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { 
+  LayoutDashboard, 
+  Users, 
+  Clock, 
+  Settings, 
+  LogOut,
+  Languages
+} from 'lucide-react';
+
+interface LayoutProps {
+  children: React.ReactNode;
+}
+
+const Layout: React.FC<LayoutProps> = ({ children }) => {
+  const { t, i18n } = useTranslation();
+  const { user, logout } = useAuth();
+  const location = useLocation();
+
+  const toggleLanguage = () => {
+    const newLang = i18n.language === 'en' ? 'ar' : 'en';
+    i18n.changeLanguage(newLang);
+    document.dir = newLang === 'ar' ? 'rtl' : 'ltr';
+  };
+
+  const navigation = [
+    { name: t('dashboard'), href: '/dashboard', icon: LayoutDashboard },
+    { name: t('employees'), href: '/employees', icon: Users },
+    { name: t('timesheets'), href: '/timesheets', icon: Clock },
+    { name: t('settings'), href: '/settings', icon: Settings },
+  ];
+
+  return (
+    <div className="flex h-screen bg-gray-100">
+      {/* Sidebar */}
+      <div className="hidden md:flex md:w-64 md:flex-col">
+        <div className="flex min-h-0 flex-1 flex-col bg-gray-800">
+          <div className="flex h-16 flex-shrink-0 items-center bg-gray-900 px-4">
+            <h1 className="text-xl font-bold text-white">Gabalaya Finance</h1>
+          </div>
+          <div className="flex flex-1 flex-col overflow-y-auto">
+            <nav className="flex-1 space-y-1 bg-gray-800 px-2 py-4">
+              {navigation.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className={`${
+                      isActive
+                        ? 'bg-gray-900 text-white'
+                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                    } group flex items-center px-2 py-2 text-sm font-medium rounded-md`}
+                  >
+                    <Icon className="mr-3 h-6 w-6 flex-shrink-0" />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+          <div className="flex flex-shrink-0 bg-gray-700 p-4">
+            <div className="flex items-center">
+              <div className="ml-3">
+                <p className="text-sm font-medium text-white">{user?.full_name}</p>
+                <p className="text-xs font-medium text-gray-300">{user?.role}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="flex w-0 flex-1 flex-col overflow-hidden">
+        <div className="relative z-10 flex h-16 flex-shrink-0 bg-white shadow">
+          <div className="flex flex-1 justify-between px-4">
+            <div className="flex flex-1">
+              {/* Empty space for potential search bar */}
+            </div>
+            <div className="ml-4 flex items-center md:ml-6 space-x-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleLanguage}
+                className="flex items-center space-x-2"
+              >
+                <Languages className="h-4 w-4" />
+                <span>{i18n.language.toUpperCase()}</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={logout}
+                className="flex items-center space-x-2"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>{t('logout')}</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <main className="flex-1 relative overflow-y-auto focus:outline-none">
+          <div className="py-6">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
+              {children}
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+};
+
+export default Layout;
