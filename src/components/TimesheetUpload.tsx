@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -22,18 +21,122 @@ const TimesheetUpload: React.FC<TimesheetUploadProps> = ({ onClose, onUploadComp
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
+  // Function to create or find employee
+  const createOrFindEmployee = async (employeeName: string, payrollId?: string) => {
+    console.log('Creating or finding employee:', employeeName, 'Payroll ID:', payrollId);
+    
+    // First, try to find existing employee by name
+    const { data: existingEmployee, error: findError } = await supabase
+      .from('employees')
+      .select('*')
+      .ilike('full_name', employeeName)
+      .single();
+
+    if (findError && findError.code !== 'PGRST116') {
+      console.error('Error finding employee:', findError);
+      throw findError;
+    }
+
+    if (existingEmployee) {
+      console.log('Found existing employee:', existingEmployee);
+      return existingEmployee.id;
+    }
+
+    // If employee doesn't exist, create new one
+    const staffId = payrollId || `EMP${Date.now().toString().slice(-6)}`;
+    const newEmployee = {
+      staff_id: staffId,
+      full_name: employeeName,
+      role: 'Employee',
+      hiring_date: new Date().toISOString().split('T')[0], // Today's date
+      email: null,
+      phone_number: null
+    };
+
+    console.log('Creating new employee:', newEmployee);
+
+    const { data: createdEmployee, error: createError } = await supabase
+      .from('employees')
+      .insert(newEmployee)
+      .select()
+      .single();
+
+    if (createError) {
+      console.error('Error creating employee:', createError);
+      throw createError;
+    }
+
+    console.log('Created new employee:', createdEmployee);
+    return createdEmployee.id;
+  };
+
   const uploadMutation = useMutation({
     mutationFn: async (timesheetData: any[]) => {
+      console.log('Processing timesheet data with employee creation...');
+      
+      // Process each entry to ensure employee exists
+      const processedEntries = [];
+      const employeeStats = { created: 0, found: 0 };
+
+      for (const entry of timesheetData) {
+        try {
+          const employeeId = await createOrFindEmployee(
+            entry.employee_name, 
+            entry.payroll_id
+          );
+          
+          if (employeeId) {
+            // Check if this created a new employee
+            const { data: employee } = await supabase
+              .from('employees')
+              .select('created_at')
+              .eq('id', employeeId)
+              .single();
+              
+            if (employee) {
+              const createdToday = new Date(employee.created_at).toDateString() === new Date().toDateString();
+              if (createdToday) {
+                employeeStats.created++;
+              } else {
+                employeeStats.found++;
+              }
+            }
+          }
+
+          processedEntries.push({
+            ...entry,
+            employee_id: employeeId
+          });
+        } catch (error) {
+          console.error('Error processing employee:', entry.employee_name, error);
+          // Continue with other entries even if one fails
+          processedEntries.push(entry);
+        }
+      }
+
+      console.log('Employee processing stats:', employeeStats);
+
+      // Insert timesheet entries
       const { data, error } = await supabase
         .from('timesheet_entries')
-        .insert(timesheetData);
+        .insert(processedEntries);
       
       if (error) throw error;
-      return data;
+      
+      return { data, stats: employeeStats };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['timesheets'] });
-      toast.success(t('timesheetUploaded') || 'Timesheet uploaded successfully');
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      
+      const { stats } = result;
+      let message = t('timesheetUploaded') || 'Timesheet uploaded successfully';
+      
+      if (stats.created > 0 || stats.found > 0) {
+        message += ` | ${stats.created} new employees created, ${stats.found} existing employees found`;
+      }
+      
+      toast.success(message);
       onUploadComplete();
       onClose();
     },
@@ -290,8 +393,12 @@ const TimesheetUpload: React.FC<TimesheetUploadProps> = ({ onClose, onUploadComp
               <li>• Clock in time (HH:MM AM/PM)</li>
               <li>• Clock out date (MM/DD/YYYY or similar)</li>
               <li>• Clock out time (HH:MM AM/PM)</li>
+              <li>• Payroll ID (optional - auto-generated if missing)</li>
               <li>• Actual hours (optional)</li>
             </ul>
+            <p className="text-xs text-green-600 mt-2 font-medium">
+              ✨ New employees will be automatically created!
+            </p>
           </div>
           
           {file && (
