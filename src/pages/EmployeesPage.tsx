@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -7,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Plus, Edit, Trash2, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, DollarSign } from 'lucide-react';
 import EmployeeForm from '@/components/EmployeeForm';
 import EmployeeStats from '@/components/EmployeeStats';
+import EmployeeWageRates from '@/components/EmployeeWageRates';
 
 interface Employee {
   id: string;
@@ -19,6 +19,8 @@ interface Employee {
   hiring_date: string;
   email?: string;
   phone_number?: string;
+  morning_wage_rate?: number;
+  night_wage_rate?: number;
 }
 
 const EmployeesPage: React.FC = () => {
@@ -28,6 +30,7 @@ const EmployeesPage: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [wageRateEmployee, setWageRateEmployee] = useState<Employee | null>(null);
 
   const { data: employees, isLoading } = useQuery({
     queryKey: ['employees'],
@@ -81,6 +84,10 @@ const EmployeesPage: React.FC = () => {
     setSelectedEmployee(employee);
   };
 
+  const handleSetWageRates = (employee: Employee) => {
+    setWageRateEmployee(employee);
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -129,6 +136,14 @@ const EmployeesPage: React.FC = () => {
                   <Button
                     variant="ghost"
                     size="sm"
+                    onClick={() => handleSetWageRates(employee)}
+                    title="Set Wage Rates"
+                  >
+                    <DollarSign className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => handleEdit(employee)}
                   >
                     <Edit className="h-4 w-4" />
@@ -148,6 +163,8 @@ const EmployeesPage: React.FC = () => {
               <div className="space-y-2">
                 <p><span className="font-medium">{t('role')}:</span> {employee.role}</p>
                 <p><span className="font-medium">{t('hiringDate')}:</span> {new Date(employee.hiring_date).toLocaleDateString()}</p>
+                <p><span className="font-medium">Morning Rate:</span> LE {employee.morning_wage_rate?.toFixed(2) || '17.00'}/hr</p>
+                <p><span className="font-medium">Night Rate:</span> LE {employee.night_wage_rate?.toFixed(2) || '20.00'}/hr</p>
                 {employee.email && (
                   <p><span className="font-medium">{t('email')}:</span> {employee.email}</p>
                 )}
@@ -182,6 +199,13 @@ const EmployeesPage: React.FC = () => {
         <EmployeeStats
           employee={selectedEmployee}
           onClose={() => setSelectedEmployee(null)}
+        />
+      )}
+
+      {wageRateEmployee && (
+        <EmployeeWageRates
+          employee={wageRateEmployee}
+          onClose={() => setWageRateEmployee(null)}
         />
       )}
     </div>

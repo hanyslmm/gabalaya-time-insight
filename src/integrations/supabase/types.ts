@@ -112,6 +112,8 @@ export type Database = {
           full_name: string
           hiring_date: string
           id: string
+          morning_wage_rate: number | null
+          night_wage_rate: number | null
           phone_number: string | null
           role: string
           staff_id: string
@@ -123,6 +125,8 @@ export type Database = {
           full_name: string
           hiring_date: string
           id?: string
+          morning_wage_rate?: number | null
+          night_wage_rate?: number | null
           phone_number?: string | null
           role: string
           staff_id: string
@@ -134,6 +138,8 @@ export type Database = {
           full_name?: string
           hiring_date?: string
           id?: string
+          morning_wage_rate?: number | null
+          night_wage_rate?: number | null
           phone_number?: string | null
           role?: string
           staff_id?: string

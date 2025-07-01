@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -36,7 +35,13 @@ const WageCalculator: React.FC<WageCalculatorProps> = ({ selectedRows, onCalcula
       
       const { data, error } = await supabase
         .from('timesheet_entries')
-        .select('*')
+        .select(`
+          *,
+          employees (
+            morning_wage_rate,
+            night_wage_rate
+          )
+        `)
         .in('id', selectedRows);
       
       if (error) throw error;
@@ -111,8 +116,12 @@ const WageCalculator: React.FC<WageCalculatorProps> = ({ selectedRows, onCalcula
           nightHours *= ratio;
         }
 
-        const totalSplitAmount = (morningHours * wageSettings.morning_wage_rate) + 
-                                (nightHours * wageSettings.night_wage_rate);
+        // Use individual employee rates or fall back to default
+        const employeeMorningRate = entry.employees?.morning_wage_rate || wageSettings.morning_wage_rate;
+        const employeeNightRate = entry.employees?.night_wage_rate || wageSettings.night_wage_rate;
+
+        const totalSplitAmount = (morningHours * employeeMorningRate) + 
+                                (nightHours * employeeNightRate);
 
         return {
           id: entry.id,

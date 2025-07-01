@@ -9,6 +9,7 @@ import { Upload, Download, Split, Trash2 } from 'lucide-react';
 import TimesheetUpload from '@/components/TimesheetUpload';
 import TimesheetTable from '@/components/TimesheetTable';
 import WageCalculator from '@/components/WageCalculator';
+import TimesheetExport from '@/components/TimesheetExport';
 
 const TimesheetsPage: React.FC = () => {
   const { t } = useTranslation();
@@ -43,13 +44,7 @@ const TimesheetsPage: React.FC = () => {
             <Upload className="h-4 w-4" />
             <span>{t('uploadTimesheet')}</span>
           </Button>
-          <Button 
-            variant="outline" 
-            className="flex items-center space-x-2"
-          >
-            <Download className="h-4 w-4" />
-            <span>{t('exportTimesheet')}</span>
-          </Button>
+          <TimesheetExport selectedRows={selectedRows} />
         </div>
       </div>
 
