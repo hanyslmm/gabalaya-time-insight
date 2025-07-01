@@ -26,24 +26,41 @@ const EmployeeStats: React.FC<EmployeeStatsProps> = ({ employee, onClose }) => {
   const { data: stats, isLoading } = useQuery({
     queryKey: ['employee-stats', employee.id],
     queryFn: async () => {
+      console.log('Fetching stats for employee:', employee.full_name);
+      
+      // Query timesheet entries by employee name since that's what we have in the data
       const { data, error } = await supabase
         .from('timesheet_entries')
         .select('*')
-        .eq('employee_id', employee.id);
+        .eq('employee_name', employee.full_name);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching timesheet entries:', error);
+        throw error;
+      }
 
+      console.log('Found timesheet entries:', data);
       const entries = data || [];
       const totalShifts = entries.length;
       
+      // Calculate total hours from all available hour fields
       const totalHours = entries.reduce((sum, entry) => {
-        return sum + (entry.total_hours || 0) + (entry.morning_hours || 0) + (entry.night_hours || 0);
+        const regularHours = entry.total_hours || 0;
+        const morningHours = entry.morning_hours || 0;
+        const nightHours = entry.night_hours || 0;
+        
+        // Use the maximum of total_hours or (morning_hours + night_hours)
+        const calculatedHours = Math.max(regularHours, morningHours + nightHours);
+        return sum + calculatedHours;
       }, 0);
 
+      // Calculate total amount from both flat and split calculations
       const totalAmount = entries.reduce((sum, entry) => {
-        const amount = entry.is_split_calculation 
-          ? (entry.total_card_amount_split || 0)
-          : (entry.total_card_amount_flat || 0);
+        const flatAmount = entry.total_card_amount_flat || 0;
+        const splitAmount = entry.total_card_amount_split || 0;
+        
+        // Use split amount if available, otherwise use flat amount
+        const amount = entry.is_split_calculation ? splitAmount : flatAmount;
         return sum + amount;
       }, 0);
 
