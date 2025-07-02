@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Users, Clock, DollarSign, TrendingUp, Upload, Download, Settings } from 'lucide-react';
 import DashboardCharts from '@/components/DashboardCharts';
+import DailyPaymentChart from '@/components/DailyPaymentChart';
 
 const DashboardPage: React.FC = () => {
   const { t } = useTranslation();
@@ -132,8 +133,15 @@ const DashboardPage: React.FC = () => {
         </Card>
       </div>
 
-      {/* Charts */}
-      <DashboardCharts />
+      {/* Daily Payment Chart for Admins */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div className="lg:col-span-1">
+          <DailyPaymentChart />
+        </div>
+        <div className="lg:col-span-2">
+          <DashboardCharts />
+        </div>
+      </div>
 
       {/* Quick Actions */}
       <Card className="mb-8">

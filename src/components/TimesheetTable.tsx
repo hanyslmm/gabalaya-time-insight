@@ -3,14 +3,18 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { useTimesheetTable } from '@/hooks/useTimesheetTable';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useAuth } from '@/hooks/useAuth';
+import { Edit } from 'lucide-react';
 import TimesheetTableFilters from './TimesheetTableFilters';
 import TimesheetTableActions from './TimesheetTableActions';
 import TimesheetMobileCard from './TimesheetMobileCard';
 import TimesheetSummary from './TimesheetSummary';
+import TimesheetEditDialog from './TimesheetEditDialog';
 
 interface TimesheetEntry {
   id: string;
@@ -56,11 +60,25 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
   selectedRows, 
   onSelectionChange, 
   onDataChange,
-  dateRange
+  dateRange 
 }) => {
+  const { user } = useAuth();
+  const [editingEntry, setEditingEntry] = useState<any>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const isAdmin = user?.role === 'admin';
   const { t } = useTranslation();
   const isMobile = useIsMobile();
   const [currentPage, setCurrentPage] = useState(1);
+
+  const handleEdit = (entry: any) => {
+    setEditingEntry(entry);
+    setShowEditDialog(true);
+  };
+
+  const handleEditClose = () => {
+    setShowEditDialog(false);
+    setEditingEntry(null);
+  };
   
   const {
     searchTerm,
@@ -186,12 +204,13 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
                 <TableHead>{t('nightHours') || 'Night Hours'}</TableHead>
                 <TableHead>{t('totalAmountFlat') || 'Total Amount (Flat)'}</TableHead>
                 <TableHead>{t('totalAmountSplit') || 'Total Amount (Split)'}</TableHead>
+                {isAdmin && <TableHead>Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {paginatedData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={isAdmin ? 12 : 11} className="text-center py-8 text-gray-500">
                     {t('noTimesheetData') || 'No timesheet data available'}
                   </TableCell>
                 </TableRow>
@@ -214,6 +233,17 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
                     <TableCell>{entry.night_hours?.toFixed(2) || '-'}</TableCell>
                     <TableCell>LE {entry.total_card_amount_flat.toFixed(2)}</TableCell>
                     <TableCell>{entry.total_card_amount_split ? `LE ${entry.total_card_amount_split.toFixed(2)}` : '-'}</TableCell>
+                    {isAdmin && (
+                      <TableCell>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleEdit(entry)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}
@@ -274,6 +304,13 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
           </Pagination>
         </div>
       )}
+
+      <TimesheetEditDialog
+        entry={editingEntry}
+        isOpen={showEditDialog}
+        onClose={handleEditClose}
+        onUpdate={onDataChange}
+      />
     </div>
   );
 };

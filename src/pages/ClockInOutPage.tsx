@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, MapPin, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
+import { Clock, MapPin, CheckCircle, AlertCircle, ExternalLink, Camera } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
@@ -72,6 +72,7 @@ const ClockInOutPage: React.FC = () => {
   const [currentEntry, setCurrentEntry] = useState<ClockEntry | null>(null);
   const [todayEntries, setTodayEntries] = useState<ClockEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
 
   const getCurrentLocation = (): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -90,6 +91,39 @@ const ClockInOutPage: React.FC = () => {
         }
       );
     });
+  };
+
+  const capturePhoto = async (): Promise<string | null> => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'user' } 
+      });
+      
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      video.play();
+
+      return new Promise((resolve) => {
+        video.addEventListener('loadedmetadata', () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(video, 0, 0);
+          
+          stream.getTracks().forEach(track => track.stop());
+          
+          const photoDataURL = canvas.toDataURL('image/jpeg', 0.8);
+          setCapturedPhoto(photoDataURL);
+          resolve(photoDataURL);
+        });
+      });
+    } catch (error) {
+      console.warn('Camera access failed:', error);
+      toast.error('Camera access denied. Continuing without photo.');
+      return null;
+    }
   };
 
   const fetchTodayEntries = async () => {
@@ -130,6 +164,9 @@ const ClockInOutPage: React.FC = () => {
       const userLocation = await getCurrentLocation();
       setLocation(userLocation);
       
+      // Attempt to capture photo (optional)
+      await capturePhoto();
+      
       const now = new Date();
       const { data, error } = await supabase
         .from('timesheet_entries')
@@ -168,6 +205,10 @@ const ClockInOutPage: React.FC = () => {
     setLoading(true);
     try {
       const userLocation = await getCurrentLocation();
+      
+      // Attempt to capture photo (optional)
+      await capturePhoto();
+      
       const now = new Date();
       const clockOutTime = format(now, 'HH:mm:ss');
       const clockOutDate = format(now, 'yyyy-MM-dd');
@@ -269,6 +310,13 @@ const ClockInOutPage: React.FC = () => {
                   <CheckCircle className="h-4 w-4 mr-2" />
                   {loading ? 'Clocking Out...' : 'Clock Out'}
                 </Button>
+              )}
+              
+              {capturedPhoto && (
+                <div className="flex items-center space-x-2 ml-4">
+                  <Camera className="h-4 w-4 text-green-600" />
+                  <span className="text-sm text-green-600">Photo captured</span>
+                </div>
               )}
             </div>
           </div>

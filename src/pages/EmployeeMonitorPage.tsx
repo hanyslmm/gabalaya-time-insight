@@ -35,7 +35,7 @@ const EmployeeMonitorPage: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    if (user?.role === 'admin') {
+    if (user) {
       fetchData();
       // Set up real-time updates
       const interval = setInterval(fetchData, 30000); // Refresh every 30 seconds
@@ -44,17 +44,21 @@ const EmployeeMonitorPage: React.FC = () => {
   }, [user]);
 
   const fetchData = async () => {
-    if (user?.role !== 'admin') return;
+    if (!user) return;
 
     try {
       setRefreshing(true);
       
-      // Fetch all employees
-      const { data: employeesData, error: employeesError } = await supabase
-        .from('employees')
-        .select('staff_id, full_name, role');
+      // Fetch all employees (only for admins)
+      let employeesData = [];
+      if (isAdmin) {
+        const { data, error: employeesError } = await supabase
+          .from('employees')
+          .select('staff_id, full_name, role');
 
-      if (employeesError) throw employeesError;
+        if (employeesError) throw employeesError;
+        employeesData = data || [];
+      }
 
       // Fetch today's timesheet entries
       const today = format(new Date(), 'yyyy-MM-dd');
@@ -66,7 +70,7 @@ const EmployeeMonitorPage: React.FC = () => {
 
       if (timesheetError) throw timesheetError;
 
-      setEmployees(employeesData || []);
+      setEmployees(employeesData);
 
       // Process employee statuses
       const statusMap = new Map<string, EmployeeStatus>();
@@ -119,14 +123,17 @@ const EmployeeMonitorPage: React.FC = () => {
   const activeEmployees = employeeStatuses.filter(status => status.is_active);
   const completedToday = employeeStatuses.filter(status => !status.is_active);
 
-  if (user?.role !== 'admin') {
+  // Allow both admin and employee access, but with different features
+  const isAdmin = user?.role === 'admin';
+  
+  if (!user) {
     return (
       <div className="px-4 sm:px-6 lg:px-8">
         <Card>
           <CardContent className="p-6 text-center">
             <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
-            <p className="text-muted-foreground">This page is only available to administrators.</p>
+            <p className="text-muted-foreground">Please log in to view this page.</p>
           </CardContent>
         </Card>
       </div>
@@ -145,20 +152,27 @@ const EmployeeMonitorPage: React.FC = () => {
     <div className="px-4 sm:px-6 lg:px-8">
       <div className="mb-8 flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Employee Monitor</h1>
+          <h1 className="text-2xl font-bold text-foreground">
+            {isAdmin ? 'Employee Monitor' : 'Team Status'}
+          </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Real-time tracking of employee clock-in/out status for today
+            {isAdmin 
+              ? 'Real-time tracking of employee clock-in/out status for today'
+              : 'See who is currently working with you today'
+            }
           </p>
         </div>
-        <Button
-          onClick={fetchData}
-          disabled={refreshing}
-          variant="outline"
-          size="sm"
-        >
-          <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        {isAdmin && (
+          <Button
+            onClick={fetchData}
+            disabled={refreshing}
+            variant="outline"
+            size="sm"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        )}
       </div>
 
       {/* Summary Cards */}
@@ -170,7 +184,9 @@ const EmployeeMonitorPage: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{activeEmployees.length}</div>
-            <p className="text-xs text-muted-foreground">Employees clocked in</p>
+            <p className="text-xs text-muted-foreground">
+              {isAdmin ? 'Employees clocked in' : 'Team members active'}
+            </p>
           </CardContent>
         </Card>
 
@@ -185,16 +201,18 @@ const EmployeeMonitorPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
-            <Users className="h-4 w-4 text-purple-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-600">{employees.length}</div>
-            <p className="text-xs text-muted-foreground">Registered employees</p>
-          </CardContent>
-        </Card>
+        {isAdmin && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
+              <Users className="h-4 w-4 text-purple-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-purple-600">{employees.length}</div>
+              <p className="text-xs text-muted-foreground">Registered employees</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Active Employees */}
