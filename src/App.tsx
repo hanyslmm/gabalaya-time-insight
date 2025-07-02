@@ -9,6 +9,8 @@ import DashboardPage from '@/pages/DashboardPage';
 import EmployeesPage from '@/pages/EmployeesPage';
 import TimesheetsPage from '@/pages/TimesheetsPage';
 import SettingsPage from '@/pages/SettingsPage';
+import ReportsPage from '@/pages/ReportsPage';
+import ClockInOutPage from '@/pages/ClockInOutPage';
 import Layout from '@/components/Layout';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import './i18n';
@@ -33,6 +35,8 @@ function App() {
                         <Route path="/dashboard" element={<DashboardPage />} />
                         <Route path="/employees" element={<EmployeesPage />} />
                         <Route path="/timesheets" element={<TimesheetsPage />} />
+                        <Route path="/reports" element={<ReportsPage />} />
+                        <Route path="/clockinout" element={<ClockInOutPage />} />
                         <Route path="/settings" element={<SettingsPage />} />
                       </Routes>
                     </Layout>

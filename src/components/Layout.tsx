@@ -25,6 +25,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { name: t('dashboard'), href: '/dashboard', icon: 'LayoutDashboard' },
     { name: t('employees'), href: '/employees', icon: 'Users' },
     { name: t('timesheets'), href: '/timesheets', icon: 'Calendar' },
+    { name: 'Clock In/Out', href: '/clockinout', icon: 'Clock' },
     { name: t('payroll'), href: '/payroll', icon: 'Coins' },
     { name: t('reports'), href: '/reports', icon: 'FileBarChart' },
     { name: t('settings'), href: '/settings', icon: 'Settings' },
