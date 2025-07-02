@@ -408,8 +408,10 @@ export type Database = {
           break_start: string | null
           break_type: string | null
           clock_in_date: string
+          clock_in_location: string | null
           clock_in_time: string
           clock_out_date: string
+          clock_out_location: string | null
           clock_out_time: string
           created_at: string
           employee_id: string | null
@@ -434,8 +436,10 @@ export type Database = {
           break_start?: string | null
           break_type?: string | null
           clock_in_date: string
+          clock_in_location?: string | null
           clock_in_time: string
           clock_out_date: string
+          clock_out_location?: string | null
           clock_out_time: string
           created_at?: string
           employee_id?: string | null
@@ -460,8 +464,10 @@ export type Database = {
           break_start?: string | null
           break_type?: string | null
           clock_in_date?: string
+          clock_in_location?: string | null
           clock_in_time?: string
           clock_out_date?: string
+          clock_out_location?: string | null
           clock_out_time?: string
           created_at?: string
           employee_id?: string | null

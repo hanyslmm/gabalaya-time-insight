@@ -44,9 +44,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       }
 
-      // For the default admin user, check the password directly
-      // In production, you would properly hash and compare
-      const isValidPassword = username === 'admin' && password === 'admin123';
+      // Check password for both admin and employee users
+      let isValidPassword = false;
+      
+      if (username === 'admin' && password === 'admin123') {
+        isValidPassword = true;
+      } else {
+        // For employees, check if password is staff_id + 123
+        const expectedPassword = `${username}123`;
+        isValidPassword = password === expectedPassword;
+      }
       
       if (isValidPassword) {
         const authUser: AuthUser = {
