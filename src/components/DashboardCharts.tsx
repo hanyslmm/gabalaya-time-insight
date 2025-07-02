@@ -5,9 +5,24 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { format, subMonths } from 'date-fns';
 import { Trophy, Medal, Award, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+
+interface MonthlyData {
+  month: string;
+  hours: number;
+  amount: number;
+  shifts: number;
+}
+
+interface EmployeeData {
+  name: string;
+  hours: number;
+  amount: number;
+  shifts: number;
+  avgHours: number;
+}
 
 const DashboardCharts: React.FC = () => {
   const { data: chartData, isLoading } = useQuery({
@@ -24,8 +39,8 @@ const DashboardCharts: React.FC = () => {
       if (error) throw error;
       
       // Process data for charts
-      const monthlyData = {};
-      const employeeData = {};
+      const monthlyData: Record<string, MonthlyData> = {};
+      const employeeData: Record<string, EmployeeData> = {};
       
       timesheets?.forEach(entry => {
         const date = new Date(entry.clock_in_date);
@@ -56,7 +71,7 @@ const DashboardCharts: React.FC = () => {
       
       // Calculate average hours and sort employees
       const sortedEmployees = Object.values(employeeData)
-        .map(emp => ({
+        .map((emp: EmployeeData) => ({
           ...emp,
           avgHours: emp.shifts > 0 ? emp.hours / emp.shifts : 0
         }))
@@ -64,7 +79,7 @@ const DashboardCharts: React.FC = () => {
         .slice(0, 5);
 
       return {
-        monthlyData: Object.values(monthlyData).sort((a, b) => new Date(a.month) - new Date(b.month)),
+        monthlyData: Object.values(monthlyData).sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime()),
         employeeData: sortedEmployees
       };
     }
@@ -76,7 +91,7 @@ const DashboardCharts: React.FC = () => {
     shifts: { label: 'Shifts', color: 'hsl(var(--chart-3))' }
   };
 
-  const getLeaderIcon = (index) => {
+  const getLeaderIcon = (index: number) => {
     switch (index) {
       case 0: return <Trophy className="h-5 w-5 text-yellow-500" />;
       case 1: return <Medal className="h-5 w-5 text-gray-400" />;
@@ -85,7 +100,7 @@ const DashboardCharts: React.FC = () => {
     }
   };
 
-  const getLeaderBadge = (index) => {
+  const getLeaderBadge = (index: number) => {
     switch (index) {
       case 0: return <Badge className="bg-yellow-500 text-white">1st</Badge>;
       case 1: return <Badge className="bg-gray-400 text-white">2nd</Badge>;
