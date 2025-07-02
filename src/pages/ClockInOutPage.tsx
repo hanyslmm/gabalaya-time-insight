@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, MapPin, CheckCircle, AlertCircle } from 'lucide-react';
+import { Clock, MapPin, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
@@ -19,6 +19,58 @@ interface ClockEntry {
   clock_out_location?: string;
   total_hours?: number;
 }
+
+// Google Maps API key - you should add this to your Supabase Edge Function secrets
+const GOOGLE_MAPS_API_KEY = 'your-google-maps-api-key'; // Replace with actual key or fetch from secrets
+
+const LocationThumbnail: React.FC<{ 
+  location: string; 
+  label: string; 
+  className?: string; 
+}> = ({ location, label, className = "" }) => {
+  if (!location) return null;
+
+  const [lat, lng] = location.split(', ').map(coord => parseFloat(coord.trim()));
+  
+  if (isNaN(lat) || isNaN(lng)) return null;
+
+  // Google Maps Static API URL for thumbnail
+  const staticMapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=15&size=100x100&maptype=roadmap&markers=color:red%7C${lat},${lng}&key=${GOOGLE_MAPS_API_KEY}`;
+  
+  // Google Maps URL for navigation
+  const mapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+
+  const handleMapClick = () => {
+    window.open(mapsUrl, '_blank');
+  };
+
+  return (
+    <div className={`flex items-center space-x-2 ${className}`}>
+      <div className="flex items-center space-x-1">
+        <MapPin className="h-3 w-3 text-muted-foreground" />
+        <span className="text-xs text-muted-foreground">{label}:</span>
+      </div>
+      <div 
+        className="relative cursor-pointer group border rounded-md overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+        onClick={handleMapClick}
+        title="Click to view on Google Maps"
+      >
+        <img 
+          src={staticMapUrl} 
+          alt={`${label} location`}
+          className="w-16 h-16 object-cover"
+          onError={(e) => {
+            // Fallback if image fails to load
+            e.currentTarget.style.display = 'none';
+          }}
+        />
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+          <ExternalLink className="h-3 w-3 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ClockInOutPage: React.FC = () => {
   const { t } = useTranslation();
@@ -196,10 +248,11 @@ const ClockInOutPage: React.FC = () => {
                 <div className="text-sm text-gray-600">
                   <p>Clocked in at: {currentEntry.clock_in_time} on {currentEntry.clock_in_date}</p>
                   {currentEntry.clock_in_location && (
-                    <p className="flex items-center space-x-1 mt-1">
-                      <MapPin className="h-3 w-3" />
-                      <span>Location: {currentEntry.clock_in_location}</span>
-                    </p>
+                    <LocationThumbnail 
+                      location={currentEntry.clock_in_location}
+                      label="Clock In Location"
+                      className="mt-2"
+                    />
                   )}
                 </div>
               )}
@@ -260,12 +313,18 @@ const ClockInOutPage: React.FC = () => {
                     </div>
                   </div>
                   {(entry.clock_in_location || entry.clock_out_location) && (
-                    <div className="mt-3 pt-3 border-t text-xs text-gray-500">
+                    <div className="mt-3 pt-3 border-t space-y-2">
                       {entry.clock_in_location && (
-                        <p>Clock In Location: {entry.clock_in_location}</p>
+                        <LocationThumbnail 
+                          location={entry.clock_in_location}
+                          label="Clock In"
+                        />
                       )}
                       {entry.clock_out_location && (
-                        <p>Clock Out Location: {entry.clock_out_location}</p>
+                        <LocationThumbnail 
+                          location={entry.clock_out_location}
+                          label="Clock Out"
+                        />
                       )}
                     </div>
                   )}
