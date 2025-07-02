@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 
 interface ClockEntry {
   id: string;
+  employee_name: string;
   clock_in_time: string;
   clock_in_date: string;
   clock_out_time?: string;
@@ -77,7 +78,7 @@ const ClockInOutPage: React.FC = () => {
   const getCurrentLocation = (): Promise<string> => {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
-        reject('Geolocation is not supported by this browser.');
+        resolve('Location not available');
         return;
       }
 
@@ -87,7 +88,12 @@ const ClockInOutPage: React.FC = () => {
           resolve(`${latitude}, ${longitude}`);
         },
         (error) => {
-          reject(`Unable to retrieve location: ${error.message}`);
+          console.warn('Location access denied:', error);
+          resolve('Location not available');
+        },
+        {
+          timeout: 10000,
+          enableHighAccuracy: false
         }
       );
     });
@@ -133,7 +139,6 @@ const ClockInOutPage: React.FC = () => {
     const { data, error } = await supabase
       .from('timesheet_entries')
       .select('*')
-      .eq('employee_name', user.username) // Using username as employee identifier
       .eq('clock_in_date', today)
       .order('created_at', { ascending: false });
 
@@ -144,8 +149,11 @@ const ClockInOutPage: React.FC = () => {
 
     setTodayEntries(data || []);
     
-    // Find active (not clocked out) entry - check for 00:00:00 or null clock_out_time
-    const activeEntry = data?.find(entry => !entry.clock_out_time || entry.clock_out_time === '00:00:00');
+    // Find active (not clocked out) entry for current user - check for 00:00:00 or null clock_out_time
+    const activeEntry = data?.find(entry => 
+      entry.employee_name === user.username && 
+      (!entry.clock_out_time || entry.clock_out_time === '00:00:00')
+    );
     setCurrentEntry(activeEntry || null);
   };
 
@@ -165,7 +173,7 @@ const ClockInOutPage: React.FC = () => {
       setLocation(userLocation);
       
       // Attempt to capture photo (optional)
-      await capturePhoto();
+      const photo = await capturePhoto();
       
       const now = new Date();
       const { data, error } = await supabase
@@ -207,7 +215,7 @@ const ClockInOutPage: React.FC = () => {
       const userLocation = await getCurrentLocation();
       
       // Attempt to capture photo (optional)
-      await capturePhoto();
+      const photo = await capturePhoto();
       
       const now = new Date();
       const clockOutTime = format(now, 'HH:mm:ss');
@@ -323,17 +331,76 @@ const ClockInOutPage: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* Team Status */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+            <span>Team Status</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {todayEntries.filter(entry => entry.employee_name !== user?.username).length === 0 ? (
+            <p className="text-muted-foreground text-center py-4">No other team members working today</p>
+          ) : (
+            <div className="space-y-3">
+              {todayEntries
+                .filter(entry => entry.employee_name !== user?.username)
+                .map((entry) => {
+                  const isActive = !entry.clock_out_time || entry.clock_out_time === '00:00:00';
+                  return (
+                    <div key={entry.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <div className="relative">
+                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                            <span className="text-sm font-medium text-blue-800">
+                              {entry.employee_name.split(' ').map(n => n[0]).join('')}
+                            </span>
+                          </div>
+                          {isActive && (
+                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{entry.employee_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {isActive ? `Clocked in at ${entry.clock_in_time}` : `${entry.clock_in_time} - ${entry.clock_out_time}`}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          isActive 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {isActive ? 'Active' : 'Completed'}
+                        </div>
+                        {entry.total_hours && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {entry.total_hours.toFixed(2)}h
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Today's Entries */}
       <Card>
         <CardHeader>
-          <CardTitle>Today's Entries</CardTitle>
+          <CardTitle>My Entries Today</CardTitle>
         </CardHeader>
         <CardContent>
-          {todayEntries.length === 0 ? (
+          {todayEntries.filter(entry => entry.employee_name === user?.username).length === 0 ? (
             <p className="text-gray-500 text-center py-4">No entries for today</p>
           ) : (
             <div className="space-y-4">
-              {todayEntries.map((entry) => (
+              {todayEntries.filter(entry => entry.employee_name === user?.username).map((entry) => (
                 <div key={entry.id} className="border rounded-lg p-4">
                   <div className="flex justify-between items-start">
                     <div>
