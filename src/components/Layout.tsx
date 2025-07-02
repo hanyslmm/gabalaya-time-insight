@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Outlet, useNavigate } from 'react-router-dom';
@@ -6,7 +7,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { Menu, LogOut, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -29,11 +30,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { name: t('settings'), href: '/settings', icon: 'Settings' },
   ];
   
-  const sidebarVariants = {
+  const sidebarVariants: Variants = {
     open: { 
       x: 0,
       transition: {
-        type: "spring",
+        type: "spring" as const,
         stiffness: 400,
         damping: 30
       }
@@ -41,14 +42,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     closed: { 
       x: "-100%",
       transition: {
-        type: "spring",
+        type: "spring" as const,
         stiffness: 400,
         damping: 30
       }
     }
   };
 
-  const overlayVariants = {
+  const overlayVariants: Variants = {
     open: { 
       opacity: 1,
       display: "block"
