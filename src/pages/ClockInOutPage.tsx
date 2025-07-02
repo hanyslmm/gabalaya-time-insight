@@ -65,8 +65,8 @@ const ClockInOutPage: React.FC = () => {
 
     setTodayEntries(data || []);
     
-    // Find active (not clocked out) entry
-    const activeEntry = data?.find(entry => !entry.clock_out_time);
+    // Find active (not clocked out) entry - check for 00:00:00 or null clock_out_time
+    const activeEntry = data?.find(entry => !entry.clock_out_time || entry.clock_out_time === '00:00:00');
     setCurrentEntry(activeEntry || null);
   };
 
@@ -93,8 +93,8 @@ const ClockInOutPage: React.FC = () => {
           employee_id: null, // Set to null since we don't have the actual employee table ID
           clock_in_date: format(now, 'yyyy-MM-dd'),
           clock_in_time: format(now, 'HH:mm:ss'),
-          clock_out_date: format(now, 'yyyy-MM-dd'), // Required field
-          clock_out_time: '23:59:59', // Temporary default
+          clock_out_date: format(now, 'yyyy-MM-dd'), // Required field but will be updated on clock out
+          clock_out_time: '00:00:00', // Will be updated when employee clocks out
           total_hours: 0,
           total_card_amount_flat: 0,
           clock_in_location: userLocation
@@ -244,13 +244,13 @@ const ClockInOutPage: React.FC = () => {
                   <div className="flex justify-between items-start">
                     <div>
                       <div className="flex items-center space-x-2 mb-2">
-                        <Badge variant={entry.clock_out_time ? "default" : "secondary"}>
-                          {entry.clock_out_time ? "Completed" : "Active"}
+                        <Badge variant={entry.clock_out_time && entry.clock_out_time !== '00:00:00' ? "default" : "secondary"}>
+                          {entry.clock_out_time && entry.clock_out_time !== '00:00:00' ? "Completed" : "Active"}
                         </Badge>
                       </div>
                       <div className="text-sm space-y-1">
                         <p><strong>Clock In:</strong> {entry.clock_in_time} on {entry.clock_in_date}</p>
-                        {entry.clock_out_time && (
+                        {entry.clock_out_time && entry.clock_out_time !== '00:00:00' && (
                           <p><strong>Clock Out:</strong> {entry.clock_out_time} on {entry.clock_out_date}</p>
                         )}
                         {entry.total_hours && (
