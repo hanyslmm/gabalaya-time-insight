@@ -20,10 +20,7 @@ interface ClockEntry {
   total_hours?: number;
 }
 
-// Google Maps API key - you should add this to your Supabase Edge Function secrets
-const GOOGLE_MAPS_API_KEY = 'your-google-maps-api-key'; // Replace with actual key or fetch from secrets
-
-const LocationThumbnail: React.FC<{ 
+const LocationDisplay: React.FC<{ 
   location: string; 
   label: string; 
   className?: string; 
@@ -36,18 +33,13 @@ const LocationThumbnail: React.FC<{
     // If coordinates are invalid, just show the raw location string
     return (
       <div className={`flex items-center space-x-2 ${className}`}>
-        <div className="flex items-center space-x-1">
-          <MapPin className="h-3 w-3 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">{label}:</span>
-        </div>
-        <span className="text-xs text-foreground font-mono">{location}</span>
+        <MapPin className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm text-muted-foreground">{label}:</span>
+        <span className="text-sm text-foreground">{location}</span>
       </div>
     );
   }
 
-  // Google Maps Static API URL for thumbnail
-  const staticMapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=15&size=100x100&maptype=roadmap&markers=color:red%7C${lat},${lng}&key=${GOOGLE_MAPS_API_KEY}`;
-  
   // Google Maps URL for navigation
   const mapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
 
@@ -55,47 +47,20 @@ const LocationThumbnail: React.FC<{
     window.open(mapsUrl, '_blank');
   };
 
-  const handleCoordinateClick = () => {
-    window.open(mapsUrl, '_blank');
-  };
-
   return (
     <div className={`flex items-center space-x-2 ${className}`}>
-      <div className="flex items-center space-x-1">
-        <MapPin className="h-3 w-3 text-muted-foreground" />
-        <span className="text-xs text-muted-foreground">{label}:</span>
-      </div>
-      
-      {/* Show coordinates with click-to-navigate */}
-      <div 
-        className="cursor-pointer text-xs text-blue-600 hover:text-blue-800 underline font-mono"
-        onClick={handleCoordinateClick}
-        title="Click to view on Google Maps"
-      >
+      <MapPin className="h-4 w-4 text-muted-foreground" />
+      <span className="text-sm text-muted-foreground">{label}:</span>
+      <span className="text-sm text-foreground font-mono">
         {lat.toFixed(6)}, {lng.toFixed(6)}
-      </div>
-
-      {/* Show map thumbnail if API key is available */}
-      {GOOGLE_MAPS_API_KEY !== 'your-google-maps-api-key' && (
-        <div 
-          className="relative cursor-pointer group border rounded-md overflow-hidden shadow-sm hover:shadow-md transition-shadow"
-          onClick={handleMapClick}
-          title="Click to view on Google Maps"
-        >
-          <img 
-            src={staticMapUrl} 
-            alt={`${label} location`}
-            className="w-16 h-16 object-cover"
-            onError={(e) => {
-              // Hide image if it fails to load
-              e.currentTarget.style.display = 'none';
-            }}
-          />
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-            <ExternalLink className="h-3 w-3 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
-        </div>
-      )}
+      </span>
+      <button
+        onClick={handleMapClick}
+        className="p-1 rounded-md hover:bg-muted transition-colors"
+        title="Open in Google Maps"
+      >
+        <ExternalLink className="h-4 w-4 text-blue-600 hover:text-blue-800" />
+      </button>
     </div>
   );
 };
@@ -276,7 +241,7 @@ const ClockInOutPage: React.FC = () => {
                 <div className="text-sm text-gray-600">
                   <p>Clocked in at: {currentEntry.clock_in_time} on {currentEntry.clock_in_date}</p>
                   {currentEntry.clock_in_location && (
-                    <LocationThumbnail 
+                    <LocationDisplay 
                       location={currentEntry.clock_in_location}
                       label="Clock In Location"
                       className="mt-2"
@@ -343,13 +308,13 @@ const ClockInOutPage: React.FC = () => {
                   {(entry.clock_in_location || entry.clock_out_location) && (
                     <div className="mt-3 pt-3 border-t space-y-2">
                       {entry.clock_in_location && (
-                        <LocationThumbnail 
+                        <LocationDisplay 
                           location={entry.clock_in_location}
                           label="Clock In"
                         />
                       )}
                       {entry.clock_out_location && (
-                        <LocationThumbnail 
+                        <LocationDisplay 
                           location={entry.clock_out_location}
                           label="Clock Out"
                         />
