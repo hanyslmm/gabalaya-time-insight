@@ -32,7 +32,18 @@ const LocationThumbnail: React.FC<{
 
   const [lat, lng] = location.split(', ').map(coord => parseFloat(coord.trim()));
   
-  if (isNaN(lat) || isNaN(lng)) return null;
+  if (isNaN(lat) || isNaN(lng)) {
+    // If coordinates are invalid, just show the raw location string
+    return (
+      <div className={`flex items-center space-x-2 ${className}`}>
+        <div className="flex items-center space-x-1">
+          <MapPin className="h-3 w-3 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">{label}:</span>
+        </div>
+        <span className="text-xs text-foreground font-mono">{location}</span>
+      </div>
+    );
+  }
 
   // Google Maps Static API URL for thumbnail
   const staticMapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=15&size=100x100&maptype=roadmap&markers=color:red%7C${lat},${lng}&key=${GOOGLE_MAPS_API_KEY}`;
@@ -44,30 +55,47 @@ const LocationThumbnail: React.FC<{
     window.open(mapsUrl, '_blank');
   };
 
+  const handleCoordinateClick = () => {
+    window.open(mapsUrl, '_blank');
+  };
+
   return (
     <div className={`flex items-center space-x-2 ${className}`}>
       <div className="flex items-center space-x-1">
         <MapPin className="h-3 w-3 text-muted-foreground" />
         <span className="text-xs text-muted-foreground">{label}:</span>
       </div>
+      
+      {/* Show coordinates with click-to-navigate */}
       <div 
-        className="relative cursor-pointer group border rounded-md overflow-hidden shadow-sm hover:shadow-md transition-shadow"
-        onClick={handleMapClick}
+        className="cursor-pointer text-xs text-blue-600 hover:text-blue-800 underline font-mono"
+        onClick={handleCoordinateClick}
         title="Click to view on Google Maps"
       >
-        <img 
-          src={staticMapUrl} 
-          alt={`${label} location`}
-          className="w-16 h-16 object-cover"
-          onError={(e) => {
-            // Fallback if image fails to load
-            e.currentTarget.style.display = 'none';
-          }}
-        />
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-          <ExternalLink className="h-3 w-3 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-        </div>
+        {lat.toFixed(6)}, {lng.toFixed(6)}
       </div>
+
+      {/* Show map thumbnail if API key is available */}
+      {GOOGLE_MAPS_API_KEY !== 'your-google-maps-api-key' && (
+        <div 
+          className="relative cursor-pointer group border rounded-md overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+          onClick={handleMapClick}
+          title="Click to view on Google Maps"
+        >
+          <img 
+            src={staticMapUrl} 
+            alt={`${label} location`}
+            className="w-16 h-16 object-cover"
+            onError={(e) => {
+              // Hide image if it fails to load
+              e.currentTarget.style.display = 'none';
+            }}
+          />
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+            <ExternalLink className="h-3 w-3 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
