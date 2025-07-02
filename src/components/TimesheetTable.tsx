@@ -1,8 +1,10 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { useTimesheetTable } from '@/hooks/useTimesheetTable';
 import { useIsMobile } from '@/hooks/use-mobile';
 import TimesheetTableFilters from './TimesheetTableFilters';
@@ -47,6 +49,8 @@ interface TimesheetTableProps {
   dateRange?: DateRange;
 }
 
+const ITEMS_PER_PAGE = 20;
+
 const TimesheetTable: React.FC<TimesheetTableProps> = ({ 
   data, 
   selectedRows, 
@@ -56,6 +60,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
 }) => {
   const { t } = useTranslation();
   const isMobile = useIsMobile();
+  const [currentPage, setCurrentPage] = useState(1);
   
   const {
     searchTerm,
@@ -68,6 +73,33 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
     handleDeleteSelected,
     deleteMutation
   } = useTimesheetTable(data, selectedRows, onSelectionChange, onDataChange, dateRange);
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedData = filteredData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  // Reset to first page when data changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredData.length]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleSelectAllPage = (checked: boolean) => {
+    if (checked) {
+      const pageIds = paginatedData.map(entry => entry.id);
+      const newSelection = [...new Set([...selectedRows, ...pageIds])];
+      onSelectionChange(newSelection);
+    } else {
+      const pageIds = paginatedData.map(entry => entry.id);
+      onSelectionChange(selectedRows.filter(id => !pageIds.includes(id)));
+    }
+  };
+
+  const isAllPageSelected = paginatedData.length > 0 && paginatedData.every(entry => selectedRows.includes(entry.id));
 
   return (
     <div className="space-y-4">
@@ -94,20 +126,25 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
       {/* Mobile View */}
       {isMobile ? (
         <div className="space-y-4">
-          <div className="flex items-center space-x-2 p-4 bg-gray-50 rounded-lg">
-            <Checkbox
-              checked={selectedRows.length === filteredData.length && filteredData.length > 0}
-              onCheckedChange={handleSelectAll}
-            />
-            <span className="text-sm font-medium">Select All</span>
+          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                checked={isAllPageSelected}
+                onCheckedChange={handleSelectAllPage}
+              />
+              <span className="text-sm font-medium">Select Page</span>
+            </div>
+            <div className="text-sm text-gray-600">
+              Page {currentPage} of {totalPages}
+            </div>
           </div>
           
-          {filteredData.length === 0 ? (
+          {paginatedData.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               {t('noTimesheetData') || 'No timesheet data available'}
             </div>
           ) : (
-            filteredData.map((entry) => (
+            paginatedData.map((entry) => (
               <TimesheetMobileCard
                 key={entry.id}
                 entry={entry}
@@ -125,8 +162,8 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
               <TableRow>
                 <TableHead className="w-12">
                   <Checkbox
-                    checked={selectedRows.length === filteredData.length && filteredData.length > 0}
-                    onCheckedChange={handleSelectAll}
+                    checked={isAllPageSelected}
+                    onCheckedChange={handleSelectAllPage}
                   />
                 </TableHead>
                 <TableHead>
@@ -152,15 +189,15 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredData.length === 0 ? (
+              {paginatedData.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={11} className="text-center py-8 text-gray-500">
                     {t('noTimesheetData') || 'No timesheet data available'}
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredData.map((entry) => (
-                  <TableRow key={entry.id}>
+                paginatedData.map((entry) => (
+                  <TableRow key={entry.id} className="hover:bg-gray-50 transition-colors">
                     <TableCell>
                       <Checkbox
                         checked={selectedRows.includes(entry.id)}
@@ -184,11 +221,59 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
           </Table>
         </div>
       )}
-      
-      <div className="text-sm text-gray-500">
-        {t('showing') || 'Showing'} {filteredData.length} {t('of') || 'of'} {data.length} {t('entries') || 'entries'}
-        {selectedRows.length > 0 && ` (${selectedRows.length} ${t('selected') || 'selected'})`}
-      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
+          <div className="text-sm text-gray-500">
+            {t('showing') || 'Showing'} {startIndex + 1} to {Math.min(startIndex + ITEMS_PER_PAGE, filteredData.length)} of {filteredData.length} {t('entries') || 'entries'}
+            {selectedRows.length > 0 && ` (${selectedRows.length} ${t('selected') || 'selected'})`}
+          </div>
+          
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious 
+                  onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                  className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer hover:bg-gray-100'}
+                />
+              </PaginationItem>
+              
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNumber;
+                if (totalPages <= 5) {
+                  pageNumber = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNumber = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNumber = totalPages - 4 + i;
+                } else {
+                  pageNumber = currentPage - 2 + i;
+                }
+                
+                return (
+                  <PaginationItem key={pageNumber}>
+                    <PaginationLink
+                      onClick={() => handlePageChange(pageNumber)}
+                      isActive={currentPage === pageNumber}
+                      className="cursor-pointer"
+                    >
+                      {pageNumber}
+                    </PaginationLink>
+                  </PaginationItem>
+                );
+              })}
+              
+              <PaginationItem>
+                <PaginationNext 
+                  onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                  className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer hover:bg-gray-100'}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
     </div>
   );
 };
