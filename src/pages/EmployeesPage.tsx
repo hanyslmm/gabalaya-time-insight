@@ -160,17 +160,30 @@ const EmployeesPage: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                <p><span className="font-medium">{t('role')}:</span> {employee.role}</p>
-                <p><span className="font-medium">{t('hiringDate')}:</span> {new Date(employee.hiring_date).toLocaleDateString()}</p>
-                <p><span className="font-medium">Morning Rate:</span> LE {employee.morning_wage_rate?.toFixed(2) || '17.00'}/hr</p>
-                <p><span className="font-medium">Night Rate:</span> LE {employee.night_wage_rate?.toFixed(2) || '20.00'}/hr</p>
-                {employee.email && (
-                  <p><span className="font-medium">{t('email')}:</span> {employee.email}</p>
-                )}
-                {employee.phone_number && (
-                  <p><span className="font-medium">{t('phoneNumber')}:</span> {employee.phone_number}</p>
-                )}
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">Morning Rate</p>
+                    <p className="text-lg font-bold text-blue-900">LE {employee.morning_wage_rate?.toFixed(2) || '17.00'}</p>
+                    <p className="text-xs text-blue-600">per hour</p>
+                  </div>
+                  <div className="bg-purple-50 p-3 rounded-lg">
+                    <p className="text-xs font-medium text-purple-600 uppercase tracking-wide">Night Rate</p>
+                    <p className="text-lg font-bold text-purple-900">LE {employee.night_wage_rate?.toFixed(2) || '20.00'}</p>
+                    <p className="text-xs text-purple-600">per hour</p>
+                  </div>
+                </div>
+                
+                <div className="border-t pt-2 space-y-1">
+                  <p><span className="font-medium text-gray-600">{t('role')}:</span> <span className="text-gray-900">{employee.role}</span></p>
+                  <p><span className="font-medium text-gray-600">{t('hiringDate')}:</span> <span className="text-gray-900">{new Date(employee.hiring_date).toLocaleDateString()}</span></p>
+                  {employee.email && (
+                    <p><span className="font-medium text-gray-600">{t('email')}:</span> <span className="text-gray-900">{employee.email}</span></p>
+                  )}
+                  {employee.phone_number && (
+                    <p><span className="font-medium text-gray-600">{t('phoneNumber')}:</span> <span className="text-gray-900">{employee.phone_number}</span></p>
+                  )}
+                </div>
               </div>
               <Button
                 variant="outline"

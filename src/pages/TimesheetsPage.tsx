@@ -8,13 +8,24 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, Download, Split, Trash2 } from 'lucide-react';
 import TimesheetUpload from '@/components/TimesheetUpload';
 import TimesheetTable from '@/components/TimesheetTable';
+import TimesheetDateFilter from '@/components/TimesheetDateFilter';
 import WageCalculator from '@/components/WageCalculator';
 import TimesheetExport from '@/components/TimesheetExport';
+
+interface DateRange {
+  from: Date;
+  to: Date;
+}
 
 const TimesheetsPage: React.FC = () => {
   const { t } = useTranslation();
   const [showUpload, setShowUpload] = useState(false);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
+  const [dateRange, setDateRange] = useState<DateRange>({ 
+    from: new Date(), 
+    to: new Date() 
+  });
+  const [payPeriodEndDay, setPayPeriodEndDay] = useState(28);
 
   const { data: timesheets, isLoading, refetch } = useQuery({
     queryKey: ['timesheets'],
@@ -48,6 +59,14 @@ const TimesheetsPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Date Filter */}
+      <TimesheetDateFilter
+        dateRange={dateRange}
+        onDateRangeChange={setDateRange}
+        payPeriodEndDay={payPeriodEndDay}
+        onPayPeriodEndDayChange={setPayPeriodEndDay}
+      />
+
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
         <Card className="lg:col-span-3">
           <CardHeader>
@@ -64,6 +83,7 @@ const TimesheetsPage: React.FC = () => {
                 selectedRows={selectedRows}
                 onSelectionChange={setSelectedRows}
                 onDataChange={refetch}
+                dateRange={dateRange}
               />
             )}
           </CardContent>

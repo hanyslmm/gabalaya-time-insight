@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
+import { isWithinInterval, parseISO } from 'date-fns';
 
 interface TimesheetEntry {
   id: string;
@@ -29,11 +30,17 @@ interface TimesheetEntry {
   is_split_calculation: boolean;
 }
 
+interface DateRange {
+  from: Date;
+  to: Date;
+}
+
 export const useTimesheetTable = (
   data: TimesheetEntry[],
   selectedRows: string[],
   onSelectionChange: (selectedRows: string[]) => void,
-  onDataChange: () => void
+  onDataChange: () => void,
+  dateRange?: DateRange
 ) => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -63,6 +70,14 @@ export const useTimesheetTable = (
 
   const filteredData = useMemo(() => {
     return data.filter(entry => {
+      // Date range filter
+      if (dateRange) {
+        const entryDate = parseISO(entry.clock_in_date);
+        if (!isWithinInterval(entryDate, { start: dateRange.from, end: dateRange.to })) {
+          return false;
+        }
+      }
+
       // Global search
       const matchesGlobalSearch = Object.values(entry).some(value => 
         value?.toString().toLowerCase().includes(searchTerm.toLowerCase())
@@ -77,7 +92,7 @@ export const useTimesheetTable = (
         return value?.toString().toLowerCase().includes(filter.toLowerCase());
       });
     });
-  }, [data, searchTerm, columnFilters]);
+  }, [data, searchTerm, columnFilters, dateRange]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {

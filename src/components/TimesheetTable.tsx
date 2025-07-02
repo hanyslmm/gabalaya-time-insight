@@ -32,18 +32,25 @@ interface TimesheetEntry {
   is_split_calculation: boolean;
 }
 
+interface DateRange {
+  from: Date;
+  to: Date;
+}
+
 interface TimesheetTableProps {
   data: TimesheetEntry[];
   selectedRows: string[];
   onSelectionChange: (selectedRows: string[]) => void;
   onDataChange: () => void;
+  dateRange?: DateRange;
 }
 
 const TimesheetTable: React.FC<TimesheetTableProps> = ({ 
   data, 
   selectedRows, 
   onSelectionChange, 
-  onDataChange 
+  onDataChange,
+  dateRange
 }) => {
   const { t } = useTranslation();
   
@@ -57,7 +64,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
     handleSelectRow,
     handleDeleteSelected,
     deleteMutation
-  } = useTimesheetTable(data, selectedRows, onSelectionChange, onDataChange);
+  } = useTimesheetTable(data, selectedRows, onSelectionChange, onDataChange, dateRange);
 
   return (
     <div className="space-y-4">
