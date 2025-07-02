@@ -60,6 +60,13 @@ const DashboardPage: React.FC = () => {
       color: 'bg-green-500'
     },
     {
+      title: 'Employee Monitor',
+      description: 'Real-time monitoring of employee clock-in/out status',
+      icon: Users,
+      action: () => navigate('/monitor'),
+      color: 'bg-purple-500'
+    },
+    {
       title: 'Manage Employees',
       description: 'Add, edit, or view employee information',
       icon: Users,

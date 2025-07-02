@@ -8,6 +8,7 @@ import { Menu, LogOut, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { motion, AnimatePresence, Variants } from 'framer-motion';
+import NotificationSystem from './NotificationSystem';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -26,6 +27,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       { name: t('dashboard'), href: '/dashboard', icon: 'LayoutDashboard' },
       { name: t('employees'), href: '/employees', icon: 'Users' },
       { name: t('timesheets'), href: '/timesheets', icon: 'Calendar' },
+      { name: 'Employee Monitor', href: '/monitor', icon: 'Activity' },
       { name: t('reports'), href: '/reports', icon: 'FileBarChart' },
       { name: t('settings'), href: '/settings', icon: 'Settings' },
     ] : []),
@@ -254,6 +256,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <h1 className="text-xl font-bold text-gray-900">
                   {t('welcome')}, {user?.full_name || user?.username} 👋
                 </h1>
+                <div className="flex items-center space-x-4">
+                  {/* Notifications for admin */}
+                  {user?.role === 'admin' && <NotificationSystem />}
+                </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="sm" className="p-2 hover:bg-gray-100 rounded-full">
