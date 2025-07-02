@@ -41,21 +41,23 @@ const TimesheetsPage: React.FC = () => {
   });
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-8">
+    <div className="px-4 sm:px-6 lg:px-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 space-y-4 sm:space-y-0">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t('timesheets')}</h1>
           <p className="mt-2 text-sm text-gray-600">Manage timesheet data and wage calculations</p>
         </div>
-        <div className="flex space-x-2">
+        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
           <Button 
             onClick={() => setShowUpload(true)} 
-            className="flex items-center space-x-2"
+            className="flex items-center justify-center space-x-2 w-full sm:w-auto"
           >
             <Upload className="h-4 w-4" />
             <span>{t('uploadTimesheet')}</span>
           </Button>
-          <TimesheetExport selectedRows={selectedRows} />
+          <div className="w-full sm:w-auto">
+            <TimesheetExport selectedRows={selectedRows} />
+          </div>
         </div>
       </div>
 
@@ -68,7 +70,7 @@ const TimesheetsPage: React.FC = () => {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
-        <Card className="lg:col-span-3">
+        <Card className="lg:col-span-4 xl:col-span-3">
           <CardHeader>
             <CardTitle>Timesheet Entries</CardTitle>
           </CardHeader>
@@ -89,7 +91,7 @@ const TimesheetsPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="lg:col-span-4 xl:col-span-1">
           <CardHeader>
             <CardTitle>Actions</CardTitle>
           </CardHeader>

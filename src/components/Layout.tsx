@@ -11,7 +11,8 @@ import {
   Settings, 
   LogOut,
   Languages,
-  Menu
+  Menu,
+  X
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -42,18 +43,26 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 z-40 bg-black bg-opacity-50 md:hidden"
+          className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
+      <div className={`fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      } md:flex md:flex-col`}>
+      } lg:flex lg:flex-col`}>
         <div className="flex min-h-0 flex-1 flex-col bg-gray-800">
-          <div className="flex h-16 flex-shrink-0 items-center bg-gray-900 px-4">
+          <div className="flex h-16 flex-shrink-0 items-center justify-between bg-gray-900 px-4">
             <h1 className="text-xl font-bold text-white">Gabalaya Finance</h1>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden text-white hover:bg-gray-700"
+            >
+              <X className="h-6 w-6" />
+            </Button>
           </div>
           <div className="flex flex-1 flex-col overflow-y-auto">
             <nav className="flex-1 space-y-1 bg-gray-800 px-2 py-4">
@@ -79,8 +88,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </nav>
           </div>
           <div className="flex flex-shrink-0 bg-gray-700 p-4">
-            <div className="flex items-center">
-              <div className="ml-3">
+            <div className="flex items-center w-full">
+              <div className="ml-3 flex-1">
                 <p className="text-sm font-medium text-white">{user?.full_name || 'User'}</p>
                 <p className="text-xs font-medium text-gray-300">{user?.role || 'Admin'}</p>
               </div>
@@ -98,12 +107,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 variant="ghost"
                 size="sm"
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="md:hidden"
+                className="lg:hidden"
               >
                 <Menu className="h-6 w-6" />
               </Button>
             </div>
-            <div className="ml-4 flex items-center md:ml-6 space-x-4">
+            <div className="ml-4 flex items-center lg:ml-6 space-x-2 lg:space-x-4">
               <Button
                 variant="ghost"
                 size="sm"
@@ -111,7 +120,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 className="flex items-center space-x-2"
               >
                 <Languages className="h-4 w-4" />
-                <span>{i18n.language.toUpperCase()}</span>
+                <span className="hidden sm:inline">{i18n.language.toUpperCase()}</span>
               </Button>
               <Button
                 variant="ghost"
@@ -120,7 +129,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 className="flex items-center space-x-2"
               >
                 <LogOut className="h-4 w-4" />
-                <span>{t('logout')}</span>
+                <span className="hidden sm:inline">{t('logout')}</span>
               </Button>
             </div>
           </div>
@@ -128,7 +137,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
         <main className="flex-1 relative overflow-y-auto focus:outline-none">
           <div className="py-6">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
+            <div className="max-w-7xl mx-auto">
               {children}
             </div>
           </div>

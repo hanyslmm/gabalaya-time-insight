@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Users, Clock, DollarSign, TrendingUp, Upload, Download, Settings } from 'lucide-react';
+import DashboardCharts from '@/components/DashboardCharts';
 
 const DashboardPage: React.FC = () => {
   const { t } = useTranslation();
@@ -75,14 +76,14 @@ const DashboardPage: React.FC = () => {
   ];
 
   return (
-    <div>
+    <div className="px-4 sm:px-6 lg:px-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">{t('dashboard') || 'Dashboard'}</h1>
         <p className="mt-2 text-sm text-gray-600">Overview</p>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
@@ -109,7 +110,7 @@ const DashboardPage: React.FC = () => {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{timesheetSummary?.totalPayroll.toFixed(2) || '0.00'} LE</div>
+            <div className="text-xl lg:text-2xl font-bold">{timesheetSummary?.totalPayroll.toFixed(2) || '0.00'} LE</div>
           </CardContent>
         </Card>
 
@@ -124,6 +125,9 @@ const DashboardPage: React.FC = () => {
         </Card>
       </div>
 
+      {/* Charts */}
+      <DashboardCharts />
+
       {/* Quick Actions */}
       <Card className="mb-8">
         <CardHeader>
@@ -131,7 +135,7 @@ const DashboardPage: React.FC = () => {
           <CardDescription>Common tasks and navigation shortcuts</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {quickActions.map((action, index) => {
               const Icon = action.icon;
               return (
