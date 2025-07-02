@@ -90,7 +90,7 @@ const ClockInOutPage: React.FC = () => {
         .from('timesheet_entries')
         .insert({
           employee_name: user.username,
-          employee_id: user.id,
+          employee_id: null, // Set to null since we don't have the actual employee table ID
           clock_in_date: format(now, 'yyyy-MM-dd'),
           clock_in_time: format(now, 'HH:mm:ss'),
           clock_out_date: format(now, 'yyyy-MM-dd'), // Required field

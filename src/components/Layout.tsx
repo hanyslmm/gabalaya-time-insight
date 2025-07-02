@@ -22,8 +22,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
 
   const navigation = [
-    { name: t('dashboard'), href: '/dashboard', icon: 'LayoutDashboard' },
     ...(user?.role === 'admin' ? [
+      { name: t('dashboard'), href: '/dashboard', icon: 'LayoutDashboard' },
       { name: t('employees'), href: '/employees', icon: 'Users' },
       { name: t('timesheets'), href: '/timesheets', icon: 'Calendar' },
       { name: t('reports'), href: '/reports', icon: 'FileBarChart' },
@@ -31,8 +31,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     ] : []),
     ...(user?.role === 'employee' ? [
       { name: 'Clock In/Out', href: '/clockinout', icon: 'Clock' },
+      { name: 'My Profile', href: '/profile', icon: 'User' },
     ] : []),
-    { name: t('payroll'), href: '/payroll', icon: 'Coins' },
   ];
   
   const sidebarVariants: Variants = {

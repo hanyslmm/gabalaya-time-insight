@@ -11,6 +11,7 @@ import TimesheetsPage from '@/pages/TimesheetsPage';
 import SettingsPage from '@/pages/SettingsPage';
 import ReportsPage from '@/pages/ReportsPage';
 import ClockInOutPage from '@/pages/ClockInOutPage';
+import ProfilePage from '@/pages/ProfilePage';
 import Layout from '@/components/Layout';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import './i18n';
@@ -37,6 +38,7 @@ function App() {
                         <Route path="/timesheets" element={<TimesheetsPage />} />
                         <Route path="/reports" element={<ReportsPage />} />
                         <Route path="/clockinout" element={<ClockInOutPage />} />
+                        <Route path="/profile" element={<ProfilePage />} />
                         <Route path="/settings" element={<SettingsPage />} />
                       </Routes>
                     </Layout>
