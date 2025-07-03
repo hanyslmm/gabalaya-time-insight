@@ -30,13 +30,33 @@ const TimesheetsPage: React.FC = () => {
   const { data: timesheets, isLoading, refetch } = useQuery({
     queryKey: ['timesheets'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('timesheet_entries')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Fetch timesheet entries and employees in parallel
+      const [timesheetResult, employeesResult] = await Promise.all([
+        supabase
+          .from('timesheet_entries')
+          .select('*')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('employees')
+          .select('staff_id, full_name')
+      ]);
       
-      if (error) throw error;
-      return data;
+      if (timesheetResult.error) throw timesheetResult.error;
+      if (employeesResult.error) throw employeesResult.error;
+      
+      // Create employee mapping
+      const employeeMap = new Map();
+      (employeesResult.data || []).forEach(emp => {
+        employeeMap.set(emp.staff_id, emp.full_name);
+      });
+      
+      // Map employee IDs to names in timesheet data
+      const mappedData = (timesheetResult.data || []).map(entry => ({
+        ...entry,
+        employee_name: employeeMap.get(entry.employee_name) || entry.employee_name
+      }));
+      
+      return mappedData;
     }
   });
 
