@@ -9,7 +9,6 @@ import { Upload, Download, Split, Trash2 } from 'lucide-react';
 import TimesheetUpload from '@/components/TimesheetUpload';
 import TimesheetTable from '@/components/TimesheetTable';
 import TimesheetDateFilter from '@/components/TimesheetDateFilter';
-import WageCalculator from '@/components/WageCalculator';
 import TimesheetExport from '@/components/TimesheetExport';
 
 interface DateRange {
@@ -30,19 +29,31 @@ const TimesheetsPage: React.FC = () => {
   const { data: timesheets, isLoading, refetch } = useQuery({
     queryKey: ['timesheets'],
     queryFn: async () => {
-      // Fetch timesheet entries and employees in parallel
-      const [timesheetResult, employeesResult] = await Promise.all([
+      // Fetch timesheet entries, employees, and wage settings in parallel
+      const [timesheetResult, employeesResult, wageSettingsResult] = await Promise.all([
         supabase
           .from('timesheet_entries')
-          .select('*')
+          .select(`
+            *,
+            employees!inner(
+              full_name,
+              morning_wage_rate,
+              night_wage_rate
+            )
+          `)
           .order('created_at', { ascending: false }),
         supabase
           .from('employees')
-          .select('staff_id, full_name')
+          .select('staff_id, full_name'),
+        supabase
+          .from('wage_settings')
+          .select('*')
+          .single()
       ]);
       
       if (timesheetResult.error) throw timesheetResult.error;
       if (employeesResult.error) throw employeesResult.error;
+      if (wageSettingsResult.error) throw wageSettingsResult.error;
       
       // Create employee mapping
       const employeeMap = new Map();
@@ -50,10 +61,103 @@ const TimesheetsPage: React.FC = () => {
         employeeMap.set(emp.staff_id, emp.full_name);
       });
       
-      // Map employee IDs to names in timesheet data
-      const mappedData = (timesheetResult.data || []).map(entry => ({
-        ...entry,
-        employee_name: employeeMap.get(entry.employee_name) || entry.employee_name
+      const wageSettings = wageSettingsResult.data;
+      
+      // Map employee IDs to names and auto-calculate split wages
+      const mappedData = await Promise.all((timesheetResult.data || []).map(async (entry) => {
+        const mappedEntry = {
+          ...entry,
+          employee_name: employeeMap.get(entry.employee_name) || entry.employee_name
+        };
+        
+        // Auto-calculate split wages if not already calculated
+        if (!entry.is_split_calculation && wageSettings) {
+          const clockInDateTime = new Date(`${entry.clock_in_date}T${entry.clock_in_time}`);
+          const clockOutDateTime = new Date(`${entry.clock_out_date}T${entry.clock_out_time}`);
+          
+          // Handle next day scenario
+          if (clockOutDateTime < clockInDateTime) {
+            clockOutDateTime.setDate(clockOutDateTime.getDate() + 1);
+          }
+
+          // Create time boundaries
+          const baseDate = new Date(entry.clock_in_date);
+          
+          const morningStart = new Date(baseDate);
+          const [morningStartHour, morningStartMin] = wageSettings.morning_start_time.split(':');
+          morningStart.setHours(parseInt(morningStartHour), parseInt(morningStartMin), 0, 0);
+          
+          const morningEnd = new Date(baseDate);
+          const [morningEndHour, morningEndMin] = wageSettings.morning_end_time.split(':');
+          morningEnd.setHours(parseInt(morningEndHour), parseInt(morningEndMin), 0, 0);
+          
+          const nightStart = new Date(baseDate);
+          const [nightStartHour, nightStartMin] = wageSettings.night_start_time.split(':');
+          nightStart.setHours(parseInt(nightStartHour), parseInt(nightStartMin), 0, 0);
+          
+          const nightEnd = new Date(baseDate);
+          const [nightEndHour, nightEndMin] = wageSettings.night_end_time.split(':');
+          nightEnd.setHours(parseInt(nightEndHour), parseInt(nightEndMin), 0, 0);
+          
+          if (nightEnd <= nightStart) {
+            nightEnd.setDate(nightEnd.getDate() + 1);
+          }
+
+          let morningHours = 0;
+          let nightHours = 0;
+
+          // Calculate morning hours overlap
+          const morningOverlapStart = new Date(Math.max(clockInDateTime.getTime(), morningStart.getTime()));
+          const morningOverlapEnd = new Date(Math.min(clockOutDateTime.getTime(), morningEnd.getTime()));
+          
+          if (morningOverlapEnd > morningOverlapStart) {
+            morningHours = (morningOverlapEnd.getTime() - morningOverlapStart.getTime()) / (1000 * 60 * 60);
+          }
+
+          // Calculate night hours overlap
+          const nightOverlapStart = new Date(Math.max(clockInDateTime.getTime(), nightStart.getTime()));
+          const nightOverlapEnd = new Date(Math.min(clockOutDateTime.getTime(), nightEnd.getTime()));
+          
+          if (nightOverlapEnd > nightOverlapStart) {
+            nightHours = (nightOverlapEnd.getTime() - nightOverlapStart.getTime()) / (1000 * 60 * 60);
+          }
+
+          // Ensure total hours don't exceed actual worked hours
+          const totalWorkedHours = (clockOutDateTime.getTime() - clockInDateTime.getTime()) / (1000 * 60 * 60);
+          const calculatedTotal = morningHours + nightHours;
+          
+          if (calculatedTotal > totalWorkedHours) {
+            const ratio = totalWorkedHours / calculatedTotal;
+            morningHours *= ratio;
+            nightHours *= ratio;
+          }
+
+          // Use individual employee rates or fall back to default
+          const employeeMorningRate = entry.employees?.morning_wage_rate || wageSettings.morning_wage_rate;
+          const employeeNightRate = entry.employees?.night_wage_rate || wageSettings.night_wage_rate;
+
+          const totalSplitAmount = (morningHours * employeeMorningRate) + (nightHours * employeeNightRate);
+
+          // Update the entry in database
+          const { error } = await supabase
+            .from('timesheet_entries')
+            .update({
+              morning_hours: Math.max(0, parseFloat(morningHours.toFixed(2))),
+              night_hours: Math.max(0, parseFloat(nightHours.toFixed(2))),
+              total_card_amount_split: Math.max(0, parseFloat(totalSplitAmount.toFixed(2))),
+              is_split_calculation: true
+            })
+            .eq('id', entry.id);
+
+          if (!error) {
+            mappedEntry.morning_hours = Math.max(0, parseFloat(morningHours.toFixed(2)));
+            mappedEntry.night_hours = Math.max(0, parseFloat(nightHours.toFixed(2)));
+            mappedEntry.total_card_amount_split = Math.max(0, parseFloat(totalSplitAmount.toFixed(2)));
+            mappedEntry.is_split_calculation = true;
+          }
+        }
+        
+        return mappedEntry;
       }));
       
       return mappedData;
@@ -116,11 +220,6 @@ const TimesheetsPage: React.FC = () => {
             <CardTitle>Actions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <WageCalculator 
-              selectedRows={selectedRows}
-              onCalculationComplete={refetch}
-            />
-            
             <Button 
               variant="destructive" 
               size="sm" 
