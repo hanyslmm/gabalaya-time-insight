@@ -33,18 +33,11 @@ const TimesheetsPage: React.FC = () => {
       const [timesheetResult, employeesResult, wageSettingsResult] = await Promise.all([
         supabase
           .from('timesheet_entries')
-          .select(`
-            *,
-            employees!inner(
-              full_name,
-              morning_wage_rate,
-              night_wage_rate
-            )
-          `)
+          .select('*')
           .order('created_at', { ascending: false }),
         supabase
           .from('employees')
-          .select('staff_id, full_name'),
+          .select('staff_id, full_name, morning_wage_rate, night_wage_rate'),
         supabase
           .from('wage_settings')
           .select('*')
@@ -55,19 +48,25 @@ const TimesheetsPage: React.FC = () => {
       if (employeesResult.error) throw employeesResult.error;
       if (wageSettingsResult.error) throw wageSettingsResult.error;
       
-      // Create employee mapping
+      // Create employee mapping for names and rates
       const employeeMap = new Map();
       (employeesResult.data || []).forEach(emp => {
-        employeeMap.set(emp.staff_id, emp.full_name);
+        employeeMap.set(emp.staff_id, emp);
+        employeeMap.set(emp.full_name, emp); // Also map by name for lookup
       });
       
       const wageSettings = wageSettingsResult.data;
       
       // Map employee IDs to names and auto-calculate split wages
       const mappedData = await Promise.all((timesheetResult.data || []).map(async (entry) => {
+        const employee = employeeMap.get(entry.employee_name) || employeeMap.get(entry.employee_id);
         const mappedEntry = {
           ...entry,
-          employee_name: employeeMap.get(entry.employee_name) || entry.employee_name
+          employee_name: entry.employee_name, // Keep the original name
+          employees: employee ? {
+            morning_wage_rate: employee.morning_wage_rate,
+            night_wage_rate: employee.night_wage_rate
+          } : null
         };
         
         // Auto-calculate split wages if not already calculated
@@ -133,8 +132,8 @@ const TimesheetsPage: React.FC = () => {
           }
 
           // Use individual employee rates or fall back to default
-          const employeeMorningRate = entry.employees?.morning_wage_rate || wageSettings.morning_wage_rate;
-          const employeeNightRate = entry.employees?.night_wage_rate || wageSettings.night_wage_rate;
+          const employeeMorningRate = mappedEntry.employees?.morning_wage_rate || wageSettings.morning_wage_rate;
+          const employeeNightRate = mappedEntry.employees?.night_wage_rate || wageSettings.night_wage_rate;
 
           const totalSplitAmount = (morningHours * employeeMorningRate) + (nightHours * employeeNightRate);
 
