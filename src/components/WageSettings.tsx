@@ -88,77 +88,98 @@ const WageSettings: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="morning-start">{t('morningStartTime') || 'Morning Start Time'}</Label>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-3">
+          <Label htmlFor="morning-start" className="text-sm font-medium text-gray-700">
+            {t('morningStartTime') || 'Morning Start Time'}
+          </Label>
           <Input
             id="morning-start"
             type="time"
             value={settings.morning_start_time || '08:00'}
             onChange={(e) => handleInputChange('morning_start_time', e.target.value)}
+            className="w-full"
           />
         </div>
         
-        <div className="space-y-2">
-          <Label htmlFor="morning-end">{t('morningEndTime') || 'Morning End Time'}</Label>
+        <div className="space-y-3">
+          <Label htmlFor="morning-end" className="text-sm font-medium text-gray-700">
+            {t('morningEndTime') || 'Morning End Time'}
+          </Label>
           <Input
             id="morning-end"
             type="time"
             value={settings.morning_end_time || '17:00'}
             onChange={(e) => handleInputChange('morning_end_time', e.target.value)}
+            className="w-full"
           />
         </div>
         
-        <div className="space-y-2">
-          <Label htmlFor="night-start">{t('nightStartTime') || 'Night Start Time'}</Label>
+        <div className="space-y-3">
+          <Label htmlFor="night-start" className="text-sm font-medium text-gray-700">
+            {t('nightStartTime') || 'Night Start Time'}
+          </Label>
           <Input
             id="night-start"
             type="time"
             value={settings.night_start_time || '17:00'}
             onChange={(e) => handleInputChange('night_start_time', e.target.value)}
+            className="w-full"
           />
         </div>
         
-        <div className="space-y-2">
-          <Label htmlFor="night-end">{t('nightEndTime') || 'Night End Time'}</Label>
+        <div className="space-y-3">
+          <Label htmlFor="night-end" className="text-sm font-medium text-gray-700">
+            {t('nightEndTime') || 'Night End Time'}
+          </Label>
           <Input
             id="night-end"
             type="time"
             value={settings.night_end_time || '01:00'}
             onChange={(e) => handleInputChange('night_end_time', e.target.value)}
+            className="w-full"
           />
         </div>
         
-        <div className="space-y-2">
-          <Label htmlFor="morning-rate">{t('morningWageRate') || 'Morning Wage Rate (LE/hr)'}</Label>
+        <div className="space-y-3">
+          <Label htmlFor="morning-rate" className="text-sm font-medium text-gray-700">
+            {t('morningWageRate') || 'Morning Wage Rate (LE/hr)'}
+          </Label>
           <Input
             id="morning-rate"
             type="number"
             step="0.01"
             value={settings.morning_wage_rate || 17.00}
             onChange={(e) => handleInputChange('morning_wage_rate', parseFloat(e.target.value))}
+            className="w-full"
           />
         </div>
         
-        <div className="space-y-2">
-          <Label htmlFor="night-rate">{t('nightWageRate') || 'Night Wage Rate (LE/hr)'}</Label>
+        <div className="space-y-3">
+          <Label htmlFor="night-rate" className="text-sm font-medium text-gray-700">
+            {t('nightWageRate') || 'Night Wage Rate (LE/hr)'}
+          </Label>
           <Input
             id="night-rate"
             type="number"
             step="0.01"
             value={settings.night_wage_rate || 20.00}
             onChange={(e) => handleInputChange('night_wage_rate', parseFloat(e.target.value))}
+            className="w-full"
           />
         </div>
         
-        <div className="space-y-2 md:col-span-2">
-          <Label htmlFor="flat-rate">{t('defaultFlatWageRate') || 'Default Flat Wage Rate (LE/hr)'}</Label>
+        <div className="space-y-3 md:col-span-2">
+          <Label htmlFor="flat-rate" className="text-sm font-medium text-gray-700">
+            {t('defaultFlatWageRate') || 'Default Flat Wage Rate (LE/hr)'}
+          </Label>
           <Input
             id="flat-rate"
             type="number"
             step="0.01"
             value={settings.default_flat_wage_rate || 20.00}
             onChange={(e) => handleInputChange('default_flat_wage_rate', parseFloat(e.target.value))}
+            className="w-full"
           />
         </div>
       </div>

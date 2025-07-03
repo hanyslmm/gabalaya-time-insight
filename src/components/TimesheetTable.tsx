@@ -119,6 +119,14 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
 
   const isAllPageSelected = paginatedData.length > 0 && paginatedData.every(entry => selectedRows.includes(entry.id));
 
+  // Format total hours with ability to clear/delete
+  const formatTotalHours = (hours: number | null | undefined) => {
+    if (hours === null || hours === undefined || hours === 0) {
+      return '0.00';
+    }
+    return hours.toFixed(2);
+  };
+
   return (
     <div className="space-y-4">
       {/* Summary */}
@@ -228,9 +236,13 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
                     <TableCell>{entry.clock_in_time}</TableCell>
                     <TableCell>{entry.clock_out_date}</TableCell>
                     <TableCell>{entry.clock_out_time}</TableCell>
-                    <TableCell>{entry.total_hours.toFixed(2)}</TableCell>
-                    <TableCell>{entry.morning_hours?.toFixed(2) || '-'}</TableCell>
-                    <TableCell>{entry.night_hours?.toFixed(2) || '-'}</TableCell>
+                    <TableCell>
+                      <span className="font-mono">
+                        {formatTotalHours(entry.total_hours)}
+                      </span>
+                    </TableCell>
+                    <TableCell>{entry.morning_hours?.toFixed(2) || '0.00'}</TableCell>
+                    <TableCell>{entry.night_hours?.toFixed(2) || '0.00'}</TableCell>
                     <TableCell>LE {entry.total_card_amount_flat.toFixed(2)}</TableCell>
                     <TableCell>{entry.total_card_amount_split ? `LE ${entry.total_card_amount_split.toFixed(2)}` : '-'}</TableCell>
                     {isAdmin && (
