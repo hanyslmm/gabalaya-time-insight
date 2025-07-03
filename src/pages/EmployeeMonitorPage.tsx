@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Clock, Users, Activity, RefreshCw, MapPin, ExternalLink } from 'lucide-react';
-import { format, differenceInMinutes, differenceInHours } from 'date-fns';
+import { Card, CardContent } from '@/components/ui/card';
+import { RefreshCw, Users } from 'lucide-react';
+import { format, differenceInMinutes } from 'date-fns';
 import { toast } from 'sonner';
+import { EmployeeSummaryCards } from '@/components/EmployeeSummaryCards';
+import { ActiveEmployeesList } from '@/components/ActiveEmployeesList';
+import { CompletedShiftsList } from '@/components/CompletedShiftsList';
 
 interface EmployeeStatus {
   employee_name: string;
@@ -175,166 +176,24 @@ const EmployeeMonitorPage: React.FC = () => {
         )}
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Currently Active</CardTitle>
-            <Activity className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{activeEmployees.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {isAdmin ? 'Employees clocked in' : 'Team members active'}
-            </p>
-          </CardContent>
-        </Card>
+      <EmployeeSummaryCards
+        activeCount={activeEmployees.length}
+        completedCount={completedToday.length}
+        totalEmployees={employees.length}
+        isAdmin={isAdmin}
+      />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed Today</CardTitle>
-            <Clock className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{completedToday.length}</div>
-            <p className="text-xs text-muted-foreground">Shifts completed</p>
-          </CardContent>
-        </Card>
+      <ActiveEmployeesList
+        activeEmployees={activeEmployees}
+        onLocationClick={openLocationInMaps}
+        formatDuration={formatDuration}
+      />
 
-        {isAdmin && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
-              <Users className="h-4 w-4 text-purple-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-purple-600">{employees.length}</div>
-              <p className="text-xs text-muted-foreground">Registered employees</p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      {/* Active Employees */}
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-            <span>Currently Active ({activeEmployees.length})</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {activeEmployees.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">No employees currently clocked in</p>
-          ) : (
-            <div className="space-y-4">
-              {activeEmployees.map((status, index) => (
-                <div key={index} className="flex items-center justify-between p-4 border rounded-lg bg-green-50 dark:bg-green-950/20">
-                  <div className="flex items-center space-x-4">
-                    <div className="relative">
-                      <Avatar>
-                        <AvatarImage src="" alt={status.employee_name} />
-                        <AvatarFallback>
-                          {status.employee_name.split(' ').map(n => n[0]).join('')}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full animate-pulse"></div>
-                    </div>
-                    <div>
-                      <h3 className="font-medium">{status.employee_name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Clocked in at {status.clock_in_time}
-                      </p>
-                      {status.clock_in_location && (
-                        <div className="flex items-center space-x-1 mt-1">
-                          <MapPin className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-xs text-muted-foreground">Location</span>
-                          <button
-                            onClick={() => openLocationInMaps(status.clock_in_location!)}
-                            className="text-xs text-blue-600 hover:text-blue-800 flex items-center space-x-1"
-                          >
-                            <span>View</span>
-                            <ExternalLink className="h-3 w-3" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <Badge variant="default" className="bg-green-600">
-                      Active
-                    </Badge>
-                    <p className="text-sm font-medium mt-2">
-                      {status.duration_minutes ? formatDuration(status.duration_minutes) : '0h 0m'}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Completed Shifts */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Completed Shifts Today ({completedToday.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {completedToday.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">No completed shifts today</p>
-          ) : (
-            <div className="space-y-4">
-              {completedToday.map((status, index) => (
-                <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center space-x-4">
-                    <Avatar>
-                      <AvatarImage src="" alt={status.employee_name} />
-                      <AvatarFallback>
-                        {status.employee_name.split(' ').map(n => n[0]).join('')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <h3 className="font-medium">{status.employee_name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {status.clock_in_time} - {status.clock_out_time}
-                      </p>
-                      <div className="flex space-x-4 mt-1">
-                        {status.clock_in_location && (
-                          <button
-                            onClick={() => openLocationInMaps(status.clock_in_location!)}
-                            className="text-xs text-blue-600 hover:text-blue-800 flex items-center space-x-1"
-                          >
-                            <MapPin className="h-3 w-3" />
-                            <span>In</span>
-                          </button>
-                        )}
-                        {status.clock_out_location && (
-                          <button
-                            onClick={() => openLocationInMaps(status.clock_out_location!)}
-                            className="text-xs text-blue-600 hover:text-blue-800 flex items-center space-x-1"
-                          >
-                            <MapPin className="h-3 w-3" />
-                            <span>Out</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <Badge variant="secondary">
-                      Completed
-                    </Badge>
-                    <p className="text-sm font-medium mt-2">
-                      {status.duration_minutes ? formatDuration(status.duration_minutes) : '0h 0m'}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <CompletedShiftsList
+        completedShifts={completedToday}
+        onLocationClick={openLocationInMaps}
+        formatDuration={formatDuration}
+      />
     </div>
   );
 };
