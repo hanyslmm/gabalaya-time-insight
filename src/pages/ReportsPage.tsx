@@ -201,10 +201,10 @@ const ReportsPage: React.FC = () => {
         csvContent += `${row.employee_name},${row.clock_in_date},${row.total_hours},${row.total_card_amount_flat}\n`;
       });
     } else if (type === 'payroll' && payrollSummary) {
-      csvContent = 'Employee Name,Total Hours,Morning Hours,Night Hours,Total Amount,Split Amount,Shifts\n';
+      csvContent = 'Employee Name,Total Hours,Morning Hours,Night Hours,Total Amount,Shifts\n';
       data = payrollSummary;
       data.forEach((row: any) => {
-        csvContent += `${row.employee_name},${row.total_hours},${row.morning_hours},${row.night_hours},${row.total_amount},${row.total_split_amount},${row.shifts}\n`;
+        csvContent += `${row.employee_name},${row.total_hours},${row.morning_hours},${row.night_hours},${row.total_split_amount},${row.shifts}\n`;
       });
     }
     
@@ -300,25 +300,23 @@ const ReportsPage: React.FC = () => {
                 <table className="w-full border-collapse border border-gray-300">
                   <thead>
                     <tr className="bg-gray-50">
-                      <th className="border border-gray-300 px-4 py-2 text-left">Employee</th>
-                      <th className="border border-gray-300 px-4 py-2 text-left">Total Hours</th>
-                      <th className="border border-gray-300 px-4 py-2 text-left">Morning Hours</th>
-                      <th className="border border-gray-300 px-4 py-2 text-left">Night Hours</th>
-                      <th className="border border-gray-300 px-4 py-2 text-left">Shifts</th>
-                      <th className="border border-gray-300 px-4 py-2 text-left">Flat Amount (LE)</th>
-                      <th className="border border-gray-300 px-4 py-2 text-left">Split Amount (LE)</th>
+                       <th className="border border-gray-300 px-4 py-2 text-left">Employee</th>
+                       <th className="border border-gray-300 px-4 py-2 text-left">Total Hours</th>
+                       <th className="border border-gray-300 px-4 py-2 text-left">Morning Hours</th>
+                       <th className="border border-gray-300 px-4 py-2 text-left">Night Hours</th>
+                       <th className="border border-gray-300 px-4 py-2 text-left">Shifts</th>
+                       <th className="border border-gray-300 px-4 py-2 text-left">Total Amount (LE)</th>
                     </tr>
                   </thead>
                   <tbody>
                     {payrollSummary?.map((summary: any, index) => (
                       <tr key={index} className="hover:bg-gray-50">
-                        <td className="border border-gray-300 px-4 py-2">{summary.employee_name}</td>
-                        <td className="border border-gray-300 px-4 py-2">{summary.total_hours?.toFixed(2)}</td>
-                        <td className="border border-gray-300 px-4 py-2">{summary.morning_hours?.toFixed(2)}</td>
-                        <td className="border border-gray-300 px-4 py-2">{summary.night_hours?.toFixed(2)}</td>
-                        <td className="border border-gray-300 px-4 py-2">{summary.shifts}</td>
-                        <td className="border border-gray-300 px-4 py-2">{summary.total_amount?.toFixed(2)}</td>
-                        <td className="border border-gray-300 px-4 py-2">{summary.total_split_amount?.toFixed(2)}</td>
+                         <td className="border border-gray-300 px-4 py-2">{summary.employee_name}</td>
+                         <td className="border border-gray-300 px-4 py-2">{summary.total_hours?.toFixed(2)}</td>
+                         <td className="border border-gray-300 px-4 py-2">{summary.morning_hours?.toFixed(2)}</td>
+                         <td className="border border-gray-300 px-4 py-2">{summary.night_hours?.toFixed(2)}</td>
+                         <td className="border border-gray-300 px-4 py-2">{summary.shifts}</td>
+                         <td className="border border-gray-300 px-4 py-2">{summary.total_split_amount?.toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>

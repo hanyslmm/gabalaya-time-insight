@@ -238,18 +238,17 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
                     <TableHead>{t('totalHours') || 'Total Hours'}</TableHead>
                     <TableHead>{t('morningHours') || 'Morning Hours'}</TableHead>
                     <TableHead>{t('nightHours') || 'Night Hours'}</TableHead>
-                    <TableHead>{t('totalAmountFlat') || 'Total Amount (Flat)'}</TableHead>
-                    <TableHead>{t('totalAmountSplit') || 'Total Amount (Split)'}</TableHead>
+                     <TableHead>{t('totalAmount') || 'Total Amount'}</TableHead>
                     {isAdmin && <TableHead>Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paginatedData.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={isAdmin ? 12 : 11} className="text-center py-8 text-gray-500">
-                        {t('noTimesheetData') || 'No timesheet data available'}
-                      </TableCell>
-                    </TableRow>
+                   {paginatedData.length === 0 ? (
+                     <TableRow>
+                       <TableCell colSpan={isAdmin ? 11 : 10} className="text-center py-8 text-gray-500">
+                         {t('noTimesheetData') || 'No timesheet data available'}
+                       </TableCell>
+                     </TableRow>
                   ) : (
                     paginatedData.map((entry) => (
                       <TableRow key={entry.id} className="hover:bg-gray-50 transition-colors">
@@ -269,10 +268,9 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
                             {formatTotalHours(entry.total_hours)}
                           </span>
                         </TableCell>
-                        <TableCell>{entry.morning_hours?.toFixed(2) || '0.00'}</TableCell>
-                        <TableCell>{entry.night_hours?.toFixed(2) || '0.00'}</TableCell>
-                        <TableCell>LE {entry.total_card_amount_flat.toFixed(2)}</TableCell>
-                        <TableCell>{entry.total_card_amount_split ? `LE ${entry.total_card_amount_split.toFixed(2)}` : '-'}</TableCell>
+                         <TableCell>{entry.morning_hours?.toFixed(2) || '0.00'}</TableCell>
+                         <TableCell>{entry.night_hours?.toFixed(2) || '0.00'}</TableCell>
+                         <TableCell>LE {entry.total_card_amount_split ? entry.total_card_amount_split.toFixed(2) : entry.total_card_amount_flat.toFixed(2)}</TableCell>
                         {isAdmin && (
                           <TableCell>
                             <Button 

@@ -165,7 +165,7 @@ const DashboardPage: React.FC = () => {
                   </div>
                   <div className="text-center space-y-1">
                     <div className="font-medium text-sm leading-tight">{action.title}</div>
-                    <div className="text-xs text-gray-500 leading-relaxed break-words hyphens-auto">{action.description}</div>
+                    <div className="text-xs text-gray-500 leading-snug break-words text-center">{action.description}</div>
                   </div>
                 </Button>
               );
