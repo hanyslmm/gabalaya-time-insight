@@ -109,6 +109,11 @@ Follow these steps to deploy your Employee Timesheet Management System to Render
 - Ensure you've set `NPM_CONFIG_INCLUDE_DEV=true` in environment variables
 - This tells Render to install devDependencies required for the build process
 
+**Build fails with dependency conflicts (ERESOLVE errors):**
+- This has been fixed by upgrading `react-day-picker` to support `date-fns` v4
+- If you encounter similar issues, try changing Build Command to: `npm install --legacy-peer-deps && npm run build`
+- The `--legacy-peer-deps` flag resolves dependency conflicts by using older resolution strategy
+
 **Application loads but data doesn't appear:**
 - Verify your Supabase environment variables are set correctly
 - Check that your Supabase project is accessible from external domains
