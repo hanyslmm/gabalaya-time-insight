@@ -50,16 +50,18 @@ const EmployeeMonitorPage: React.FC = () => {
     try {
       setRefreshing(true);
       
-      // Fetch all employees (only for admins)
-      let employeesData = [];
-      if (isAdmin) {
-        const { data, error: employeesError } = await supabase
-          .from('employees')
-          .select('staff_id, full_name, role');
+      // Fetch all employees to map IDs to names
+      const { data: employeesData, error: employeesError } = await supabase
+        .from('employees')
+        .select('staff_id, full_name, role');
 
-        if (employeesError) throw employeesError;
-        employeesData = data || [];
-      }
+      if (employeesError) throw employeesError;
+
+      // Create a map to convert employee IDs to names
+      const employeeMap = new Map();
+      (employeesData || []).forEach(emp => {
+        employeeMap.set(emp.staff_id, emp.full_name);
+      });
 
       // Fetch today's timesheet entries
       const today = format(new Date(), 'yyyy-MM-dd');
@@ -82,9 +84,12 @@ const EmployeeMonitorPage: React.FC = () => {
           ? differenceInMinutes(new Date(), new Date(`${entry.clock_in_date}T${entry.clock_in_time}`))
           : entry.total_hours ? entry.total_hours * 60 : 0;
 
-        if (!statusMap.has(entry.employee_name) || isActive) {
-          statusMap.set(entry.employee_name, {
-            employee_name: entry.employee_name,
+        // Map employee ID to name, fallback to original value if not found
+        const displayName = employeeMap.get(entry.employee_name) || entry.employee_name;
+
+        if (!statusMap.has(displayName) || isActive) {
+          statusMap.set(displayName, {
+            employee_name: displayName,
             clock_in_time: entry.clock_in_time,
             clock_in_date: entry.clock_in_date,
             clock_in_location: entry.clock_in_location,
