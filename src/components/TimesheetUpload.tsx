@@ -33,7 +33,7 @@ const TimesheetUpload: React.FC<TimesheetUploadProps> = ({ onClose, onUploadComp
       const rawData = await parseFile(file);
       console.log('Parsed raw data:', rawData);
       
-      const processedData = processTimesheetData(rawData);
+      const processedData = await processTimesheetData(rawData);
       console.log('Processed data:', processedData);
       
       if (processedData.length === 0) {

@@ -163,9 +163,9 @@ const DashboardPage: React.FC = () => {
                   <div className={`p-2 rounded-full ${action.color} text-white`}>
                     <Icon className="h-6 w-6" />
                   </div>
-                  <div className="text-center">
-                    <div className="font-medium text-sm">{action.title}</div>
-                    <div className="text-xs text-gray-500 mt-1">{action.description}</div>
+                  <div className="text-center space-y-1">
+                    <div className="font-medium text-sm leading-tight">{action.title}</div>
+                    <div className="text-xs text-gray-500 leading-relaxed break-words hyphens-auto">{action.description}</div>
                   </div>
                 </Button>
               );

@@ -1,15 +1,28 @@
 
 import { formatDate, formatTime } from './dateTimeFormatters';
+import { supabase } from '@/integrations/supabase/client';
 
-export const processTimesheetData = (rawData: any[]): any[] => {
+export const processTimesheetData = async (rawData: any[]): Promise<any[]> => {
   console.log('Raw data received:', rawData);
+  
+  // Fetch all employees to map IDs to names
+  const { data: employees } = await supabase
+    .from('employees')
+    .select('staff_id, full_name');
+  
+  const employeeMap = new Map();
+  employees?.forEach(emp => {
+    employeeMap.set(emp.staff_id, emp.full_name);
+  });
   
   return rawData
     .filter(row => row && (row['Name'] || row['Employee Name'] || row['name']))
     .map((row: any) => {
       console.log('Processing row:', row);
       
-      const employeeName = row['Name'] || row['Employee Name'] || row['name'] || 'Unknown';
+      const employeeIdentifier = row['Name'] || row['Employee Name'] || row['name'] || 'Unknown';
+      // Try to map employee ID to name, fallback to identifier
+      const employeeName = employeeMap.get(employeeIdentifier) || employeeIdentifier;
       const clockInDate = formatDate(row['Clock in date'] || row['clock_in_date']);
       const clockInTime = formatTime(row['Clock in time'] || row['clock_in_time']);
       const clockOutDate = formatDate(row['Clock out date'] || row['clock_out_date']);
