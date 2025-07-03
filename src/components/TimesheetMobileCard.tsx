@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Clock, CalendarDays, DollarSign, User } from 'lucide-react';
+import { formatTimeToAMPM } from '@/utils/timeFormatter';
 
 interface TimesheetEntry {
   id: string;
@@ -59,13 +60,13 @@ const TimesheetMobileCard: React.FC<TimesheetMobileCardProps> = ({
               <div>
                 <p className="text-xs text-blue-600 font-medium">Clock In</p>
                 <p className="text-sm font-semibold">{entry.clock_in_date}</p>
-                <p className="text-xs text-gray-600">{entry.clock_in_time}</p>
+                <p className="text-xs text-gray-600">{formatTimeToAMPM(entry.clock_in_time)}</p>
               </div>
             </div>
             <div className="text-right">
               <p className="text-xs text-blue-600 font-medium">Clock Out</p>
               <p className="text-sm font-semibold">{entry.clock_out_date}</p>
-              <p className="text-xs text-gray-600">{entry.clock_out_time}</p>
+              <p className="text-xs text-gray-600">{formatTimeToAMPM(entry.clock_out_time)}</p>
             </div>
           </div>
 

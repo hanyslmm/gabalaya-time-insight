@@ -9,12 +9,14 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { useTimesheetTable } from '@/hooks/useTimesheetTable';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/hooks/useAuth';
-import { Edit } from 'lucide-react';
+import { Edit, List, BarChart3 } from 'lucide-react';
+import { formatTimeToAMPM } from '@/utils/timeFormatter';
 import TimesheetTableFilters from './TimesheetTableFilters';
 import TimesheetTableActions from './TimesheetTableActions';
 import TimesheetMobileCard from './TimesheetMobileCard';
 import TimesheetSummary from './TimesheetSummary';
 import TimesheetEditDialog from './TimesheetEditDialog';
+import AggregatedTimesheetView from './AggregatedTimesheetView';
 
 interface TimesheetEntry {
   id: string;
@@ -65,6 +67,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
   const { user } = useAuth();
   const [editingEntry, setEditingEntry] = useState<any>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [viewMode, setViewMode] = useState<'detailed' | 'aggregated'>('detailed');
   const isAdmin = user?.role === 'admin';
   const { t } = useTranslation();
   const isMobile = useIsMobile();
@@ -132,8 +135,28 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
       {/* Summary */}
       <TimesheetSummary data={filteredData} dateRange={dateRange} />
 
-      {/* Search and Actions */}
+      {/* View Toggle and Actions */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
+        <div className="flex items-center space-x-2">
+          <Button
+            variant={viewMode === 'detailed' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('detailed')}
+            className="flex items-center space-x-1"
+          >
+            <List className="h-4 w-4" />
+            <span>Detailed</span>
+          </Button>
+          <Button
+            variant={viewMode === 'aggregated' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('aggregated')}
+            className="flex items-center space-x-1"
+          >
+            <BarChart3 className="h-4 w-4" />
+            <span>Aggregated</span>
+          </Button>
+        </div>
         <div className="flex-1 w-full sm:w-auto">
           <TimesheetTableFilters
             searchTerm={searchTerm}
@@ -149,119 +172,126 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
         />
       </div>
 
-      {/* Mobile View */}
-      {isMobile ? (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                checked={isAllPageSelected}
-                onCheckedChange={handleSelectAllPage}
-              />
-              <span className="text-sm font-medium">Select Page</span>
-            </div>
-            <div className="text-sm text-gray-600">
-              Page {currentPage} of {totalPages}
-            </div>
-          </div>
-          
-          {paginatedData.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              {t('noTimesheetData') || 'No timesheet data available'}
-            </div>
-          ) : (
-            paginatedData.map((entry) => (
-              <TimesheetMobileCard
-                key={entry.id}
-                entry={entry}
-                isSelected={selectedRows.includes(entry.id)}
-                onSelect={(checked) => handleSelectRow(entry.id, checked)}
-              />
-            ))
-          )}
-        </div>
+      {/* Conditional View Rendering */}
+      {viewMode === 'aggregated' ? (
+        <AggregatedTimesheetView data={filteredData} onDataChange={onDataChange} />
       ) : (
-        /* Desktop View */
-        <div className="rounded-md border overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
+        <>
+          {/* Mobile View */}
+          {isMobile ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center space-x-2">
                   <Checkbox
                     checked={isAllPageSelected}
                     onCheckedChange={handleSelectAllPage}
                   />
-                </TableHead>
-                <TableHead>
-                  <div className="space-y-1">
-                    <span>{t('name') || 'Name'}</span>
-                    <Input
-                      placeholder="Filter..."
-                      value={columnFilters.employee_name || ''}
-                      onChange={(e) => updateColumnFilter('employee_name', e.target.value)}
-                      className="h-6 text-xs"
-                    />
-                  </div>
-                </TableHead>
-                <TableHead>{t('clockInDate') || 'Clock In Date'}</TableHead>
-                <TableHead>{t('clockInTime') || 'Clock In Time'}</TableHead>
-                <TableHead>{t('clockOutDate') || 'Clock Out Date'}</TableHead>
-                <TableHead>{t('clockOutTime') || 'Clock Out Time'}</TableHead>
-                <TableHead>{t('totalHours') || 'Total Hours'}</TableHead>
-                <TableHead>{t('morningHours') || 'Morning Hours'}</TableHead>
-                <TableHead>{t('nightHours') || 'Night Hours'}</TableHead>
-                <TableHead>{t('totalAmountFlat') || 'Total Amount (Flat)'}</TableHead>
-                <TableHead>{t('totalAmountSplit') || 'Total Amount (Split)'}</TableHead>
-                {isAdmin && <TableHead>Actions</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+                  <span className="text-sm font-medium">Select Page</span>
+                </div>
+                <div className="text-sm text-gray-600">
+                  Page {currentPage} of {totalPages}
+                </div>
+              </div>
+              
               {paginatedData.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={isAdmin ? 12 : 11} className="text-center py-8 text-gray-500">
-                    {t('noTimesheetData') || 'No timesheet data available'}
-                  </TableCell>
-                </TableRow>
+                <div className="text-center py-8 text-gray-500">
+                  {t('noTimesheetData') || 'No timesheet data available'}
+                </div>
               ) : (
                 paginatedData.map((entry) => (
-                  <TableRow key={entry.id} className="hover:bg-gray-50 transition-colors">
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedRows.includes(entry.id)}
-                        onCheckedChange={(checked) => handleSelectRow(entry.id, !!checked)}
-                      />
-                    </TableCell>
-                    <TableCell className="font-medium">{entry.employee_name}</TableCell>
-                    <TableCell>{entry.clock_in_date}</TableCell>
-                    <TableCell>{entry.clock_in_time}</TableCell>
-                    <TableCell>{entry.clock_out_date}</TableCell>
-                    <TableCell>{entry.clock_out_time}</TableCell>
-                    <TableCell>
-                      <span className="font-mono">
-                        {formatTotalHours(entry.total_hours)}
-                      </span>
-                    </TableCell>
-                    <TableCell>{entry.morning_hours?.toFixed(2) || '0.00'}</TableCell>
-                    <TableCell>{entry.night_hours?.toFixed(2) || '0.00'}</TableCell>
-                    <TableCell>LE {entry.total_card_amount_flat.toFixed(2)}</TableCell>
-                    <TableCell>{entry.total_card_amount_split ? `LE ${entry.total_card_amount_split.toFixed(2)}` : '-'}</TableCell>
-                    {isAdmin && (
-                      <TableCell>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleEdit(entry)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    )}
-                  </TableRow>
+                  <TimesheetMobileCard
+                    key={entry.id}
+                    entry={entry}
+                    isSelected={selectedRows.includes(entry.id)}
+                    onSelect={(checked) => handleSelectRow(entry.id, checked)}
+                  />
                 ))
               )}
-            </TableBody>
-          </Table>
-        </div>
+            </div>
+          ) : (
+            /* Desktop View */
+            <div className="rounded-md border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={isAllPageSelected}
+                        onCheckedChange={handleSelectAllPage}
+                      />
+                    </TableHead>
+                    <TableHead>
+                      <div className="space-y-1">
+                        <span>{t('name') || 'Name'}</span>
+                        <Input
+                          placeholder="Filter..."
+                          value={columnFilters.employee_name || ''}
+                          onChange={(e) => updateColumnFilter('employee_name', e.target.value)}
+                          className="h-6 text-xs"
+                        />
+                      </div>
+                    </TableHead>
+                    <TableHead>{t('clockInDate') || 'Clock In Date'}</TableHead>
+                    <TableHead>{t('clockInTime') || 'Clock In Time'}</TableHead>
+                    <TableHead>{t('clockOutDate') || 'Clock Out Date'}</TableHead>
+                    <TableHead>{t('clockOutTime') || 'Clock Out Time'}</TableHead>
+                    <TableHead>{t('totalHours') || 'Total Hours'}</TableHead>
+                    <TableHead>{t('morningHours') || 'Morning Hours'}</TableHead>
+                    <TableHead>{t('nightHours') || 'Night Hours'}</TableHead>
+                    <TableHead>{t('totalAmountFlat') || 'Total Amount (Flat)'}</TableHead>
+                    <TableHead>{t('totalAmountSplit') || 'Total Amount (Split)'}</TableHead>
+                    {isAdmin && <TableHead>Actions</TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedData.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={isAdmin ? 12 : 11} className="text-center py-8 text-gray-500">
+                        {t('noTimesheetData') || 'No timesheet data available'}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    paginatedData.map((entry) => (
+                      <TableRow key={entry.id} className="hover:bg-gray-50 transition-colors">
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedRows.includes(entry.id)}
+                            onCheckedChange={(checked) => handleSelectRow(entry.id, !!checked)}
+                          />
+                        </TableCell>
+                        <TableCell className="font-medium">{entry.employee_name}</TableCell>
+                        <TableCell>{entry.clock_in_date}</TableCell>
+                        <TableCell>{formatTimeToAMPM(entry.clock_in_time)}</TableCell>
+                        <TableCell>{entry.clock_out_date}</TableCell>
+                        <TableCell>{formatTimeToAMPM(entry.clock_out_time)}</TableCell>
+                        <TableCell>
+                          <span className="font-mono">
+                            {formatTotalHours(entry.total_hours)}
+                          </span>
+                        </TableCell>
+                        <TableCell>{entry.morning_hours?.toFixed(2) || '0.00'}</TableCell>
+                        <TableCell>{entry.night_hours?.toFixed(2) || '0.00'}</TableCell>
+                        <TableCell>LE {entry.total_card_amount_flat.toFixed(2)}</TableCell>
+                        <TableCell>{entry.total_card_amount_split ? `LE ${entry.total_card_amount_split.toFixed(2)}` : '-'}</TableCell>
+                        {isAdmin && (
+                          <TableCell>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleEdit(entry)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </>
       )}
 
       {/* Pagination */}

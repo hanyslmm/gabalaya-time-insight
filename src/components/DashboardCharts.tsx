@@ -165,26 +165,31 @@ const DashboardCharts: React.FC = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            💰 Revenue Growth
+            📈 Monthly Shifts Activity
           </CardTitle>
         </CardHeader>
         <CardContent>
           <ChartContainer config={chartConfig}>
             <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={chartData?.monthlyData}>
+              <BarChart data={chartData?.monthlyData}>
+                <defs>
+                  <linearGradient id="colorShifts" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--chart-3))" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="hsl(var(--chart-3))" stopOpacity={0.3}/>
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
                 <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Line 
-                  type="monotone" 
-                  dataKey="amount" 
-                  stroke="hsl(var(--chart-2))" 
-                  strokeWidth={4}
-                  dot={{ fill: 'hsl(var(--chart-2))', strokeWidth: 2, r: 6 }}
-                  activeDot={{ r: 8, stroke: 'hsl(var(--chart-2))', strokeWidth: 2 }}
+                <Bar 
+                  dataKey="shifts" 
+                  fill="url(#colorShifts)" 
+                  radius={[4, 4, 0, 0]}
+                  stroke="hsl(var(--chart-3))"
+                  strokeWidth={1}
                 />
-              </LineChart>
+              </BarChart>
             </ResponsiveContainer>
           </ChartContainer>
         </CardContent>
@@ -220,38 +225,6 @@ const DashboardCharts: React.FC = () => {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            📈 Monthly Shifts Activity
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ChartContainer config={chartConfig}>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={chartData?.monthlyData}>
-                <defs>
-                  <linearGradient id="colorShifts" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--chart-3))" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="hsl(var(--chart-3))" stopOpacity={0.3}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar 
-                  dataKey="shifts" 
-                  fill="url(#colorShifts)" 
-                  radius={[4, 4, 0, 0]}
-                  stroke="hsl(var(--chart-3))"
-                  strokeWidth={1}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </CardContent>
-      </Card>
     </div>
   );
 };
