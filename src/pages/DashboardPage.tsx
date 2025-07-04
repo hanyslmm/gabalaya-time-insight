@@ -10,6 +10,8 @@ import { Users, Clock, DollarSign, TrendingUp, Upload, Download, Settings } from
 import DashboardCharts from '@/components/DashboardCharts';
 import DailyPaymentChart from '@/components/DailyPaymentChart';
 import TopPerformersLeaderboard from '@/components/TopPerformersLeaderboard';
+import MonthlyHoursTrend from '@/components/MonthlyHoursTrend';
+import MonthlyShiftsActivity from '@/components/MonthlyShiftsActivity';
 
 const DashboardPage: React.FC = () => {
   const { t } = useTranslation();
@@ -99,7 +101,7 @@ const DashboardPage: React.FC = () => {
             <Users className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">{employeeCount || 0}</div>
+            <div className="text-2xl font-bold text-primary">{Math.round(employeeCount || 0)}</div>
           </CardContent>
         </Card>
 
@@ -109,7 +111,7 @@ const DashboardPage: React.FC = () => {
             <Clock className="h-4 w-4 text-secondary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-secondary">{timesheetSummary?.totalHours.toFixed(2) || '0.00'}</div>
+            <div className="text-2xl font-bold text-secondary">{Math.round(timesheetSummary?.totalHours || 0)}</div>
           </CardContent>
         </Card>
 
@@ -119,7 +121,7 @@ const DashboardPage: React.FC = () => {
             <DollarSign className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl lg:text-2xl font-bold text-accent">{timesheetSummary?.totalPayroll.toFixed(2) || '0.00'} LE</div>
+            <div className="text-xl lg:text-2xl font-bold text-accent">{Math.round(timesheetSummary?.totalPayroll || 0)} LE</div>
           </CardContent>
         </Card>
 
@@ -129,7 +131,7 @@ const DashboardPage: React.FC = () => {
             <TrendingUp className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-success">{timesheetSummary?.totalShifts || 0}</div>
+            <div className="text-2xl font-bold text-success">{Math.round(timesheetSummary?.totalShifts || 0)}</div>
           </CardContent>
         </Card>
       </div>
@@ -145,6 +147,12 @@ const DashboardPage: React.FC = () => {
         <div className="xl:col-span-1">
           <TopPerformersLeaderboard />
         </div>
+      </div>
+
+      {/* Additional Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <MonthlyHoursTrend />
+        <MonthlyShiftsActivity />
       </div>
 
       {/* Daily Payment Chart */}

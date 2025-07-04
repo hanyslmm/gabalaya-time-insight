@@ -129,7 +129,7 @@ const DailyPaymentChart: React.FC = () => {
                   <TrendingDown className="h-4 w-4 text-red-600" />
                 )}
                 <span className={trend >= 0 ? 'text-green-600' : 'text-red-600'}>
-                  {trend >= 0 ? '+' : ''}{trend.toFixed(0)} LE
+                  {trend >= 0 ? '+' : ''}{Math.round(trend)} LE
                 </span>
               </div>
               <Select value={period} onValueChange={setPeriod}>
@@ -147,13 +147,13 @@ const DailyPaymentChart: React.FC = () => {
           <div className="grid grid-cols-2 gap-4 mt-4">
             <div>
               <div className="text-2xl font-bold text-green-600">
-                {totalPayment.toFixed(0)} LE
+                {Math.round(totalPayment)} LE
               </div>
               <p className="text-sm text-muted-foreground">Total {config.label.toLowerCase()}</p>
             </div>
             <div>
               <div className="text-xl font-bold text-blue-600">
-                {avgDaily.toFixed(0)} LE
+                {Math.round(avgDaily)} LE
               </div>
               <p className="text-sm text-muted-foreground">Daily average</p>
             </div>

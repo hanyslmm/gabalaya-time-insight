@@ -134,16 +134,16 @@ const TopPerformersLeaderboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="text-right space-y-1">
-                <div className="flex items-center gap-1 text-sm font-bold text-primary">
-                  <Clock className="h-3 w-3" />
-                  {performer.hours.toFixed(1)}h
+                <div className="text-right space-y-1">
+                  <div className="flex items-center gap-1 text-sm font-bold text-primary">
+                    <Clock className="h-3 w-3" />
+                    {Math.round(performer.hours)}h
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <DollarSign className="h-3 w-3" />
+                    LE {Math.round(performer.amount)}
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <DollarSign className="h-3 w-3" />
-                  LE {Math.round(performer.amount)}
-                </div>
-              </div>
             </div>
           ))}
         </div>
