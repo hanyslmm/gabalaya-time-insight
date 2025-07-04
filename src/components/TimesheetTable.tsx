@@ -204,6 +204,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
                     entry={entry}
                     isSelected={selectedRows.includes(entry.id)}
                     onSelect={(checked) => handleSelectRow(entry.id, checked)}
+                    onEdit={handleEdit}
                   />
                 ))
               )}
@@ -270,7 +271,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
                         </TableCell>
                          <TableCell>{entry.morning_hours?.toFixed(2) || '0.00'}</TableCell>
                          <TableCell>{entry.night_hours?.toFixed(2) || '0.00'}</TableCell>
-                         <TableCell>LE {entry.total_card_amount_split ? entry.total_card_amount_split.toFixed(2) : entry.total_card_amount_flat.toFixed(2)}</TableCell>
+                         <TableCell>LE {(entry.total_card_amount_split || entry.total_card_amount_flat).toFixed(2)}</TableCell>
                         {isAdmin && (
                           <TableCell>
                             <Button 

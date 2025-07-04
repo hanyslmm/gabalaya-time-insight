@@ -57,7 +57,7 @@ const AggregatedTimesheetView: React.FC<AggregatedTimesheetViewProps> = ({ data,
       }
       
       aggregated[entry.employee_name].total_hours += entry.total_hours;
-      aggregated[entry.employee_name].total_amount += entry.total_card_amount_flat;
+      aggregated[entry.employee_name].total_amount += (entry.total_card_amount_split || entry.total_card_amount_flat);
       aggregated[entry.employee_name].shift_count += 1;
       aggregated[entry.employee_name].entries.push(entry);
     });
@@ -171,7 +171,7 @@ const AggregatedTimesheetView: React.FC<AggregatedTimesheetViewProps> = ({ data,
                           <TableCell>{entry.total_hours.toFixed(2)}h</TableCell>
                           <TableCell>{entry.morning_hours?.toFixed(2) || '0.00'}h</TableCell>
                           <TableCell>{entry.night_hours?.toFixed(2) || '0.00'}h</TableCell>
-                          <TableCell>LE {entry.total_card_amount_flat.toFixed(2)}</TableCell>
+                          <TableCell>LE {(entry.total_card_amount_split || entry.total_card_amount_flat).toFixed(2)}</TableCell>
                           {isAdmin && (
                             <TableCell>
                               <Button

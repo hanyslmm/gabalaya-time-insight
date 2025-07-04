@@ -3,8 +3,10 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CalendarDays, DollarSign, User } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Clock, CalendarDays, DollarSign, User, Edit } from 'lucide-react';
 import { formatTimeToAMPM } from '@/utils/timeFormatter';
+import { useAuth } from '@/hooks/useAuth';
 
 interface TimesheetEntry {
   id: string;
@@ -25,13 +27,18 @@ interface TimesheetMobileCardProps {
   entry: TimesheetEntry;
   isSelected: boolean;
   onSelect: (checked: boolean) => void;
+  onEdit?: (entry: TimesheetEntry) => void;
 }
 
 const TimesheetMobileCard: React.FC<TimesheetMobileCardProps> = ({
   entry,
   isSelected,
-  onSelect
+  onSelect,
+  onEdit
 }) => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
   return (
     <Card className={`mb-4 transition-all duration-200 hover:shadow-md ${isSelected ? 'ring-2 ring-blue-500 bg-blue-50' : 'hover:bg-gray-50'}`}>
       <CardContent className="p-4">
@@ -47,9 +54,21 @@ const TimesheetMobileCard: React.FC<TimesheetMobileCardProps> = ({
               <h3 className="font-semibold text-lg text-gray-900">{entry.employee_name}</h3>
             </div>
           </div>
-          <Badge variant={entry.is_split_calculation ? "default" : "secondary"} className="text-xs">
-            {entry.is_split_calculation ? "Split Rate" : "Flat Rate"}
-          </Badge>
+          <div className="flex items-center space-x-2">
+            <Badge variant={entry.is_split_calculation ? "default" : "secondary"} className="text-xs">
+              {entry.is_split_calculation ? "Split Rate" : "Flat Rate"}
+            </Badge>
+            {isAdmin && onEdit && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => onEdit(entry)}
+                className="h-6 w-6 p-0"
+              >
+                <Edit className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
         </div>
         
         <div className="space-y-3">
@@ -85,7 +104,7 @@ const TimesheetMobileCard: React.FC<TimesheetMobileCardProps> = ({
               <div>
                 <p className="text-xs text-emerald-600 font-medium">Amount</p>
                 <p className="text-lg font-bold text-emerald-700">
-                  LE {entry.total_card_amount_flat.toFixed(2)}
+                  LE {(entry.total_card_amount_split || entry.total_card_amount_flat).toFixed(2)}
                 </p>
               </div>
             </div>
