@@ -236,7 +236,7 @@ const ReportsPage: React.FC = () => {
     enabled: !!wageSettings
   });
 
-  const exportReport = (type: string, format: 'csv' | 'excel' = 'csv') => {
+  const exportReport = (type: string, exportFormat: 'csv' | 'excel' = 'csv') => {
     let data: any[] = [];
     let headers: string[] = [];
     let fileName = '';
@@ -247,7 +247,7 @@ const ReportsPage: React.FC = () => {
         const employeeName = (row as any).display_name || row.employee_name;
         return [employeeName, row.clock_in_date, row.total_hours, Math.round(row.total_card_amount_flat)];
       });
-      fileName = `attendance-report-${format === 'csv' ? 'csv' : 'xlsx'}`;
+      fileName = `attendance-report-${exportFormat === 'csv' ? 'csv' : 'xlsx'}`;
     } else if (type === 'payroll' && payrollSummary) {
       headers = ['Employee Name', 'Total Hours', 'Morning Hours', 'Night Hours', 'Total Amount', 'Shifts'];
       data = payrollSummary.map((row: any) => [
@@ -258,10 +258,10 @@ const ReportsPage: React.FC = () => {
         Math.round(row.total_split_amount),
         row.shifts
       ]);
-      fileName = `payroll-report-${format === 'csv' ? 'csv' : 'xlsx'}`;
+      fileName = `payroll-report-${exportFormat === 'csv' ? 'csv' : 'xlsx'}`;
     }
     
-    if (format === 'excel') {
+    if (exportFormat === 'excel') {
       const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, type === 'attendance' ? 'Attendance' : 'Payroll');
