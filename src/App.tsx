@@ -27,26 +27,21 @@ function App() {
           <div className="min-h-screen bg-gray-50">
             <Routes>
               <Route path="/login" element={<LoginPage />} />
-              <Route
-                path="/*"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <Routes>
-                        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                        <Route path="/dashboard" element={<DashboardPage />} />
-                        <Route path="/employees" element={<EmployeesPage />} />
-                        <Route path="/timesheets" element={<TimesheetsPage />} />
-                        <Route path="/reports" element={<ReportsPage />} />
-                        <Route path="/clockinout" element={<ClockInOutPage />} />
-                        <Route path="/profile" element={<ProfilePage />} />
-                        <Route path="/monitor" element={<EmployeeMonitorPage />} />
-                        <Route path="/settings" element={<SettingsPage />} />
-                      </Routes>
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
+              }>
+                <Route index element={<Navigate to="/dashboard" replace />} />
+                <Route path="dashboard" element={<DashboardPage />} />
+                <Route path="employees" element={<EmployeesPage />} />
+                <Route path="timesheets" element={<TimesheetsPage />} />
+                <Route path="reports" element={<ReportsPage />} />
+                <Route path="clockinout" element={<ClockInOutPage />} />
+                <Route path="profile" element={<ProfilePage />} />
+                <Route path="monitor" element={<EmployeeMonitorPage />} />
+                <Route path="settings" element={<SettingsPage />} />
+              </Route>
             </Routes>
             <Toaster />
           </div>

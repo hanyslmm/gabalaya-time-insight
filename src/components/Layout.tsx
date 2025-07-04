@@ -35,9 +35,9 @@ const Layout: React.FC = () => {
   const navigation = [
     {
       name: t('dashboard') || 'Dashboard',
-      href: '/',
+      href: '/dashboard',
       icon: LayoutDashboard,
-      current: location.pathname === '/',
+      current: location.pathname === '/dashboard',
     },
     {
       name: t('employees') || 'Employees',
@@ -83,7 +83,7 @@ const Layout: React.FC = () => {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center justify-between h-16 px-6 border-b border-border/50">
-            <Link to="/" className="flex items-center space-x-3 group">
+            <Link to="/dashboard" className="flex items-center space-x-3 group">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-200">
                 <span className="text-white font-bold text-lg">G</span>
               </div>
