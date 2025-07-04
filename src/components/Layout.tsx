@@ -1,297 +1,195 @@
 
 import React, { useState } from 'react';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { Menu, LogOut, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { motion, AnimatePresence, Variants } from 'framer-motion';
+import { Badge } from '@/components/ui/badge';
+import {
+  LayoutDashboard,
+  Users,
+  Clock,
+  FileText,
+  Settings,
+  LogOut,
+  Menu,
+  X,
+  BarChart3,
+  Monitor
+} from 'lucide-react';
 import NotificationSystem from './NotificationSystem';
+import ProfileAvatar from './ProfileAvatar';
 
-interface LayoutProps {
-  children: React.ReactNode;
-}
-
-const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { user, logout } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const isMobile = useIsMobile();
-
+const Layout: React.FC = () => {
   const { t } = useTranslation();
+  const { user, logout } = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   const navigation = [
-    ...(user?.role === 'admin' ? [
-      { name: t('dashboard'), href: '/dashboard', icon: 'LayoutDashboard' },
-      { name: t('employees'), href: '/employees', icon: 'Users' },
-      { name: t('timesheets'), href: '/timesheets', icon: 'Calendar' },
-      { name: 'Employee Monitor', href: '/monitor', icon: 'Activity' },
-      { name: t('reports'), href: '/reports', icon: 'FileBarChart' },
-      { name: t('settings'), href: '/settings', icon: 'Settings' },
-    ] : []),
-    ...(user?.role === 'employee' ? [
-      { name: 'Clock In/Out', href: '/clockinout', icon: 'Clock' },
-      { name: 'My Profile', href: '/profile', icon: 'User' },
-    ] : []),
+    {
+      name: t('dashboard') || 'Dashboard',
+      href: '/',
+      icon: LayoutDashboard,
+      current: location.pathname === '/',
+    },
+    {
+      name: t('employees') || 'Employees',
+      href: '/employees',
+      icon: Users,
+      current: location.pathname === '/employees',
+    },
+    {
+      name: t('timesheets') || 'Timesheets',
+      href: '/timesheets',
+      icon: Clock,
+      current: location.pathname === '/timesheets',
+    },
+    {
+      name: 'Monitor',
+      href: '/monitor',
+      icon: Monitor,
+      current: location.pathname === '/monitor',
+      adminOnly: true,
+    },
+    {
+      name: t('reports') || 'Reports',
+      href: '/reports',
+      icon: BarChart3,
+      current: location.pathname === '/reports',
+    },
+    {
+      name: t('settings') || 'Settings',
+      href: '/settings',
+      icon: Settings,
+      current: location.pathname === '/settings',
+    },
   ];
-  
-  const sidebarVariants: Variants = {
-    open: { 
-      x: 0,
-      transition: {
-        type: "spring" as const,
-        stiffness: 400,
-        damping: 30
-      }
-    },
-    closed: { 
-      x: "-100%",
-      transition: {
-        type: "spring" as const,
-        stiffness: 400,
-        damping: 30
-      }
-    }
-  };
 
-  const overlayVariants: Variants = {
-    open: { 
-      opacity: 1,
-      display: "block"
-    },
-    closed: { 
-      opacity: 0,
-      transitionEnd: {
-        display: "none"
-      }
-    }
-  };
+  const filteredNavigation = navigation.filter(item => 
+    !item.adminOnly || user?.role === 'admin'
+  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-secondary/5 to-accent/5">
-      {/* Mobile Header */}
-      <motion.header 
-        className="lg:hidden bg-card/95 backdrop-blur-sm border-b border-border shadow-lg sticky top-0 z-40"
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      >
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center space-x-3">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+      {/* Sidebar */}
+      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-card to-card/95 backdrop-blur-xl border-r border-border/50 shadow-2xl transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out lg:translate-x-0`}>
+        <div className="flex flex-col h-full">
+          {/* Logo */}
+          <div className="flex items-center justify-between h-16 px-6 border-b border-border/50">
+            <Link to="/" className="flex items-center space-x-3 group">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-200">
+                <span className="text-white font-bold text-lg">G</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  Gabalaya Finance
+                </span>
+                <span className="text-xs text-muted-foreground">HRM System</span>
+              </div>
+            </Link>
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setSidebarOpen(true)}
-              className="p-2 hover:bg-accent/20 rounded-lg transition-colors"
+              className="lg:hidden"
+              onClick={() => setIsMobileMenuOpen(false)}
             >
-              <Menu className="h-5 w-5" />
+              <X className="h-5 w-5" />
             </Button>
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center shadow-lg">
-                <span className="text-primary-foreground font-bold text-sm">G</span>
-              </div>
-              <h1 className="text-lg font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Gabalaya HRM</h1>
-            </div>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="p-2 hover:bg-gray-100 rounded-full">
-                <User className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium">{user?.full_name || user?.username}</p>
-                  <p className="text-xs text-gray-500">{user?.role}</p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={logout} className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                <LogOut className="h-4 w-4 mr-2" />
-                {t('logout')}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </motion.header>
 
-      <div className="flex">
-        {/* Desktop Sidebar */}
-        <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 lg:bg-card/95 lg:backdrop-blur-sm lg:border-r lg:border-border lg:shadow-xl">
-          <div className="flex flex-col h-full">
-            <div className="flex items-center justify-center h-16 border-b border-border bg-gradient-to-r from-primary/10 to-accent/10">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center shadow-lg">
-                  <span className="text-primary-foreground font-bold text-sm">G</span>
-                </div>
-                <h1 className="text-lg font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Gabalaya HRM</h1>
-              </div>
-            </div>
-            <nav className="flex-1 py-4 space-y-1 px-2">
-              {navigation.map((item) => (
-                <Button
+          {/* Navigation */}
+          <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+            {filteredNavigation.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
                   key={item.name}
-                  variant="ghost"
-                  className="w-full justify-start px-4 py-3 hover:bg-accent/20 hover:text-accent-foreground rounded-lg transition-all duration-200 font-medium"
-                  onClick={() => navigate(item.href)}
+                  to={item.href}
+                  className={`flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group ${
+                    item.current
+                      ? 'bg-gradient-to-r from-primary to-accent text-white shadow-lg hover:shadow-xl'
+                      : 'text-muted-foreground hover:bg-accent/10 hover:text-foreground hover:shadow-md'
+                  }`}
+                  onClick={() => setIsMobileMenuOpen(false)}
                 >
+                  <Icon className={`mr-3 h-5 w-5 transition-transform duration-200 ${item.current ? 'text-white' : 'group-hover:scale-110'}`} />
                   {item.name}
-                </Button>
-              ))}
-            </nav>
-            <div className="py-4 border-t border-border px-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="w-full justify-start px-4 py-3 hover:bg-accent/20 rounded-lg transition-all duration-200">
-                    <User className="h-4 w-4 mr-2" />
-                    {user?.full_name || user?.username}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium">{user?.full_name || user?.username}</p>
-                      <p className="text-xs text-muted-foreground">{user?.role}</p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={logout} className="text-destructive hover:text-destructive-foreground hover:bg-destructive/10">
-                    <LogOut className="h-4 w-4 mr-2" />
-                    {t('logout')}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* User Profile */}
+          <div className="px-4 py-4 border-t border-border/50 bg-gradient-to-r from-muted/20 to-transparent">
+            <div className="flex items-center space-x-3 p-3 rounded-xl bg-background/50 backdrop-blur-sm border border-border/30">
+              <ProfileAvatar size="md" showChangeOption={true} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground truncate">
+                  {user?.full_name || user?.username}
+                </p>
+                <div className="flex items-center space-x-2">
+                  <Badge variant={user?.role === 'admin' ? 'default' : 'secondary'} className="text-xs">
+                    {user?.role}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+            
+            <Button
+              variant="ghost"
+              className="w-full mt-3 justify-start text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors duration-200"
+              onClick={handleLogout}
+            >
+              <LogOut className="mr-3 h-4 w-4" />
+              {t('logout') || 'Logout'}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile overlay */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Main content */}
+      <div className="lg:pl-64">
+        {/* Top bar */}
+        <div className="sticky top-0 z-30 flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8 bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="lg:hidden"
+            onClick={() => setIsMobileMenuOpen(true)}
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+          
+          <div className="flex items-center space-x-4 ml-auto">
+            <NotificationSystem />
+            <div className="flex items-center space-x-2">
+              <ProfileAvatar size="sm" />
+              <span className="hidden sm:block text-sm font-medium text-foreground">
+                {user?.full_name || user?.username}
+              </span>
             </div>
           </div>
-        </aside>
+        </div>
 
-        {/* Mobile Sidebar Overlay */}
-        <AnimatePresence>
-          {sidebarOpen && (
-            <motion.div
-              className="fixed inset-0 z-50 lg:hidden"
-              variants={overlayVariants}
-              initial="closed"
-              animate="open"
-              exit="closed"
-            >
-              <div 
-                className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm"
-                onClick={() => setSidebarOpen(false)}
-              />
-              <motion.nav
-                className="absolute left-0 top-0 h-full w-80 bg-card/95 backdrop-blur-sm shadow-2xl border-r border-border"
-                variants={sidebarVariants}
-                initial="closed"
-                animate="open"
-                exit="closed"
-              >
-                <div className="flex flex-col h-full">
-                  <div className="flex items-center justify-center h-16 border-b border-border bg-gradient-to-r from-primary/10 to-accent/10">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center shadow-lg">
-                        <span className="text-primary-foreground font-bold text-sm">G</span>
-                      </div>
-                      <h1 className="text-lg font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Gabalaya HRM</h1>
-                    </div>
-                  </div>
-                  <nav className="flex-1 py-4 space-y-1 px-2">
-                    {navigation.map((item) => (
-                      <Button
-                        key={item.name}
-                        variant="ghost"
-                        className="w-full justify-start px-4 py-3 hover:bg-accent/20 hover:text-accent-foreground rounded-lg transition-all duration-200 font-medium"
-                        onClick={() => {
-                          navigate(item.href);
-                          setSidebarOpen(false);
-                        }}
-                      >
-                        {item.name}
-                      </Button>
-                    ))}
-                  </nav>
-                  <div className="py-4 border-t border-border px-2">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="w-full justify-start px-4 py-3 hover:bg-accent/20 rounded-lg transition-all duration-200">
-                          <User className="h-4 w-4 mr-2" />
-                          {user?.full_name || user?.username}
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuLabel>
-                          <div className="flex flex-col space-y-1">
-                            <p className="text-sm font-medium">{user?.full_name || user?.username}</p>
-                            <p className="text-xs text-muted-foreground">{user?.role}</p>
-                          </div>
-                        </DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={logout} className="text-destructive hover:text-destructive-foreground hover:bg-destructive/10">
-                          <LogOut className="h-4 w-4 mr-2" />
-                          {t('logout')}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              </motion.nav>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Main Content */}
-        <main className="flex-1 lg:ml-64">
-          <div className="min-h-screen bg-gradient-to-br from-background via-secondary/5 to-accent/5">
-            {/* Desktop Header */}
-            <motion.header 
-              className="hidden lg:block bg-card/95 backdrop-blur-sm border-b border-border shadow-lg sticky top-0 z-30"
-              initial={{ y: -50 }}
-              animate={{ y: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            >
-              <div className="flex items-center justify-between px-6 py-4">
-                <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                  {t('welcome')}, {user?.full_name || user?.username} 👋
-                </h1>
-                <div className="flex items-center space-x-4">
-                  {/* Notifications for admin */}
-                  {user?.role === 'admin' && <NotificationSystem />}
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="p-2 hover:bg-gray-100 rounded-full">
-                      <User className="h-5 w-5" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>
-                      <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium">{user?.full_name || user?.username}</p>
-                        <p className="text-xs text-gray-500">{user?.role}</p>
-                      </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={logout} className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                      <LogOut className="h-4 w-4 mr-2" />
-                      {t('logout')}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </motion.header>
-
-            {/* Page Content */}
-            <motion.div 
-              className="p-4 lg:p-8"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              {children}
-            </motion.div>
+        {/* Page content */}
+        <main className="py-8 min-h-[calc(100vh-4rem)]">
+          <div className="mx-auto max-w-7xl">
+            <Outlet />
           </div>
         </main>
       </div>

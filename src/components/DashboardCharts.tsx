@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
@@ -8,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, subMonths } from 'date-fns';
 import { Trophy, Medal, Award, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import InteractiveChart from './InteractiveChart';
 
 interface MonthlyData {
   month: string;
@@ -128,103 +128,108 @@ const DashboardCharts: React.FC = () => {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            📊 Monthly Hours Trend
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ChartContainer config={chartConfig}>
-            <ResponsiveContainer width="100%" height={280}>
-              <AreaChart data={chartData?.monthlyData}>
-                <defs>
-                  <linearGradient id="colorHours" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Area 
-                  type="monotone" 
-                  dataKey="hours" 
-                  stroke="hsl(var(--chart-1))" 
-                  fillOpacity={1} 
-                  fill="url(#colorHours)"
-                  strokeWidth={3}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </CardContent>
-      </Card>
+      <InteractiveChart title="Monthly Hours Trend">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              📊 Monthly Hours Trend
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={chartConfig}>
+              <ResponsiveContainer width="100%" height={280}>
+                <AreaChart data={chartData?.monthlyData}>
+                  <defs>
+                    <linearGradient id="colorHours" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Area 
+                    type="monotone" 
+                    dataKey="hours" 
+                    stroke="hsl(var(--chart-1))" 
+                    fillOpacity={1} 
+                    fill="url(#colorHours)"
+                    strokeWidth={3}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      </InteractiveChart>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            📈 Monthly Shifts Activity
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ChartContainer config={chartConfig}>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={chartData?.monthlyData}>
-                <defs>
-                  <linearGradient id="colorShifts" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--chart-3))" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="hsl(var(--chart-3))" stopOpacity={0.3}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar 
-                  dataKey="shifts" 
-                  fill="url(#colorShifts)" 
-                  radius={[4, 4, 0, 0]}
-                  stroke="hsl(var(--chart-3))"
-                  strokeWidth={1}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </CardContent>
-      </Card>
+      <InteractiveChart title="Monthly Shifts Activity">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              📈 Monthly Shifts Activity
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={chartConfig}>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={chartData?.monthlyData}>
+                  <defs>
+                    <linearGradient id="colorShifts" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--chart-3))" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="hsl(var(--chart-3))" stopOpacity={0.3}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar 
+                    dataKey="shifts" 
+                    fill="url(#colorShifts)" 
+                    radius={[4, 4, 0, 0]}
+                    stroke="hsl(var(--chart-3))"
+                    strokeWidth={1}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      </InteractiveChart>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            🏆 Top Performers Leaderboard
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {chartData?.employeeData?.map((employee, index) => (
-              <div key={employee.name} className="flex items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-white rounded-lg border hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-3">
-                  {getLeaderIcon(index)}
-                  <div>
-                    <p className="font-semibold text-gray-900">{employee.name}</p>
-                    <p className="text-sm text-gray-500">{employee.shifts} shifts</p>
+      <InteractiveChart title="Top Performers Leaderboard">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              🏆 Top Performers Leaderboard
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {chartData?.employeeData?.map((employee, index) => (
+                <div key={employee.name} className="flex items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-white rounded-lg border hover:shadow-md transition-shadow">
+                  <div className="flex items-center gap-3">
+                    {getLeaderIcon(index)}
+                    <div>
+                      <p className="font-semibold text-gray-900">{employee.name}</p>
+                      <p className="text-sm text-gray-500">{employee.shifts} shifts</p>
+                    </div>
+                  </div>
+                  <div className="text-right flex items-center gap-2">
+                    <div>
+                      <p className="font-bold text-lg text-blue-600">{employee.hours.toFixed(1)}h</p>
+                      <p className="text-xs text-gray-500">LE {employee.amount.toFixed(0)}</p>
+                    </div>
+                    {getLeaderBadge(index)}
                   </div>
                 </div>
-                <div className="text-right flex items-center gap-2">
-                  <div>
-                    <p className="font-bold text-lg text-blue-600">{employee.hours.toFixed(1)}h</p>
-                    <p className="text-xs text-gray-500">LE {employee.amount.toFixed(0)}</p>
-                  </div>
-                  {getLeaderBadge(index)}
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </InteractiveChart>
     </div>
   );
 };

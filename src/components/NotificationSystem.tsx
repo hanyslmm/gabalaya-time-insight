@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -14,6 +15,7 @@ interface Notification {
   title: string;
   message: string;
   employee_name: string;
+  employee_id: string;
   timestamp: Date;
   read: boolean;
 }
@@ -35,18 +37,29 @@ const NotificationSystem: React.FC = () => {
   const checkForNotifications = async () => {
     try {
       const today = format(new Date(), 'yyyy-MM-dd');
-      const { data: entries, error } = await supabase
+      
+      // Fetch timesheet entries with employee information
+      const { data: entries, error: entriesError } = await supabase
         .from('timesheet_entries')
-        .select('*')
+        .select(`
+          *,
+          employees (
+            id,
+            full_name,
+            staff_id
+          )
+        `)
         .eq('clock_in_date', today);
 
-      if (error) throw error;
+      if (entriesError) throw entriesError;
 
       const newNotifications: Notification[] = [];
 
       entries?.forEach(entry => {
         const clockInTime = new Date(`${entry.clock_in_date}T${entry.clock_in_time}`);
         const now = new Date();
+        const employeeName = entry.employees?.full_name || entry.employee_name;
+        const employeeId = entry.employees?.staff_id || entry.employee_id;
 
         // Check for long shifts (over 10 hours without clocking out)
         if ((!entry.clock_out_time || entry.clock_out_time === '00:00:00') && 
@@ -55,8 +68,9 @@ const NotificationSystem: React.FC = () => {
             id: `long_shift_${entry.id}`,
             type: 'long_shift',
             title: 'Long Shift Alert',
-            message: `${entry.employee_name} has been working for over 10 hours`,
-            employee_name: entry.employee_name,
+            message: `${employeeName} has been working for over 10 hours`,
+            employee_name: employeeName,
+            employee_id: employeeId,
             timestamp: now,
             read: false
           });
@@ -69,8 +83,9 @@ const NotificationSystem: React.FC = () => {
             id: `missing_clockout_${entry.id}`,
             type: 'missing_clockout',
             title: 'Missing Clock-Out',
-            message: `${entry.employee_name} may have forgotten to clock out`,
-            employee_name: entry.employee_name,
+            message: `${employeeName} may have forgotten to clock out`,
+            employee_name: employeeName,
+            employee_id: employeeId,
             timestamp: now,
             read: false
           });
@@ -82,8 +97,9 @@ const NotificationSystem: React.FC = () => {
             id: `overtime_${entry.id}`,
             type: 'overtime',
             title: 'Overtime Detected',
-            message: `${entry.employee_name} worked ${entry.total_hours.toFixed(1)} hours`,
-            employee_name: entry.employee_name,
+            message: `${employeeName} worked ${entry.total_hours.toFixed(1)} hours`,
+            employee_name: employeeName,
+            employee_id: employeeId,
             timestamp: now,
             read: false
           });
@@ -155,7 +171,7 @@ const NotificationSystem: React.FC = () => {
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
-          <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 text-xs">
+          <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 text-xs bg-red-500 hover:bg-red-600">
             {unreadCount}
           </Badge>
         )}
