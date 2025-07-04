@@ -62,7 +62,7 @@ const TimesheetsPage: React.FC = () => {
         const employee = employeeMap.get(entry.employee_name) || employeeMap.get(entry.employee_id);
         const mappedEntry = {
           ...entry,
-          employee_name: entry.employee_name, // Keep the original name
+          employee_name: employee ? employee.full_name : entry.employee_name, // Use full name if found
           employees: employee ? {
             morning_wage_rate: employee.morning_wage_rate,
             night_wage_rate: employee.night_wage_rate
