@@ -8,6 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Calendar, Download, FileBarChart, Users } from 'lucide-react';
 import TimesheetDateFilter from '@/components/TimesheetDateFilter';
 import { format } from 'date-fns';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 interface DateRange {
   from: Date;
@@ -15,7 +23,8 @@ interface DateRange {
 }
 
 const ReportsPage: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'ar';
   const [dateRange, setDateRange] = useState<DateRange>({ 
     from: new Date(new Date().getFullYear(), new Date().getMonth(), 1), 
     to: new Date() 
@@ -35,7 +44,7 @@ const ReportsPage: React.FC = () => {
     }
   });
 
-  // Employee Attendance Report - Fixed to properly display employee names
+  // Employee Attendance Report - Fixed to properly display employee names by joining with employees table
   const { data: attendanceReport } = useQuery({
     queryKey: ['attendance-report', dateRange],
     queryFn: async () => {
@@ -47,13 +56,34 @@ const ReportsPage: React.FC = () => {
           total_hours,
           total_card_amount_flat,
           clock_in_date,
-          clock_out_date
+          clock_out_date,
+          employees!inner(full_name, staff_id)
         `)
         .gte('clock_in_date', format(dateRange.from, 'yyyy-MM-dd'))
         .lte('clock_out_date', format(dateRange.to, 'yyyy-MM-dd'))
         .order('clock_in_date', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching attendance report:', error);
+        // Fallback to original query if join fails
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('timesheet_entries')
+          .select(`
+            employee_name,
+            employee_id,
+            total_hours,
+            total_card_amount_flat,
+            clock_in_date,
+            clock_out_date
+          `)
+          .gte('clock_in_date', format(dateRange.from, 'yyyy-MM-dd'))
+          .lte('clock_out_date', format(dateRange.to, 'yyyy-MM-dd'))
+          .order('clock_in_date', { ascending: false });
+        
+        if (fallbackError) throw fallbackError;
+        return fallbackData || [];
+      }
+      
       return data || [];
     }
   });
@@ -76,29 +106,48 @@ const ReportsPage: React.FC = () => {
           clock_in_date,
           clock_in_time,
           clock_out_date,
-          clock_out_time
+          clock_out_time,
+          employees!inner(full_name, staff_id)
         `)
         .gte('clock_in_date', format(dateRange.from, 'yyyy-MM-dd'))
         .lte('clock_out_date', format(dateRange.to, 'yyyy-MM-dd'));
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching payroll summary:', error);
+        // Fallback query
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('timesheet_entries')
+          .select(`
+            employee_name,
+            total_hours,
+            total_card_amount_flat,
+            total_card_amount_split,
+            morning_hours,
+            night_hours,
+            clock_in_date,
+            clock_in_time,
+            clock_out_date,
+            clock_out_time
+          `)
+          .gte('clock_in_date', format(dateRange.from, 'yyyy-MM-dd'))
+          .lte('clock_out_date', format(dateRange.to, 'yyyy-MM-dd'));
+        
+        if (fallbackError) throw fallbackError;
+        data = fallbackData;
+      }
       
-      // Calculate morning and night hours for each entry if not already calculated
       const processedData = data?.map(entry => {
         let morningHours = entry.morning_hours || 0;
         let nightHours = entry.night_hours || 0;
 
-        // If morning_hours and night_hours are not set, calculate them
         if ((!entry.morning_hours && !entry.night_hours) || (entry.morning_hours === 0 && entry.night_hours === 0)) {
           const clockInDateTime = new Date(`${entry.clock_in_date}T${entry.clock_in_time}`);
           const clockOutDateTime = new Date(`${entry.clock_out_date}T${entry.clock_out_time}`);
           
-          // Handle next day scenario for night shifts
           if (clockOutDateTime < clockInDateTime) {
             clockOutDateTime.setDate(clockOutDateTime.getDate() + 1);
           }
 
-          // Create time boundaries
           const baseDate = new Date(entry.clock_in_date);
           
           const morningStart = new Date(baseDate);
@@ -117,12 +166,10 @@ const ReportsPage: React.FC = () => {
           const [nightEndHour, nightEndMin] = wageSettings.night_end_time.split(':');
           nightEnd.setHours(parseInt(nightEndHour), parseInt(nightEndMin), 0, 0);
           
-          // Handle next day for night end time if it's earlier than night start
           if (nightEnd <= nightStart) {
             nightEnd.setDate(nightEnd.getDate() + 1);
           }
 
-          // Calculate morning hours overlap
           const morningOverlapStart = new Date(Math.max(clockInDateTime.getTime(), morningStart.getTime()));
           const morningOverlapEnd = new Date(Math.min(clockOutDateTime.getTime(), morningEnd.getTime()));
           
@@ -130,7 +177,6 @@ const ReportsPage: React.FC = () => {
             morningHours = (morningOverlapEnd.getTime() - morningOverlapStart.getTime()) / (1000 * 60 * 60);
           }
 
-          // Calculate night hours overlap
           const nightOverlapStart = new Date(Math.max(clockInDateTime.getTime(), nightStart.getTime()));
           const nightOverlapEnd = new Date(Math.min(clockOutDateTime.getTime(), nightEnd.getTime()));
           
@@ -138,7 +184,6 @@ const ReportsPage: React.FC = () => {
             nightHours = (nightOverlapEnd.getTime() - nightOverlapStart.getTime()) / (1000 * 60 * 60);
           }
 
-          // Ensure total hours don't exceed actual worked hours
           const totalWorkedHours = (clockOutDateTime.getTime() - clockInDateTime.getTime()) / (1000 * 60 * 60);
           const calculatedTotal = morningHours + nightHours;
           
@@ -151,14 +196,14 @@ const ReportsPage: React.FC = () => {
 
         return {
           ...entry,
+          display_name: entry.employees?.full_name || entry.employee_name,
           calculated_morning_hours: Math.max(0, morningHours),
           calculated_night_hours: Math.max(0, nightHours)
         };
       });
 
-      // Group by employee
       const grouped = processedData?.reduce((acc: any, entry) => {
-        const name = entry.employee_name;
+        const name = entry.display_name;
         if (!acc[name]) {
           acc[name] = {
             employee_name: name,
@@ -185,7 +230,6 @@ const ReportsPage: React.FC = () => {
   });
 
   const exportReport = (type: string) => {
-    // Simple CSV export functionality
     let csvContent = '';
     let data: any[] = [];
     
@@ -193,7 +237,8 @@ const ReportsPage: React.FC = () => {
       csvContent = 'Employee Name,Date,Total Hours,Amount\n';
       data = attendanceReport;
       data.forEach(row => {
-        csvContent += `${row.employee_name},${row.clock_in_date},${row.total_hours},${row.total_card_amount_flat}\n`;
+        const employeeName = (row as any).employees?.full_name || row.employee_name;
+        csvContent += `${employeeName},${row.clock_in_date},${row.total_hours},${row.total_card_amount_flat}\n`;
       });
     } else if (type === 'payroll' && payrollSummary) {
       csvContent = 'Employee Name,Total Hours,Morning Hours,Night Hours,Total Amount,Shifts\n';
@@ -213,109 +258,146 @@ const ReportsPage: React.FC = () => {
   };
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 space-y-4 sm:space-y-0">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('reports') || 'Reports'}</h1>
-          <p className="mt-2 text-sm text-gray-600">Generate and export attendance and payroll reports</p>
+    <div className={`px-4 sm:px-6 lg:px-8 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+      <div className={`flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 space-y-4 sm:space-y-0 ${isRTL ? 'sm:flex-row-reverse' : ''}`}>
+        <div className={isRTL ? 'text-right' : 'text-left'}>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            {t('reports') || 'Reports'}
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {isRTL ? 'إنشاء وتصدير تقارير الحضور والرواتب' : 'Generate and export attendance and payroll reports'}
+          </p>
         </div>
       </div>
 
       {/* Date Filter */}
-      <TimesheetDateFilter
-        dateRange={dateRange}
-        onDateRangeChange={setDateRange}
-        payPeriodEndDay={28}
-        onPayPeriodEndDayChange={() => {}}
-      />
+      <div className="mb-6">
+        <TimesheetDateFilter
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+          payPeriodEndDay={28}
+          onPayPeriodEndDayChange={() => {}}
+        />
+      </div>
 
       <Tabs defaultValue="attendance" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="attendance">Attendance Report</TabsTrigger>
-          <TabsTrigger value="payroll">Payroll Summary</TabsTrigger>
+        <TabsList className={`grid w-full grid-cols-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+          <TabsTrigger value="attendance" className={`${isRTL ? 'font-arabic' : ''}`}>
+            {isRTL ? 'تقرير الحضور' : 'Attendance Report'}
+          </TabsTrigger>
+          <TabsTrigger value="payroll" className={`${isRTL ? 'font-arabic' : ''}`}>
+            {isRTL ? 'ملخص الرواتب' : 'Payroll Summary'}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="attendance">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center space-x-2">
-                  <Calendar className="h-5 w-5" />
-                  <span>Attendance Report</span>
+          <Card className="shadow-lg border-0 bg-gradient-to-br from-card to-card/80 backdrop-blur-xl">
+            <CardHeader className={`flex flex-row items-center justify-between border-b border-border/50 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <div className={`flex items-center space-x-3 ${isRTL ? 'space-x-reverse' : ''}`}>
+                <Calendar className="h-5 w-5 text-primary" />
+                <CardTitle className={`text-xl ${isRTL ? 'font-arabic' : ''}`}>
+                  {isRTL ? 'تقرير الحضور' : 'Attendance Report'}
                 </CardTitle>
               </div>
-              <Button onClick={() => exportReport('attendance')} size="sm">
+              <Button onClick={() => exportReport('attendance')} size="sm" className="shadow-md hover:shadow-lg transition-all duration-200">
                 <Download className="h-4 w-4 mr-2" />
-                Export CSV
+                {isRTL ? 'تصدير CSV' : 'Export CSV'}
               </Button>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-gray-300">
-                  <thead>
-                    <tr className="bg-gray-50">
-                      <th className="border border-gray-300 px-4 py-2 text-left">Employee</th>
-                      <th className="border border-gray-300 px-4 py-2 text-left">Date</th>
-                      <th className="border border-gray-300 px-4 py-2 text-left">Hours</th>
-                      <th className="border border-gray-300 px-4 py-2 text-left">Amount (LE)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {attendanceReport?.map((entry, index) => (
-                      <tr key={index} className="hover:bg-gray-50">
-                        <td className="border border-gray-300 px-4 py-2 font-medium">{entry.employee_name}</td>
-                        <td className="border border-gray-300 px-4 py-2">{entry.clock_in_date}</td>
-                        <td className="border border-gray-300 px-4 py-2">{entry.total_hours?.toFixed(2)}</td>
-                        <td className="border border-gray-300 px-4 py-2">{entry.total_card_amount_flat?.toFixed(2)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30">
+                      <TableHead className={`font-semibold ${isRTL ? 'text-right font-arabic' : 'text-left'}`}>
+                        {isRTL ? 'الموظف' : 'Employee'}
+                      </TableHead>
+                      <TableHead className={`font-semibold ${isRTL ? 'text-right font-arabic' : 'text-left'}`}>
+                        {isRTL ? 'التاريخ' : 'Date'}
+                      </TableHead>
+                      <TableHead className={`font-semibold ${isRTL ? 'text-right font-arabic' : 'text-left'}`}>
+                        {isRTL ? 'الساعات' : 'Hours'}
+                      </TableHead>
+                      <TableHead className={`font-semibold ${isRTL ? 'text-right font-arabic' : 'text-left'}`}>
+                        {isRTL ? 'المبلغ (جنيه)' : 'Amount (LE)'}
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {attendanceReport?.map((entry, index) => {
+                      const employeeName = (entry as any).employees?.full_name || entry.employee_name;
+                      return (
+                        <TableRow key={index} className="hover:bg-muted/20 transition-colors duration-150">
+                          <TableCell className={`font-medium ${isRTL ? 'text-right font-arabic' : ''}`}>
+                            {employeeName}
+                          </TableCell>
+                          <TableCell className={isRTL ? 'text-right' : ''}>{entry.clock_in_date}</TableCell>
+                          <TableCell className={isRTL ? 'text-right' : ''}>{entry.total_hours?.toFixed(2)}</TableCell>
+                          <TableCell className={isRTL ? 'text-right' : ''}>{entry.total_card_amount_flat?.toFixed(2)}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="payroll">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center space-x-2">
-                  <Users className="h-5 w-5" />
-                  <span>Payroll Summary</span>
+          <Card className="shadow-lg border-0 bg-gradient-to-br from-card to-card/80 backdrop-blur-xl">
+            <CardHeader className={`flex flex-row items-center justify-between border-b border-border/50 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <div className={`flex items-center space-x-3 ${isRTL ? 'space-x-reverse' : ''}`}>
+                <Users className="h-5 w-5 text-primary" />
+                <CardTitle className={`text-xl ${isRTL ? 'font-arabic' : ''}`}>
+                  {isRTL ? 'ملخص الرواتب' : 'Payroll Summary'}
                 </CardTitle>
               </div>
-              <Button onClick={() => exportReport('payroll')} size="sm">
+              <Button onClick={() => exportReport('payroll')} size="sm" className="shadow-md hover:shadow-lg transition-all duration-200">
                 <Download className="h-4 w-4 mr-2" />
-                Export CSV
+                {isRTL ? 'تصدير CSV' : 'Export CSV'}
               </Button>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-gray-300">
-                  <thead>
-                    <tr className="bg-gray-50">
-                       <th className="border border-gray-300 px-4 py-2 text-left">Employee</th>
-                       <th className="border border-gray-300 px-4 py-2 text-left">Total Hours</th>
-                       <th className="border border-gray-300 px-4 py-2 text-left">Morning Hours</th>
-                       <th className="border border-gray-300 px-4 py-2 text-left">Night Hours</th>
-                       <th className="border border-gray-300 px-4 py-2 text-left">Shifts</th>
-                       <th className="border border-gray-300 px-4 py-2 text-left">Total Amount (LE)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30">
+                      <TableHead className={`font-semibold ${isRTL ? 'text-right font-arabic' : 'text-left'}`}>
+                        {isRTL ? 'الموظف' : 'Employee'}
+                      </TableHead>
+                      <TableHead className={`font-semibold ${isRTL ? 'text-right font-arabic' : 'text-left'}`}>
+                        {isRTL ? 'إجمالي الساعات' : 'Total Hours'}
+                      </TableHead>
+                      <TableHead className={`font-semibold ${isRTL ? 'text-right font-arabic' : 'text-left'}`}>
+                        {isRTL ? 'ساعات الصباح' : 'Morning Hours'}
+                      </TableHead>
+                      <TableHead className={`font-semibold ${isRTL ? 'text-right font-arabic' : 'text-left'}`}>
+                        {isRTL ? 'ساعات الليل' : 'Night Hours'}
+                      </TableHead>
+                      <TableHead className={`font-semibold ${isRTL ? 'text-right font-arabic' : 'text-left'}`}>
+                        {isRTL ? 'الورديات' : 'Shifts'}
+                      </TableHead>
+                      <TableHead className={`font-semibold ${isRTL ? 'text-right font-arabic' : 'text-left'}`}>
+                        {isRTL ? 'إجمالي المبلغ (جنيه)' : 'Total Amount (LE)'}
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {payrollSummary?.map((summary: any, index) => (
-                      <tr key={index} className="hover:bg-gray-50">
-                         <td className="border border-gray-300 px-4 py-2 font-medium">{summary.employee_name}</td>
-                         <td className="border border-gray-300 px-4 py-2">{summary.total_hours?.toFixed(2)}</td>
-                         <td className="border border-gray-300 px-4 py-2">{summary.morning_hours?.toFixed(2)}</td>
-                         <td className="border border-gray-300 px-4 py-2">{summary.night_hours?.toFixed(2)}</td>
-                         <td className="border border-gray-300 px-4 py-2">{summary.shifts}</td>
-                         <td className="border border-gray-300 px-4 py-2">{summary.total_split_amount?.toFixed(2)}</td>
-                      </tr>
+                      <TableRow key={index} className="hover:bg-muted/20 transition-colors duration-150">
+                        <TableCell className={`font-medium ${isRTL ? 'text-right font-arabic' : ''}`}>
+                          {summary.employee_name}
+                        </TableCell>
+                        <TableCell className={isRTL ? 'text-right' : ''}>{summary.total_hours?.toFixed(2)}</TableCell>
+                        <TableCell className={isRTL ? 'text-right' : ''}>{summary.morning_hours?.toFixed(2)}</TableCell>
+                        <TableCell className={isRTL ? 'text-right' : ''}>{summary.night_hours?.toFixed(2)}</TableCell>
+                        <TableCell className={isRTL ? 'text-right' : ''}>{summary.shifts}</TableCell>
+                        <TableCell className={isRTL ? 'text-right' : ''}>{summary.total_split_amount?.toFixed(2)}</TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
           </Card>
