@@ -133,7 +133,7 @@ const ReportsPage: React.FC = () => {
           .lte('clock_out_date', format(dateRange.to, 'yyyy-MM-dd'));
         
         if (fallbackError) throw fallbackError;
-        data = fallbackData;
+        return fallbackData || [];
       }
       
       const processedData = data?.map(entry => {
