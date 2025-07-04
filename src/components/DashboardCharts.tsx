@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
@@ -25,6 +26,27 @@ interface EmployeeData {
 }
 
 const DashboardCharts: React.FC = () => {
+  const [timePeriod, setTimePeriod] = useState('7days');
+
+  const getFilteredData = () => {
+    const now = new Date();
+    const daysMap = {
+      '7days': 7,
+      '30days': 30,
+      '90days': 90,
+      '365days': 365
+    };
+    
+    const days = daysMap[timePeriod as keyof typeof daysMap] || 7;
+    // In a real app, you'd filter your data based on the selected period
+    return {
+      days,
+      // For demo purposes, using static data
+      // In production, this would fetch filtered data from your API
+    };
+  };
+
+  const { days } = getFilteredData();
   const { data: chartData, isLoading } = useQuery({
     queryKey: ['dashboard-charts'],
     queryFn: async () => {
@@ -127,7 +149,26 @@ const DashboardCharts: React.FC = () => {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <div className="space-y-6">
+      {/* Time Period Filter */}
+      <div className="flex justify-end">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">Time Period:</span>
+          <Select value={timePeriod} onValueChange={setTimePeriod}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7days">7 Days</SelectItem>
+              <SelectItem value="30days">30 Days</SelectItem>
+              <SelectItem value="90days">90 Days</SelectItem>
+              <SelectItem value="365days">1 Year</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
       <InteractiveChart title="Monthly Hours Trend">
         <Card>
           <CardHeader>
@@ -230,6 +271,7 @@ const DashboardCharts: React.FC = () => {
           </CardContent>
         </Card>
       </InteractiveChart>
+      </div>
     </div>
   );
 };

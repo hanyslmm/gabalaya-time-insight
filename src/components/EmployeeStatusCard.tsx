@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Clock, MapPin, User } from 'lucide-react';
+import ProfileAvatar from './ProfileAvatar';
 
 interface EmployeeStatus {
   employee_name: string;
@@ -33,10 +34,8 @@ export const EmployeeStatusCard: React.FC<EmployeeStatusCardProps> = ({
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-2">
-              <User className="h-4 w-4 text-gray-500" />
-              <h3 className="font-semibold text-lg">{status.employee_name}</h3>
-            </div>
+            <ProfileAvatar employeeName={status.employee_name} size="sm" />
+            <h3 className="font-semibold text-lg">{status.employee_name}</h3>
           </div>
           <Badge variant={status.is_active ? "default" : "secondary"}>
             {status.is_active ? 'Active' : 'Completed'}

@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import ProfileAvatar from './ProfileAvatar';
 
 interface Employee {
   id?: string;
@@ -36,6 +38,20 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
     phone_number: '',
   });
   const [loading, setLoading] = useState(false);
+  const [availableRoles, setAvailableRoles] = useState([
+    'Champion',
+    'Barista', 
+    'Host'
+  ]);
+
+  useEffect(() => {
+    // Load roles from localStorage
+    const savedRoles = localStorage.getItem('employee-roles');
+    if (savedRoles) {
+      const roles = JSON.parse(savedRoles);
+      setAvailableRoles(roles.map((role: any) => role.name));
+    }
+  }, []);
 
   useEffect(() => {
     if (employee) {
@@ -93,6 +109,16 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Profile Avatar Section */}
+          {formData.full_name && (
+            <div className="flex justify-center py-4">
+              <div className="text-center space-y-2">
+                <ProfileAvatar employeeName={formData.full_name} size="lg" showChangeOption={true} />
+                <p className="text-sm text-muted-foreground">Employee Avatar</p>
+              </div>
+            </div>
+          )}
+          
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="staff_id">{t('staffId')} *</Label>
@@ -117,12 +143,18 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="role">{t('role')} *</Label>
-              <Input
-                id="role"
-                value={formData.role}
-                onChange={(e) => handleInputChange('role', e.target.value)}
-                required
-              />
+              <Select value={formData.role} onValueChange={(value) => handleInputChange('role', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableRoles.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {role}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="hiring_date">{t('hiringDate')} *</Label>

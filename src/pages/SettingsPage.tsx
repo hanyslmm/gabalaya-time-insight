@@ -3,6 +3,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import WageSettings from '@/components/WageSettings';
+import RoleManagement from '@/components/RoleManagement';
 
 const SettingsPage: React.FC = () => {
   const { t } = useTranslation();
@@ -42,6 +43,10 @@ const SettingsPage: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="mt-6">
+        <RoleManagement />
       </div>
     </div>
   );

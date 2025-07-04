@@ -114,7 +114,7 @@ const EmployeeMonitorPage: React.FC = () => {
 
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
+    const mins = Math.round(minutes % 60);
     return `${hours}h ${mins}m`;
   };
 

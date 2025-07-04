@@ -25,9 +25,10 @@ const characters = {
 interface ProfileAvatarProps {
   size?: 'sm' | 'md' | 'lg';
   showChangeOption?: boolean;
+  employeeName?: string;
 }
 
-const ProfileAvatar: React.FC<ProfileAvatarProps> = ({ size = 'md', showChangeOption = false }) => {
+const ProfileAvatar: React.FC<ProfileAvatarProps> = ({ size = 'md', showChangeOption = false, employeeName }) => {
   const { user } = useAuth();
   const [selectedCharacter, setSelectedCharacter] = useState('cat-1');
   const [isOpen, setIsOpen] = useState(false);
@@ -45,17 +46,25 @@ const ProfileAvatar: React.FC<ProfileAvatarProps> = ({ size = 'md', showChangeOp
   };
 
   useEffect(() => {
-    // Load user's character preference from localStorage or database
-    const savedCharacter = localStorage.getItem(`user-character-${user?.id}`);
+    // Load user's or employee's character preference from localStorage
+    const storageKey = employeeName ? `employee-character-${employeeName}` : `user-character-${user?.id}`;
+    const savedCharacter = localStorage.getItem(storageKey);
     if (savedCharacter && characters[savedCharacter as keyof typeof characters]) {
       setSelectedCharacter(savedCharacter);
+    } else {
+      // Default character based on name hash for consistency
+      const defaultCharacter = employeeName ? 
+        Object.keys(characters)[Math.abs(employeeName.split('').reduce((a, b) => a + b.charCodeAt(0), 0)) % Object.keys(characters).length] :
+        'cat-1';
+      setSelectedCharacter(defaultCharacter);
     }
-  }, [user?.id]);
+  }, [user?.id, employeeName]);
 
   const handleCharacterSelect = (character: string) => {
     setSelectedCharacter(character);
-    // Save to localStorage (you could also save to database)
-    localStorage.setItem(`user-character-${user?.id}`, character);
+    // Save to localStorage
+    const storageKey = employeeName ? `employee-character-${employeeName}` : `user-character-${user?.id}`;
+    localStorage.setItem(storageKey, character);
     setIsOpen(false);
   };
 

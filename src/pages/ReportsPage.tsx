@@ -48,14 +48,22 @@ const ReportsPage: React.FC = () => {
           total_hours,
           total_card_amount_flat,
           clock_in_date,
-          clock_out_date
+          clock_out_date,
+          employees (
+            full_name
+          )
         `)
         .gte('clock_in_date', format(dateRange.from, 'yyyy-MM-dd'))
         .lte('clock_out_date', format(dateRange.to, 'yyyy-MM-dd'))
         .order('clock_in_date', { ascending: false });
       
       if (error) throw error;
-      return data || [];
+      
+      // Map employee IDs to names
+      return data?.map(entry => ({
+        ...entry,
+        display_name: entry.employees?.full_name || entry.employee_name
+      })) || [];
     }
   });
 
@@ -268,7 +276,7 @@ const ReportsPage: React.FC = () => {
                   <tbody>
                     {attendanceReport?.map((entry, index) => (
                       <tr key={index} className="hover:bg-gray-50">
-                        <td className="border border-gray-300 px-4 py-2">{entry.employee_name}</td>
+                        <td className="border border-gray-300 px-4 py-2">{entry.display_name}</td>
                         <td className="border border-gray-300 px-4 py-2">{entry.clock_in_date}</td>
                         <td className="border border-gray-300 px-4 py-2">{entry.total_hours?.toFixed(2)}</td>
                         <td className="border border-gray-300 px-4 py-2">{entry.total_card_amount_flat?.toFixed(2)}</td>
