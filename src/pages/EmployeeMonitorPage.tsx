@@ -61,6 +61,8 @@ const EmployeeMonitorPage: React.FC = () => {
       const employeeMap = new Map();
       (employeesData || []).forEach(emp => {
         employeeMap.set(emp.staff_id, emp.full_name);
+        // Also map by employee name in case it's already the staff_id
+        employeeMap.set(emp.full_name, emp.full_name);
       });
 
       // Fetch today's timesheet entries

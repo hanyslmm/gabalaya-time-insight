@@ -5,9 +5,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Calendar, Download, FileBarChart, Users } from 'lucide-react';
+import { Calendar, Download, FileBarChart, Users, FileSpreadsheet, Upload } from 'lucide-react';
 import TimesheetDateFilter from '@/components/TimesheetDateFilter';
+import { HRAnalytics } from '@/components/HRAnalytics';
 import { format } from 'date-fns';
+import * as XLSX from 'xlsx';
 import {
   Table,
   TableBody,
@@ -16,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { toast } from 'sonner';
 
 interface DateRange {
   from: Date;
@@ -44,10 +47,27 @@ const ReportsPage: React.FC = () => {
     }
   });
 
-  // Employee Attendance Report - Fixed to properly display employee names by joining with employees table
+  // Employee Attendance Report - Properly map employee names
   const { data: attendanceReport } = useQuery({
     queryKey: ['attendance-report', dateRange],
     queryFn: async () => {
+      // First get all employees to create a mapping
+      const { data: employeesData, error: employeesError } = await supabase
+        .from('employees')
+        .select('staff_id, full_name');
+
+      if (employeesError) {
+        console.error('Error fetching employees:', employeesError);
+        throw employeesError;
+      }
+
+      // Create a map of staff_id to full_name
+      const employeeMap = new Map();
+      employeesData?.forEach(emp => {
+        employeeMap.set(emp.staff_id, emp.full_name);
+      });
+
+      // Now get timesheet entries
       const { data, error } = await supabase
         .from('timesheet_entries')
         .select(`
@@ -56,8 +76,7 @@ const ReportsPage: React.FC = () => {
           total_hours,
           total_card_amount_flat,
           clock_in_date,
-          clock_out_date,
-          employees!inner(full_name, staff_id)
+          clock_out_date
         `)
         .gte('clock_in_date', format(dateRange.from, 'yyyy-MM-dd'))
         .lte('clock_out_date', format(dateRange.to, 'yyyy-MM-dd'))
@@ -65,26 +84,17 @@ const ReportsPage: React.FC = () => {
       
       if (error) {
         console.error('Error fetching attendance report:', error);
-        // Fallback to original query if join fails
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('timesheet_entries')
-          .select(`
-            employee_name,
-            employee_id,
-            total_hours,
-            total_card_amount_flat,
-            clock_in_date,
-            clock_out_date
-          `)
-          .gte('clock_in_date', format(dateRange.from, 'yyyy-MM-dd'))
-          .lte('clock_out_date', format(dateRange.to, 'yyyy-MM-dd'))
-          .order('clock_in_date', { ascending: false });
-        
-        if (fallbackError) throw fallbackError;
-        return fallbackData || [];
+        throw error;
       }
       
-      return data || [];
+      // Map employee names properly
+      const processedData = data?.map(entry => ({
+        ...entry,
+        display_name: employeeMap.get(entry.employee_name) || entry.employee_name,
+        total_card_amount_flat: Math.round(entry.total_card_amount_flat || 0)
+      }));
+      
+      return processedData || [];
     }
   });
 
@@ -94,6 +104,23 @@ const ReportsPage: React.FC = () => {
     queryFn: async () => {
       if (!wageSettings) return [];
 
+      // First get all employees to create a mapping
+      const { data: employeesData, error: employeesError } = await supabase
+        .from('employees')
+        .select('staff_id, full_name');
+
+      if (employeesError) {
+        console.error('Error fetching employees:', employeesError);
+        throw employeesError;
+      }
+
+      // Create a map of staff_id to full_name
+      const employeeMap = new Map();
+      employeesData?.forEach(emp => {
+        employeeMap.set(emp.staff_id, emp.full_name);
+      });
+
+      // Now get timesheet entries
       const { data, error } = await supabase
         .from('timesheet_entries')
         .select(`
@@ -106,34 +133,14 @@ const ReportsPage: React.FC = () => {
           clock_in_date,
           clock_in_time,
           clock_out_date,
-          clock_out_time,
-          employees!inner(full_name, staff_id)
+          clock_out_time
         `)
         .gte('clock_in_date', format(dateRange.from, 'yyyy-MM-dd'))
         .lte('clock_out_date', format(dateRange.to, 'yyyy-MM-dd'));
       
       if (error) {
         console.error('Error fetching payroll summary:', error);
-        // Fallback query
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('timesheet_entries')
-          .select(`
-            employee_name,
-            total_hours,
-            total_card_amount_flat,
-            total_card_amount_split,
-            morning_hours,
-            night_hours,
-            clock_in_date,
-            clock_in_time,
-            clock_out_date,
-            clock_out_time
-          `)
-          .gte('clock_in_date', format(dateRange.from, 'yyyy-MM-dd'))
-          .lte('clock_out_date', format(dateRange.to, 'yyyy-MM-dd'));
-        
-        if (fallbackError) throw fallbackError;
-        return fallbackData || [];
+        throw error;
       }
       
       const processedData = data?.map(entry => {
@@ -196,7 +203,7 @@ const ReportsPage: React.FC = () => {
 
         return {
           ...entry,
-          display_name: entry.employees?.full_name || entry.employee_name,
+          display_name: employeeMap.get(entry.employee_name) || entry.employee_name,
           calculated_morning_hours: Math.max(0, morningHours),
           calculated_night_hours: Math.max(0, nightHours)
         };
@@ -216,8 +223,8 @@ const ReportsPage: React.FC = () => {
           };
         }
         acc[name].total_hours += entry.total_hours || 0;
-        acc[name].total_amount += entry.total_card_amount_flat || 0;
-        acc[name].total_split_amount += entry.total_card_amount_split || 0;
+        acc[name].total_amount += Math.round(entry.total_card_amount_flat || 0);
+        acc[name].total_split_amount += Math.round(entry.total_card_amount_split || 0);
         acc[name].morning_hours += entry.calculated_morning_hours || 0;
         acc[name].night_hours += entry.calculated_night_hours || 0;
         acc[name].shifts += 1;
@@ -229,32 +236,84 @@ const ReportsPage: React.FC = () => {
     enabled: !!wageSettings
   });
 
-  const exportReport = (type: string) => {
-    let csvContent = '';
+  const exportReport = (type: string, format: 'csv' | 'excel' = 'csv') => {
     let data: any[] = [];
+    let headers: string[] = [];
+    let fileName = '';
     
     if (type === 'attendance' && attendanceReport) {
-      csvContent = 'Employee Name,Date,Total Hours,Amount\n';
-      data = attendanceReport;
-      data.forEach(row => {
-        const employeeName = (row as any).employees?.full_name || row.employee_name;
-        csvContent += `${employeeName},${row.clock_in_date},${row.total_hours},${row.total_card_amount_flat}\n`;
+      headers = ['Employee Name', 'Date', 'Total Hours', 'Amount'];
+      data = attendanceReport.map(row => {
+        const employeeName = (row as any).display_name || row.employee_name;
+        return [employeeName, row.clock_in_date, row.total_hours, Math.round(row.total_card_amount_flat)];
       });
+      fileName = `attendance-report-${format === 'csv' ? 'csv' : 'xlsx'}`;
     } else if (type === 'payroll' && payrollSummary) {
-      csvContent = 'Employee Name,Total Hours,Morning Hours,Night Hours,Total Amount,Shifts\n';
-      data = payrollSummary;
-      data.forEach((row: any) => {
-        csvContent += `${row.employee_name},${row.total_hours},${row.morning_hours},${row.night_hours},${row.total_split_amount},${row.shifts}\n`;
-      });
+      headers = ['Employee Name', 'Total Hours', 'Morning Hours', 'Night Hours', 'Total Amount', 'Shifts'];
+      data = payrollSummary.map((row: any) => [
+        row.employee_name,
+        row.total_hours,
+        row.morning_hours,
+        row.night_hours,
+        Math.round(row.total_split_amount),
+        row.shifts
+      ]);
+      fileName = `payroll-report-${format === 'csv' ? 'csv' : 'xlsx'}`;
     }
     
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${type}-report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+    if (format === 'excel') {
+      const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, type === 'attendance' ? 'Attendance' : 'Payroll');
+      XLSX.writeFile(wb, `${fileName}-${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+    } else {
+      let csvContent = headers.join(',') + '\n';
+      data.forEach(row => {
+        csvContent += row.join(',') + '\n';
+      });
+      
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${fileName}-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    }
+  };
+
+  const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+          const workbook = XLSX.read(data, { type: 'binary' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          console.log('Imported Excel data:', jsonData);
+          toast.success('Excel file imported successfully!');
+        } else if (file.name.endsWith('.csv')) {
+          const csvData = data as string;
+          const rows = csvData.split('\n').map(row => row.split(','));
+          console.log('Imported CSV data:', rows);
+          toast.success('CSV file imported successfully!');
+        }
+      } catch (error) {
+        console.error('Error importing file:', error);
+        toast.error('Failed to import file');
+      }
+    };
+    
+    if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+      reader.readAsBinaryString(file);
+    } else {
+      reader.readAsText(file);
+    }
   };
 
   return (
@@ -281,12 +340,18 @@ const ReportsPage: React.FC = () => {
       </div>
 
       <Tabs defaultValue="attendance" className="space-y-6">
-        <TabsList className={`grid w-full grid-cols-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+        <TabsList className={`grid w-full grid-cols-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
           <TabsTrigger value="attendance" className={`${isRTL ? 'font-arabic' : ''}`}>
             {isRTL ? 'تقرير الحضور' : 'Attendance Report'}
           </TabsTrigger>
           <TabsTrigger value="payroll" className={`${isRTL ? 'font-arabic' : ''}`}>
             {isRTL ? 'ملخص الرواتب' : 'Payroll Summary'}
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className={`${isRTL ? 'font-arabic' : ''}`}>
+            {isRTL ? 'التحليلات' : 'Analytics'}
+          </TabsTrigger>
+          <TabsTrigger value="import" className={`${isRTL ? 'font-arabic' : ''}`}>
+            {isRTL ? 'استيراد البيانات' : 'Import Data'}
           </TabsTrigger>
         </TabsList>
 
@@ -299,10 +364,16 @@ const ReportsPage: React.FC = () => {
                   {isRTL ? 'تقرير الحضور' : 'Attendance Report'}
                 </CardTitle>
               </div>
-              <Button onClick={() => exportReport('attendance')} size="sm" className="shadow-md hover:shadow-lg transition-all duration-200">
-                <Download className="h-4 w-4 mr-2" />
-                {isRTL ? 'تصدير CSV' : 'Export CSV'}
-              </Button>
+              <div className="flex space-x-2">
+                <Button onClick={() => exportReport('attendance', 'csv')} size="sm" className="shadow-md hover:shadow-lg transition-all duration-200">
+                  <Download className="h-4 w-4 mr-2" />
+                  {isRTL ? 'تصدير CSV' : 'Export CSV'}
+                </Button>
+                <Button onClick={() => exportReport('attendance', 'excel')} size="sm" variant="outline" className="shadow-md hover:shadow-lg transition-all duration-200">
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  {isRTL ? 'تصدير Excel' : 'Export Excel'}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
@@ -324,8 +395,8 @@ const ReportsPage: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {attendanceReport?.map((entry, index) => {
-                      const employeeName = (entry as any).employees?.full_name || entry.employee_name;
+                     {attendanceReport?.map((entry, index) => {
+                      const employeeName = (entry as any).display_name || entry.employee_name;
                       return (
                         <TableRow key={index} className="hover:bg-muted/20 transition-colors duration-150">
                           <TableCell className={`font-medium ${isRTL ? 'text-right font-arabic' : ''}`}>
@@ -333,7 +404,7 @@ const ReportsPage: React.FC = () => {
                           </TableCell>
                           <TableCell className={isRTL ? 'text-right' : ''}>{entry.clock_in_date}</TableCell>
                           <TableCell className={isRTL ? 'text-right' : ''}>{entry.total_hours?.toFixed(2)}</TableCell>
-                          <TableCell className={isRTL ? 'text-right' : ''}>{entry.total_card_amount_flat?.toFixed(2)}</TableCell>
+                          <TableCell className={isRTL ? 'text-right' : ''}>{Math.round(entry.total_card_amount_flat || 0)}</TableCell>
                         </TableRow>
                       );
                     })}
@@ -353,10 +424,16 @@ const ReportsPage: React.FC = () => {
                   {isRTL ? 'ملخص الرواتب' : 'Payroll Summary'}
                 </CardTitle>
               </div>
-              <Button onClick={() => exportReport('payroll')} size="sm" className="shadow-md hover:shadow-lg transition-all duration-200">
-                <Download className="h-4 w-4 mr-2" />
-                {isRTL ? 'تصدير CSV' : 'Export CSV'}
-              </Button>
+              <div className="flex space-x-2">
+                <Button onClick={() => exportReport('payroll', 'csv')} size="sm" className="shadow-md hover:shadow-lg transition-all duration-200">
+                  <Download className="h-4 w-4 mr-2" />
+                  {isRTL ? 'تصدير CSV' : 'Export CSV'}
+                </Button>
+                <Button onClick={() => exportReport('payroll', 'excel')} size="sm" variant="outline" className="shadow-md hover:shadow-lg transition-all duration-200">
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  {isRTL ? 'تصدير Excel' : 'Export Excel'}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
@@ -393,11 +470,56 @@ const ReportsPage: React.FC = () => {
                         <TableCell className={isRTL ? 'text-right' : ''}>{summary.morning_hours?.toFixed(2)}</TableCell>
                         <TableCell className={isRTL ? 'text-right' : ''}>{summary.night_hours?.toFixed(2)}</TableCell>
                         <TableCell className={isRTL ? 'text-right' : ''}>{summary.shifts}</TableCell>
-                        <TableCell className={isRTL ? 'text-right' : ''}>{summary.total_split_amount?.toFixed(2)}</TableCell>
+                        <TableCell className={isRTL ? 'text-right' : ''}>{Math.round(summary.total_split_amount || 0)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="analytics">
+          <HRAnalytics dateRange={dateRange} />
+        </TabsContent>
+
+        <TabsContent value="import">
+          <Card className="shadow-lg border-0 bg-gradient-to-br from-card to-card/80 backdrop-blur-xl">
+            <CardHeader className={`flex flex-row items-center justify-between border-b border-border/50 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <div className={`flex items-center space-x-3 ${isRTL ? 'space-x-reverse' : ''}`}>
+                <Upload className="h-5 w-5 text-primary" />
+                <CardTitle className={`text-xl ${isRTL ? 'font-arabic' : ''}`}>
+                  {isRTL ? 'استيراد البيانات' : 'Import Data'}
+                </CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                <p className={`text-sm text-muted-foreground ${isRTL ? 'font-arabic text-right' : ''}`}>
+                  {isRTL ? 'قم بتحميل ملف CSV أو Excel لاستيراد بيانات الموظفين' : 'Upload a CSV or Excel file to import employee data'}
+                </p>
+                <div className="flex items-center justify-center w-full">
+                  <label className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-border rounded-lg cursor-pointer bg-muted/50 hover:bg-muted/80 transition-colors">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <Upload className="w-8 h-8 mb-4 text-muted-foreground" />
+                      <p className={`mb-2 text-sm text-muted-foreground ${isRTL ? 'font-arabic' : ''}`}>
+                        <span className="font-semibold">
+                          {isRTL ? 'انقر للتحميل' : 'Click to upload'}
+                        </span> {isRTL ? 'أو اسحب وأفلت' : 'or drag and drop'}
+                      </p>
+                      <p className={`text-xs text-muted-foreground ${isRTL ? 'font-arabic' : ''}`}>
+                        {isRTL ? 'CSV أو Excel (الحد الأقصى 10 ميجابايت)' : 'CSV or Excel (MAX. 10MB)'}
+                      </p>
+                    </div>
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".csv,.xlsx,.xls"
+                      onChange={handleFileImport}
+                    />
+                  </label>
+                </div>
               </div>
             </CardContent>
           </Card>

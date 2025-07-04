@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Clock, MapPin, CheckCircle, AlertCircle, ExternalLink, Camera } from 'lucide-react';
+import ProfileAvatar from '@/components/ProfileAvatar';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
@@ -350,24 +351,20 @@ const ClockInOutPage: React.FC = () => {
                   const isActive = !entry.clock_out_time || entry.clock_out_time === '00:00:00';
                   return (
                     <div key={entry.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <div className="relative">
-                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                            <span className="text-sm font-medium text-blue-800">
-                              {entry.employee_name.split(' ').map(n => n[0]).join('')}
-                            </span>
+                        <div className="flex items-center space-x-3">
+                          <div className="relative">
+                            <ProfileAvatar employeeName={entry.employee_name} size="sm" />
+                            {isActive && (
+                              <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                            )}
                           </div>
-                          {isActive && (
-                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
-                          )}
+                          <div>
+                            <p className="font-medium text-sm">{entry.employee_name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {isActive ? `Clocked in at ${entry.clock_in_time}` : `${entry.clock_in_time} - ${entry.clock_out_time}`}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-sm">{entry.employee_name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {isActive ? `Clocked in at ${entry.clock_in_time}` : `${entry.clock_in_time} - ${entry.clock_out_time}`}
-                          </p>
-                        </div>
-                      </div>
                       <div className="text-right">
                         <div className={`px-2 py-1 rounded-full text-xs font-medium ${
                           isActive 

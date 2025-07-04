@@ -20,6 +20,7 @@ import {
 import NotificationSystem from './NotificationSystem';
 import ProfileAvatar from './ProfileAvatar';
 import LanguageSwitcher from './LanguageSwitcher';
+import { ThemeToggle } from './ThemeToggle';
 
 const Layout: React.FC = () => {
   const { t } = useTranslation();
