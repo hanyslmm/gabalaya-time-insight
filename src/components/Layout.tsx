@@ -70,10 +70,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-background via-secondary/5 to-accent/5">
       {/* Mobile Header */}
       <motion.header 
-        className="lg:hidden bg-white border-b border-gray-200 shadow-sm sticky top-0 z-40"
+        className="lg:hidden bg-card/95 backdrop-blur-sm border-b border-border shadow-lg sticky top-0 z-40"
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
@@ -84,15 +84,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               variant="ghost"
               size="sm"
               onClick={() => setSidebarOpen(true)}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-accent/20 rounded-lg transition-colors"
             >
               <Menu className="h-5 w-5" />
             </Button>
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">G</span>
+              <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center shadow-lg">
+                <span className="text-primary-foreground font-bold text-sm">G</span>
               </div>
-              <h1 className="text-lg font-bold text-gray-900">Gabalaya HRM</h1>
+              <h1 className="text-lg font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Gabalaya HRM</h1>
             </div>
           </div>
           <DropdownMenu>
@@ -120,32 +120,32 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       <div className="flex">
         {/* Desktop Sidebar */}
-        <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 lg:bg-white lg:border-r lg:border-gray-200 lg:shadow-sm">
+        <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 lg:bg-card/95 lg:backdrop-blur-sm lg:border-r lg:border-border lg:shadow-xl">
           <div className="flex flex-col h-full">
-            <div className="flex items-center justify-center h-16 border-b border-gray-200">
+            <div className="flex items-center justify-center h-16 border-b border-border bg-gradient-to-r from-primary/10 to-accent/10">
               <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">G</span>
+                <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center shadow-lg">
+                  <span className="text-primary-foreground font-bold text-sm">G</span>
                 </div>
-                <h1 className="text-lg font-bold text-gray-900">Gabalaya HRM</h1>
+                <h1 className="text-lg font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Gabalaya HRM</h1>
               </div>
             </div>
-            <nav className="flex-1 py-4 space-y-1">
+            <nav className="flex-1 py-4 space-y-1 px-2">
               {navigation.map((item) => (
                 <Button
                   key={item.name}
                   variant="ghost"
-                  className="w-full justify-start px-4 py-2 hover:bg-gray-100 rounded-md"
+                  className="w-full justify-start px-4 py-3 hover:bg-accent/20 hover:text-accent-foreground rounded-lg transition-all duration-200 font-medium"
                   onClick={() => navigate(item.href)}
                 >
                   {item.name}
                 </Button>
               ))}
             </nav>
-            <div className="py-4 border-t border-gray-200">
+            <div className="py-4 border-t border-border px-2">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="w-full justify-start px-4 py-2 hover:bg-gray-100 rounded-md">
+                  <Button variant="ghost" className="w-full justify-start px-4 py-3 hover:bg-accent/20 rounded-lg transition-all duration-200">
                     <User className="h-4 w-4 mr-2" />
                     {user?.full_name || user?.username}
                   </Button>
@@ -154,11 +154,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <DropdownMenuLabel>
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium">{user?.full_name || user?.username}</p>
-                      <p className="text-xs text-gray-500">{user?.role}</p>
+                      <p className="text-xs text-muted-foreground">{user?.role}</p>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={logout} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                  <DropdownMenuItem onClick={logout} className="text-destructive hover:text-destructive-foreground hover:bg-destructive/10">
                     <LogOut className="h-4 w-4 mr-2" />
                     {t('logout')}
                   </DropdownMenuItem>
@@ -183,27 +183,27 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 onClick={() => setSidebarOpen(false)}
               />
               <motion.nav
-                className="absolute left-0 top-0 h-full w-80 bg-white shadow-2xl"
+                className="absolute left-0 top-0 h-full w-80 bg-card/95 backdrop-blur-sm shadow-2xl border-r border-border"
                 variants={sidebarVariants}
                 initial="closed"
                 animate="open"
                 exit="closed"
               >
                 <div className="flex flex-col h-full">
-                  <div className="flex items-center justify-center h-16 border-b border-gray-200">
+                  <div className="flex items-center justify-center h-16 border-b border-border bg-gradient-to-r from-primary/10 to-accent/10">
                     <div className="flex items-center space-x-2">
-                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                        <span className="text-white font-bold text-sm">G</span>
+                      <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center shadow-lg">
+                        <span className="text-primary-foreground font-bold text-sm">G</span>
                       </div>
-                      <h1 className="text-lg font-bold text-gray-900">Gabalaya HRM</h1>
+                      <h1 className="text-lg font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Gabalaya HRM</h1>
                     </div>
                   </div>
-                  <nav className="flex-1 py-4 space-y-1">
+                  <nav className="flex-1 py-4 space-y-1 px-2">
                     {navigation.map((item) => (
                       <Button
                         key={item.name}
                         variant="ghost"
-                        className="w-full justify-start px-4 py-2 hover:bg-gray-100 rounded-md"
+                        className="w-full justify-start px-4 py-3 hover:bg-accent/20 hover:text-accent-foreground rounded-lg transition-all duration-200 font-medium"
                         onClick={() => {
                           navigate(item.href);
                           setSidebarOpen(false);
@@ -213,10 +213,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                       </Button>
                     ))}
                   </nav>
-                  <div className="py-4 border-t border-gray-200">
+                  <div className="py-4 border-t border-border px-2">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="w-full justify-start px-4 py-2 hover:bg-gray-100 rounded-md">
+                        <Button variant="ghost" className="w-full justify-start px-4 py-3 hover:bg-accent/20 rounded-lg transition-all duration-200">
                           <User className="h-4 w-4 mr-2" />
                           {user?.full_name || user?.username}
                         </Button>
@@ -225,11 +225,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         <DropdownMenuLabel>
                           <div className="flex flex-col space-y-1">
                             <p className="text-sm font-medium">{user?.full_name || user?.username}</p>
-                            <p className="text-xs text-gray-500">{user?.role}</p>
+                            <p className="text-xs text-muted-foreground">{user?.role}</p>
                           </div>
                         </DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={logout} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                        <DropdownMenuItem onClick={logout} className="text-destructive hover:text-destructive-foreground hover:bg-destructive/10">
                           <LogOut className="h-4 w-4 mr-2" />
                           {t('logout')}
                         </DropdownMenuItem>
@@ -244,16 +244,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
         {/* Main Content */}
         <main className="flex-1 lg:ml-64">
-          <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
+          <div className="min-h-screen bg-gradient-to-br from-background via-secondary/5 to-accent/5">
             {/* Desktop Header */}
             <motion.header 
-              className="hidden lg:block bg-white border-b border-gray-200 shadow-sm sticky top-0 z-30"
+              className="hidden lg:block bg-card/95 backdrop-blur-sm border-b border-border shadow-lg sticky top-0 z-30"
               initial={{ y: -50 }}
               animate={{ y: 0 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
             >
-              <div className="flex items-center justify-between px-6 py-3">
-                <h1 className="text-xl font-bold text-gray-900">
+              <div className="flex items-center justify-between px-6 py-4">
+                <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                   {t('welcome')}, {user?.full_name || user?.username} 👋
                 </h1>
                 <div className="flex items-center space-x-4">

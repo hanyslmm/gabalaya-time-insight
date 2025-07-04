@@ -86,49 +86,49 @@ const DashboardPage: React.FC = () => {
   return (
     <div className="px-4 sm:px-6 lg:px-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">{t('dashboard') || 'Dashboard'}</h1>
-        <p className="mt-2 text-sm text-gray-600">Overview</p>
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">{t('dashboard') || 'Dashboard'}</h1>
+        <p className="mt-2 text-muted-foreground">Overview of your HRM system</p>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <Card>
+        <Card className="bg-gradient-to-br from-card via-card to-primary/5 border-primary/20 shadow-lg hover:shadow-xl transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-card-foreground">Total Employees</CardTitle>
+            <Users className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{employeeCount || 0}</div>
+            <div className="text-2xl font-bold text-primary">{employeeCount || 0}</div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-gradient-to-br from-card via-card to-secondary/5 border-secondary/20 shadow-lg hover:shadow-xl transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Hours</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-card-foreground">Total Hours</CardTitle>
+            <Clock className="h-4 w-4 text-secondary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{timesheetSummary?.totalHours.toFixed(2) || '0.00'}</div>
+            <div className="text-2xl font-bold text-secondary">{timesheetSummary?.totalHours.toFixed(2) || '0.00'}</div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-gradient-to-br from-card via-card to-accent/5 border-accent/20 shadow-lg hover:shadow-xl transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Payroll</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-card-foreground">Total Payroll</CardTitle>
+            <DollarSign className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl lg:text-2xl font-bold">{timesheetSummary?.totalPayroll.toFixed(2) || '0.00'} LE</div>
+            <div className="text-xl lg:text-2xl font-bold text-accent">{timesheetSummary?.totalPayroll.toFixed(2) || '0.00'} LE</div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-gradient-to-br from-card via-card to-success/5 border-success/20 shadow-lg hover:shadow-xl transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Shifts</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-card-foreground">Total Shifts</CardTitle>
+            <TrendingUp className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{timesheetSummary?.totalShifts || 0}</div>
+            <div className="text-2xl font-bold text-success">{timesheetSummary?.totalShifts || 0}</div>
           </CardContent>
         </Card>
       </div>
@@ -144,10 +144,10 @@ const DashboardPage: React.FC = () => {
       </div>
 
       {/* Quick Actions */}
-      <Card className="mb-8">
+      <Card className="mb-8 bg-gradient-to-br from-card via-card to-muted/5 border-border/50 shadow-lg">
         <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>Common tasks and navigation shortcuts</CardDescription>
+          <CardTitle className="text-lg font-semibold text-card-foreground">Quick Actions</CardTitle>
+          <CardDescription className="text-muted-foreground">Common tasks and navigation shortcuts</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -157,15 +157,15 @@ const DashboardPage: React.FC = () => {
                 <Button
                   key={index}
                   variant="outline"
-                  className="h-auto p-4 flex flex-col items-center space-y-2 hover:bg-gray-50"
+                  className="h-auto p-6 flex flex-col items-center space-y-3 hover:bg-accent/10 hover:border-accent border-border/50 transition-all duration-200 hover:shadow-lg"
                   onClick={action.action}
                 >
-                  <div className={`p-2 rounded-full ${action.color} text-white`}>
+                  <div className={`p-3 rounded-full ${action.color} text-white shadow-lg`}>
                     <Icon className="h-6 w-6" />
                   </div>
                   <div className="text-center space-y-1">
-                    <div className="font-medium text-sm leading-tight">{action.title}</div>
-                    <div className="text-xs text-gray-500 leading-snug break-words text-center">{action.description}</div>
+                    <div className="font-medium text-sm leading-tight text-card-foreground">{action.title}</div>
+                    <div className="text-xs text-muted-foreground leading-snug break-words text-center">{action.description}</div>
                   </div>
                 </Button>
               );
@@ -175,18 +175,18 @@ const DashboardPage: React.FC = () => {
       </Card>
 
       {/* Recent Activity */}
-      <Card>
+      <Card className="bg-gradient-to-br from-card via-card to-primary/5 border-border/50 shadow-lg">
         <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
+          <CardTitle className="text-lg font-semibold text-card-foreground">Recent Activity</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-gray-600">
+          <p className="text-muted-foreground">
             Welcome to the Gabalaya Finance HRM System. Use the navigation menu to manage employees, timesheets, and system settings.
           </p>
           <div className="mt-4 space-y-2">
-            <p className="text-sm text-gray-500">• Click "Import Timesheets" to upload timesheet data</p>
-            <p className="text-sm text-gray-500">• Use "Export Data" to download reports</p>
-            <p className="text-sm text-gray-500">• Navigate to Timesheets page for full import/export functionality</p>
+            <p className="text-sm text-muted-foreground">• Click "Import Timesheets" to upload timesheet data</p>
+            <p className="text-sm text-muted-foreground">• Use "Export Data" to download reports</p>
+            <p className="text-sm text-muted-foreground">• Navigate to Timesheets page for full import/export functionality</p>
           </div>
         </CardContent>
       </Card>
