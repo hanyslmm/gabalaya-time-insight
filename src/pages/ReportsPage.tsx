@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
@@ -36,7 +35,7 @@ const ReportsPage: React.FC = () => {
     }
   });
 
-  // Employee Attendance Report
+  // Employee Attendance Report - Fixed to properly display employee names
   const { data: attendanceReport } = useQuery({
     queryKey: ['attendance-report', dateRange],
     queryFn: async () => {
@@ -48,22 +47,14 @@ const ReportsPage: React.FC = () => {
           total_hours,
           total_card_amount_flat,
           clock_in_date,
-          clock_out_date,
-          employees (
-            full_name
-          )
+          clock_out_date
         `)
         .gte('clock_in_date', format(dateRange.from, 'yyyy-MM-dd'))
         .lte('clock_out_date', format(dateRange.to, 'yyyy-MM-dd'))
         .order('clock_in_date', { ascending: false });
       
       if (error) throw error;
-      
-      // Map employee IDs to names
-      return data?.map(entry => ({
-        ...entry,
-        display_name: entry.employees?.full_name || entry.employee_name
-      })) || [];
+      return data || [];
     }
   });
 
@@ -85,11 +76,7 @@ const ReportsPage: React.FC = () => {
           clock_in_date,
           clock_in_time,
           clock_out_date,
-          clock_out_time,
-          employees (
-            morning_wage_rate,
-            night_wage_rate
-          )
+          clock_out_time
         `)
         .gte('clock_in_date', format(dateRange.from, 'yyyy-MM-dd'))
         .lte('clock_out_date', format(dateRange.to, 'yyyy-MM-dd'));
@@ -276,7 +263,7 @@ const ReportsPage: React.FC = () => {
                   <tbody>
                     {attendanceReport?.map((entry, index) => (
                       <tr key={index} className="hover:bg-gray-50">
-                        <td className="border border-gray-300 px-4 py-2">{entry.display_name}</td>
+                        <td className="border border-gray-300 px-4 py-2 font-medium">{entry.employee_name}</td>
                         <td className="border border-gray-300 px-4 py-2">{entry.clock_in_date}</td>
                         <td className="border border-gray-300 px-4 py-2">{entry.total_hours?.toFixed(2)}</td>
                         <td className="border border-gray-300 px-4 py-2">{entry.total_card_amount_flat?.toFixed(2)}</td>
@@ -319,7 +306,7 @@ const ReportsPage: React.FC = () => {
                   <tbody>
                     {payrollSummary?.map((summary: any, index) => (
                       <tr key={index} className="hover:bg-gray-50">
-                         <td className="border border-gray-300 px-4 py-2">{summary.employee_name}</td>
+                         <td className="border border-gray-300 px-4 py-2 font-medium">{summary.employee_name}</td>
                          <td className="border border-gray-300 px-4 py-2">{summary.total_hours?.toFixed(2)}</td>
                          <td className="border border-gray-300 px-4 py-2">{summary.morning_hours?.toFixed(2)}</td>
                          <td className="border border-gray-300 px-4 py-2">{summary.night_hours?.toFixed(2)}</td>

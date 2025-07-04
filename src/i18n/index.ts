@@ -11,6 +11,7 @@ const resources = {
       timesheets: 'Timesheets',
       settings: 'Settings',
       logout: 'Logout',
+      reports: 'Reports',
       
       // Authentication
       login: 'Login',
@@ -84,6 +85,7 @@ const resources = {
       timesheets: 'جداول العمل',
       settings: 'الإعدادات',
       logout: 'تسجيل الخروج',
+      reports: 'التقارير',
       
       // Authentication
       login: 'تسجيل الدخول',

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import NotificationSystem from './NotificationSystem';
 import ProfileAvatar from './ProfileAvatar';
+import LanguageSwitcher from './LanguageSwitcher';
 
 const Layout: React.FC = () => {
   const { t } = useTranslation();
@@ -26,6 +27,13 @@ const Layout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Redirect employees to clock-in page by default
+  useEffect(() => {
+    if (user && user.role === 'employee' && location.pathname === '/dashboard') {
+      navigate('/clock-in-out');
+    }
+  }, [user, location.pathname, navigate]);
 
   const handleLogout = async () => {
     await logout();
@@ -38,18 +46,27 @@ const Layout: React.FC = () => {
       href: '/dashboard',
       icon: LayoutDashboard,
       current: location.pathname === '/dashboard',
+      adminOnly: true,
+    },
+    {
+      name: 'Clock In/Out',
+      href: '/clock-in-out',
+      icon: Clock,
+      current: location.pathname === '/clock-in-out',
     },
     {
       name: t('employees') || 'Employees',
       href: '/employees',
       icon: Users,
       current: location.pathname === '/employees',
+      adminOnly: true,
     },
     {
       name: t('timesheets') || 'Timesheets',
       href: '/timesheets',
-      icon: Clock,
+      icon: FileText,
       current: location.pathname === '/timesheets',
+      adminOnly: true,
     },
     {
       name: 'Monitor',
@@ -63,12 +80,14 @@ const Layout: React.FC = () => {
       href: '/reports',
       icon: BarChart3,
       current: location.pathname === '/reports',
+      adminOnly: true,
     },
     {
       name: t('settings') || 'Settings',
       href: '/settings',
       icon: Settings,
       current: location.pathname === '/settings',
+      adminOnly: true,
     },
   ];
 
@@ -83,7 +102,7 @@ const Layout: React.FC = () => {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center justify-between h-16 px-6 border-b border-border/50">
-            <Link to="/dashboard" className="flex items-center space-x-3 group">
+            <Link to={user?.role === 'employee' ? '/clock-in-out' : '/dashboard'} className="flex items-center space-x-3 group">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-200">
                 <span className="text-white font-bold text-lg">G</span>
               </div>
@@ -176,6 +195,7 @@ const Layout: React.FC = () => {
           </Button>
           
           <div className="flex items-center space-x-4 ml-auto">
+            <LanguageSwitcher />
             <NotificationSystem />
             <div className="flex items-center space-x-2">
               <ProfileAvatar size="sm" />
