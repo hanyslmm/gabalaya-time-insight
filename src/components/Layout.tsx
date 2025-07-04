@@ -185,7 +185,7 @@ const Layout: React.FC = () => {
       {/* Main content */}
       <div className="lg:pl-64">
         {/* Top bar */}
-        <div className="sticky top-0 z-30 flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8 bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm">
+        <div className="sticky top-0 z-30 flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8 bg-background border-b-2 border-border shadow-lg">
           <Button
             variant="ghost"
             size="sm"
@@ -196,6 +196,7 @@ const Layout: React.FC = () => {
           </Button>
           
           <div className="flex items-center space-x-4 ml-auto">
+            <ThemeToggle />
             <LanguageSwitcher />
             <NotificationSystem />
             <div className="flex items-center space-x-2">
