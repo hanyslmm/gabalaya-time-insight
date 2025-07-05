@@ -50,8 +50,11 @@ const DailyPaymentChart: React.FC<DailyPaymentChartProps> = ({
 
       if (error) throw error;
 
-      // Get all dates in range
-      const dates = eachDayOfInterval(effectiveRange);
+      // Get all dates in range - fix the interval type issue
+      const dates = eachDayOfInterval({
+        start: effectiveRange.from,
+        end: effectiveRange.to
+      });
       const dailyStats: Record<string, DailyData> = {};
       
       // Initialize all dates with 0

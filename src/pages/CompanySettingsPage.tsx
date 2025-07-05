@@ -29,9 +29,6 @@ const CompanySettingsPage: React.FC = () => {
       }
       
       return data || { motivational_message: "Keep up the great work! Your dedication and effort make a real difference to our team." };
-    },
-    onSuccess: (data) => {
-      setMessage(data.motivational_message || '');
     }
   });
 

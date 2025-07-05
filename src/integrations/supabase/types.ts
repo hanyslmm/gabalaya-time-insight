@@ -69,6 +69,27 @@ export type Database = {
         }
         Relationships: []
       }
+      company_settings: {
+        Row: {
+          created_at: string
+          id: number
+          motivational_message: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          motivational_message?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          motivational_message?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       courses: {
         Row: {
           age_group: string
