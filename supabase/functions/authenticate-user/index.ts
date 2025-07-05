@@ -48,20 +48,15 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Verify password
+    // Verify password based on role
     let isValidPassword = false;
     
-    // For backward compatibility - check if it's the simple password format
-    if (username === 'admin' && password === 'admin123') {
+    if (user.role === 'admin' && username === 'admin' && password === 'admin123') {
       isValidPassword = true;
     } else if (user.role === 'employee') {
-      // For employees, check if password is staff_id + 123
+      // For employees, password should be username + "123"
       const expectedPassword = `${username}123`;
       isValidPassword = password === expectedPassword;
-    } else {
-      // For future encrypted passwords, we can add bcrypt comparison here
-      // For now, maintain backward compatibility
-      isValidPassword = false;
     }
     
     if (!isValidPassword) {

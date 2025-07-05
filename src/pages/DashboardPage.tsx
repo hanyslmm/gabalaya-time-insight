@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
@@ -233,15 +232,19 @@ const DashboardPage: React.FC = () => {
                 <Button
                   key={index}
                   variant="outline"
-                  className="h-32 p-4 flex flex-col items-center justify-center space-y-3 hover:bg-accent/10 hover:border-accent border-border/50 transition-all duration-200 hover:shadow-lg text-center group"
+                  className="h-auto min-h-[120px] p-4 flex flex-col items-center justify-center space-y-3 hover:bg-accent/10 hover:border-accent border-border/50 transition-all duration-200 hover:shadow-lg text-center group"
                   onClick={action.action}
                 >
                   <div className={`p-3 rounded-full ${action.color} text-white shadow-lg group-hover:scale-110 transition-transform duration-200`}>
                     <Icon className="h-5 w-5" />
                   </div>
-                  <div className="space-y-1 text-center">
-                    <div className="font-medium text-sm leading-tight text-card-foreground">{action.title}</div>
-                    <div className="text-xs text-muted-foreground leading-tight px-1 line-clamp-2">{action.description}</div>
+                  <div className="space-y-1 text-center w-full">
+                    <div className="font-medium text-sm leading-tight text-card-foreground break-words">
+                      {action.title}
+                    </div>
+                    <div className="text-xs text-muted-foreground leading-tight px-1 break-words hyphens-auto">
+                      {action.description}
+                    </div>
                   </div>
                 </Button>
               );
