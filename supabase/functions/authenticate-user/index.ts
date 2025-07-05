@@ -54,8 +54,10 @@ Deno.serve(async (req) => {
     if (user.role === 'admin' && username === 'admin' && password === 'admin123') {
       isValidPassword = true;
     } else if (user.role === 'employee') {
-      // For employees, password should be username + "123"
+      // For employees, password should be username + "123" 
+      // e.g., if username is "EMP051994", password should be "EMP051994123"
       const expectedPassword = `${username}123`;
+      console.log(`Employee auth check: username=${username}, expected=${expectedPassword}, provided=${password}`);
       isValidPassword = password === expectedPassword;
     }
     

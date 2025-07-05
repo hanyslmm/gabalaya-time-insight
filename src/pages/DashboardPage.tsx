@@ -137,14 +137,25 @@ const DashboardPage: React.FC = () => {
       {/* Period Selection Tabs */}
       <Tabs value={selectedPeriod} onValueChange={setSelectedPeriod} className="mb-8">
         <TabsList className="grid w-full grid-cols-3 bg-background/50 backdrop-blur border border-border/50">
-          <TabsTrigger value="current" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            Current Pay Period
+          <TabsTrigger 
+            value="current" 
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm px-2 py-2 text-center leading-tight"
+          >
+            <span className="block">Current</span>
+            <span className="block">Pay Period</span>
           </TabsTrigger>
-          <TabsTrigger value="previous" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            Previous Pay Period
+          <TabsTrigger 
+            value="previous" 
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm px-2 py-2 text-center leading-tight"
+          >
+            <span className="block">Previous</span>
+            <span className="block">Pay Period</span>
           </TabsTrigger>
-          <TabsTrigger value="alltime" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            All Time
+          <TabsTrigger 
+            value="alltime" 
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm px-2 py-2 text-center leading-tight"
+          >
+            <span className="block">All Time</span>
           </TabsTrigger>
         </TabsList>
 
