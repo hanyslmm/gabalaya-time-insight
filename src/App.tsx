@@ -13,6 +13,8 @@ import ReportsPage from '@/pages/ReportsPage';
 import SettingsPage from '@/pages/SettingsPage';
 import ProfilePage from '@/pages/ProfilePage';
 import ClockInOutPage from '@/pages/ClockInOutPage';
+import MyTimesheetPage from '@/pages/MyTimesheetPage';
+import CompanySettingsPage from '@/pages/CompanySettingsPage';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import NotFound from '@/pages/NotFound';
 import './i18n';
@@ -46,10 +48,12 @@ function App() {
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<DashboardPage />} />
                 <Route path="clock-in-out" element={<ClockInOutPage />} />
+                <Route path="my-timesheet" element={<MyTimesheetPage />} />
                 <Route path="employees" element={<EmployeesPage />} />
                 <Route path="timesheets" element={<TimesheetsPage />} />
                 <Route path="monitor" element={<EmployeeMonitorPage />} />
                 <Route path="reports" element={<ReportsPage />} />
+                <Route path="company-settings" element={<CompanySettingsPage />} />
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="profile" element={<ProfilePage />} />
               </Route>

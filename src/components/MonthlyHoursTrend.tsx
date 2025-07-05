@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,11 +14,23 @@ interface MonthlyData {
   displayMonth: string;
 }
 
-const MonthlyHoursTrend: React.FC = () => {
+interface MonthlyHoursTrendProps {
+  timePeriod?: string;
+  dateRange?: {
+    from: Date;
+    to: Date;
+    label: string;
+  };
+}
+
+const MonthlyHoursTrend: React.FC<MonthlyHoursTrendProps> = ({ 
+  timePeriod = 'current',
+  dateRange 
+}) => {
   const { data: monthlyData, isLoading } = useQuery({
-    queryKey: ['monthly-hours-trend'],
+    queryKey: ['monthly-hours-trend', timePeriod, dateRange],
     queryFn: async () => {
-      // Get data for the last 6 months
+      // Get data for the last 6 months or use provided date range
       const months = Array.from({ length: 6 }, (_, i) => {
         const date = subMonths(new Date(), i);
         return {
@@ -26,10 +39,18 @@ const MonthlyHoursTrend: React.FC = () => {
         };
       }).reverse();
 
-      const { data: timesheets, error } = await supabase
-        .from('timesheet_entries')
-        .select('clock_in_date, total_hours')
-        .gte('clock_in_date', months[0].key + '-01');
+      let query = supabase.from('timesheet_entries').select('clock_in_date, total_hours');
+      
+      if (dateRange && timePeriod !== 'alltime') {
+        query = query
+          .gte('clock_in_date', format(dateRange.from, 'yyyy-MM-dd'))
+          .lte('clock_in_date', format(dateRange.to, 'yyyy-MM-dd'));
+      } else {
+        // Default to last 6 months
+        query = query.gte('clock_in_date', months[0].key + '-01');
+      }
+
+      const { data: timesheets, error } = await query;
 
       if (error) throw error;
 
@@ -78,7 +99,6 @@ const MonthlyHoursTrend: React.FC = () => {
   }
 
   const totalHours = monthlyData?.reduce((sum, month) => sum + month.hours, 0) || 0;
-  const avgMonthlyHours = monthlyData?.length ? totalHours / monthlyData.length : 0;
 
   return (
     <Card className="bg-gradient-to-br from-card via-card to-primary/5 border-border/50 shadow-lg hover:shadow-xl transition-all duration-300">

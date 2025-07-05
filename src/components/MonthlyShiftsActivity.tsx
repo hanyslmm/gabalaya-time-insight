@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,11 +14,23 @@ interface MonthlyShiftsData {
   displayMonth: string;
 }
 
-const MonthlyShiftsActivity: React.FC = () => {
+interface MonthlyShiftsActivityProps {
+  timePeriod?: string;
+  dateRange?: {
+    from: Date;
+    to: Date;
+    label: string;
+  };
+}
+
+const MonthlyShiftsActivity: React.FC<MonthlyShiftsActivityProps> = ({ 
+  timePeriod = 'current',
+  dateRange 
+}) => {
   const { data: shiftsData, isLoading } = useQuery({
-    queryKey: ['monthly-shifts-activity'],
+    queryKey: ['monthly-shifts-activity', timePeriod, dateRange],
     queryFn: async () => {
-      // Get data for the last 6 months
+      // Get data for the last 6 months or use provided date range
       const months = Array.from({ length: 6 }, (_, i) => {
         const date = subMonths(new Date(), i);
         return {
@@ -26,10 +39,18 @@ const MonthlyShiftsActivity: React.FC = () => {
         };
       }).reverse();
 
-      const { data: timesheets, error } = await supabase
-        .from('timesheet_entries')
-        .select('clock_in_date')
-        .gte('clock_in_date', months[0].key + '-01');
+      let query = supabase.from('timesheet_entries').select('clock_in_date');
+      
+      if (dateRange && timePeriod !== 'alltime') {
+        query = query
+          .gte('clock_in_date', format(dateRange.from, 'yyyy-MM-dd'))
+          .lte('clock_in_date', format(dateRange.to, 'yyyy-MM-dd'));
+      } else {
+        // Default to last 6 months
+        query = query.gte('clock_in_date', months[0].key + '-01');
+      }
+
+      const { data: timesheets, error } = await query;
 
       if (error) throw error;
 
@@ -78,7 +99,6 @@ const MonthlyShiftsActivity: React.FC = () => {
   }
 
   const totalShifts = shiftsData?.reduce((sum, month) => sum + month.shifts, 0) || 0;
-  const avgMonthlyShifts = shiftsData?.length ? totalShifts / shiftsData.length : 0;
 
   return (
     <Card className="bg-gradient-to-br from-card via-card to-accent/5 border-border/50 shadow-lg hover:shadow-xl transition-all duration-300">

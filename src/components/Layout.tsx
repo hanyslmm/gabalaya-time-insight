@@ -15,7 +15,9 @@ import {
   Menu,
   X,
   BarChart3,
-  Monitor
+  Monitor,
+  Building2,
+  ClipboardList
 } from 'lucide-react';
 import NotificationSystem from './NotificationSystem';
 import ProfileAvatar from './ProfileAvatar';
@@ -56,6 +58,13 @@ const Layout: React.FC = () => {
       current: location.pathname === '/clock-in-out',
     },
     {
+      name: 'My Timesheet',
+      href: '/my-timesheet',
+      icon: ClipboardList,
+      current: location.pathname === '/my-timesheet',
+      employeeOnly: true,
+    },
+    {
       name: t('employees') || 'Employees',
       href: '/employees',
       icon: Users,
@@ -84,6 +93,13 @@ const Layout: React.FC = () => {
       adminOnly: true,
     },
     {
+      name: 'Company Settings',
+      href: '/company-settings',
+      icon: Building2,
+      current: location.pathname === '/company-settings',
+      adminOnly: true,
+    },
+    {
       name: t('settings') || 'Settings',
       href: '/settings',
       icon: Settings,
@@ -92,9 +108,11 @@ const Layout: React.FC = () => {
     },
   ];
 
-  const filteredNavigation = navigation.filter(item => 
-    !item.adminOnly || user?.role === 'admin'
-  );
+  const filteredNavigation = navigation.filter(item => {
+    if (item.adminOnly && user?.role !== 'admin') return false;
+    if (item.employeeOnly && user?.role !== 'employee') return false;
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -185,7 +203,7 @@ const Layout: React.FC = () => {
       {/* Main content */}
       <div className="lg:pl-64">
         {/* Top bar */}
-        <div className="sticky top-0 z-30 flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8 bg-background border-b-2 border-border shadow-lg">
+        <div className="sticky top-0 z-30 flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8 bg-background/95 backdrop-blur-sm border-b border-border/50 shadow-lg">
           <Button
             variant="ghost"
             size="sm"

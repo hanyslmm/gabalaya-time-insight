@@ -1,25 +1,61 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Users, Clock, DollarSign, TrendingUp, Upload, Download, Settings } from 'lucide-react';
 import DashboardCharts from '@/components/DashboardCharts';
 import DailyPaymentChart from '@/components/DailyPaymentChart';
 import TopPerformersLeaderboard from '@/components/TopPerformersLeaderboard';
 import MonthlyHoursTrend from '@/components/MonthlyHoursTrend';
 import MonthlyShiftsActivity from '@/components/MonthlyShiftsActivity';
+import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 
 const DashboardPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [selectedPeriod, setSelectedPeriod] = useState('current');
+
+  const getDateRange = () => {
+    const now = new Date();
+    switch (selectedPeriod) {
+      case 'current':
+        return {
+          from: startOfMonth(now),
+          to: endOfMonth(now),
+          label: 'Current Pay Period'
+        };
+      case 'previous':
+        const prevMonth = subMonths(now, 1);
+        return {
+          from: startOfMonth(prevMonth),
+          to: endOfMonth(prevMonth),
+          label: 'Previous Pay Period'
+        };
+      case 'alltime':
+        return {
+          from: new Date('2020-01-01'),
+          to: now,
+          label: 'All Time'
+        };
+      default:
+        return {
+          from: startOfMonth(now),
+          to: endOfMonth(now),
+          label: 'Current Pay Period'
+        };
+    }
+  };
+
+  const dateRange = getDateRange();
 
   // Fetch employee count
   const { data: employeeCount } = useQuery({
-    queryKey: ['employee-count'],
+    queryKey: ['employee-count', selectedPeriod],
     queryFn: async () => {
       const { count, error } = await supabase
         .from('employees')
@@ -30,13 +66,19 @@ const DashboardPage: React.FC = () => {
     }
   });
 
-  // Fetch timesheet summary
+  // Fetch timesheet summary with date filtering
   const { data: timesheetSummary } = useQuery({
-    queryKey: ['timesheet-summary'],
+    queryKey: ['timesheet-summary', selectedPeriod, dateRange],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('timesheet_entries')
-        .select('total_hours, total_card_amount_flat');
+      let query = supabase.from('timesheet_entries').select('total_hours, total_card_amount_flat');
+      
+      if (selectedPeriod !== 'alltime') {
+        query = query
+          .gte('clock_in_date', format(dateRange.from, 'yyyy-MM-dd'))
+          .lte('clock_in_date', format(dateRange.to, 'yyyy-MM-dd'));
+      }
+      
+      const { data, error } = await query;
       
       if (error) throw error;
       
@@ -93,74 +135,91 @@ const DashboardPage: React.FC = () => {
         <p className="mt-2 text-muted-foreground">Overview of your HRM system</p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <Card className="bg-gradient-to-br from-card via-card to-primary/5 border-primary/20 shadow-lg hover:shadow-xl transition-all duration-200">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-card-foreground">Total Employees</CardTitle>
-            <Users className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-primary">{Math.round(employeeCount || 0)}</div>
-          </CardContent>
-        </Card>
+      {/* Period Selection Tabs */}
+      <Tabs value={selectedPeriod} onValueChange={setSelectedPeriod} className="mb-8">
+        <TabsList className="grid w-full grid-cols-3 bg-background/50 backdrop-blur border border-border/50">
+          <TabsTrigger value="current" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            Current Pay Period
+          </TabsTrigger>
+          <TabsTrigger value="previous" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            Previous Pay Period
+          </TabsTrigger>
+          <TabsTrigger value="alltime" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            All Time
+          </TabsTrigger>
+        </TabsList>
 
-        <Card className="bg-gradient-to-br from-card via-card to-secondary/5 border-secondary/20 shadow-lg hover:shadow-xl transition-all duration-200">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-card-foreground">Total Hours</CardTitle>
-            <Clock className="h-4 w-4 text-secondary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-secondary">{Math.round(timesheetSummary?.totalHours || 0)}</div>
-          </CardContent>
-        </Card>
+        <TabsContent value={selectedPeriod} className="space-y-6">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="bg-gradient-to-br from-card via-card to-primary/5 border-primary/20 shadow-lg hover:shadow-xl transition-all duration-200">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-card-foreground">Total Employees</CardTitle>
+                <Users className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-primary">{Math.round(employeeCount || 0)}</div>
+              </CardContent>
+            </Card>
 
-        <Card className="bg-gradient-to-br from-card via-card to-accent/5 border-accent/20 shadow-lg hover:shadow-xl transition-all duration-200">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-card-foreground">Total Payroll</CardTitle>
-            <DollarSign className="h-4 w-4 text-accent" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl lg:text-2xl font-bold text-accent">{Math.round(timesheetSummary?.totalPayroll || 0)} LE</div>
-          </CardContent>
-        </Card>
+            <Card className="bg-gradient-to-br from-card via-card to-secondary/5 border-secondary/20 shadow-lg hover:shadow-xl transition-all duration-200">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-card-foreground">Total Hours</CardTitle>
+                <Clock className="h-4 w-4 text-secondary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-secondary">{Math.round(timesheetSummary?.totalHours || 0)}</div>
+              </CardContent>
+            </Card>
 
-        <Card className="bg-gradient-to-br from-card via-card to-success/5 border-success/20 shadow-lg hover:shadow-xl transition-all duration-200">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-card-foreground">Total Shifts</CardTitle>
-            <TrendingUp className="h-4 w-4 text-success" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-success">{Math.round(timesheetSummary?.totalShifts || 0)}</div>
-          </CardContent>
-        </Card>
-      </div>
+            <Card className="bg-gradient-to-br from-card via-card to-accent/5 border-accent/20 shadow-lg hover:shadow-xl transition-all duration-200">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-card-foreground">Total Payroll</CardTitle>
+                <DollarSign className="h-4 w-4 text-accent" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl lg:text-2xl font-bold text-accent">{Math.round(timesheetSummary?.totalPayroll || 0)} LE</div>
+              </CardContent>
+            </Card>
 
-      {/* Charts and Analytics Section */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
-        {/* Main Charts */}
-        <div className="xl:col-span-2 space-y-6">
-          <DashboardCharts />
-        </div>
-        
-        {/* Leaderboard */}
-        <div className="xl:col-span-1">
-          <TopPerformersLeaderboard />
-        </div>
-      </div>
+            <Card className="bg-gradient-to-br from-card via-card to-success/5 border-success/20 shadow-lg hover:shadow-xl transition-all duration-200">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-card-foreground">Total Shifts</CardTitle>
+                <TrendingUp className="h-4 w-4 text-success" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-success">{Math.round(timesheetSummary?.totalShifts || 0)}</div>
+              </CardContent>
+            </Card>
+          </div>
 
-      {/* Additional Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <MonthlyHoursTrend />
-        <MonthlyShiftsActivity />
-      </div>
+          {/* Charts and Analytics Section */}
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            {/* Main Charts */}
+            <div className="xl:col-span-2 space-y-6">
+              <DashboardCharts timePeriod={selectedPeriod} dateRange={dateRange} />
+            </div>
+            
+            {/* Leaderboard */}
+            <div className="xl:col-span-1">
+              <TopPerformersLeaderboard timePeriod={selectedPeriod} dateRange={dateRange} />
+            </div>
+          </div>
 
-      {/* Daily Payment Chart */}
-      <div className="mb-8">
-        <DailyPaymentChart />
-      </div>
+          {/* Additional Charts Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <MonthlyHoursTrend timePeriod={selectedPeriod} dateRange={dateRange} />
+            <MonthlyShiftsActivity timePeriod={selectedPeriod} dateRange={dateRange} />
+          </div>
 
-      {/* Quick Actions */}
+          {/* Daily Payment Chart */}
+          <div>
+            <DailyPaymentChart timePeriod={selectedPeriod} dateRange={dateRange} />
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* Quick Actions - Fixed text wrapping */}
       <Card className="mb-8 bg-gradient-to-br from-card via-card to-muted/5 border-border/50 shadow-lg">
         <CardHeader>
           <CardTitle className="text-lg font-semibold text-card-foreground">Quick Actions</CardTitle>
@@ -174,15 +233,15 @@ const DashboardPage: React.FC = () => {
                 <Button
                   key={index}
                   variant="outline"
-                  className="h-auto p-4 flex flex-col items-center space-y-2 hover:bg-accent/10 hover:border-accent border-border/50 transition-all duration-200 hover:shadow-lg text-center"
+                  className="h-32 p-4 flex flex-col items-center justify-center space-y-3 hover:bg-accent/10 hover:border-accent border-border/50 transition-all duration-200 hover:shadow-lg text-center group"
                   onClick={action.action}
                 >
-                  <div className={`p-3 rounded-full ${action.color} text-white shadow-lg`}>
+                  <div className={`p-3 rounded-full ${action.color} text-white shadow-lg group-hover:scale-110 transition-transform duration-200`}>
                     <Icon className="h-5 w-5" />
                   </div>
-                  <div className="space-y-1 flex-1 flex flex-col justify-center">
-                    <div className="font-medium text-xs leading-tight text-card-foreground">{action.title}</div>
-                    <div className="text-xs text-muted-foreground leading-tight break-words">{action.description}</div>
+                  <div className="space-y-1 text-center">
+                    <div className="font-medium text-sm leading-tight text-card-foreground">{action.title}</div>
+                    <div className="text-xs text-muted-foreground leading-tight px-1 line-clamp-2">{action.description}</div>
                   </div>
                 </Button>
               );
