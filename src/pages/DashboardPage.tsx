@@ -167,22 +167,22 @@ const DashboardPage: React.FC = () => {
           <CardDescription className="text-muted-foreground">Common tasks and navigation shortcuts</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {quickActions.map((action, index) => {
               const Icon = action.icon;
               return (
                 <Button
                   key={index}
                   variant="outline"
-                  className="h-auto p-6 flex flex-col items-center space-y-3 hover:bg-accent/10 hover:border-accent border-border/50 transition-all duration-200 hover:shadow-lg"
+                  className="h-auto p-4 flex flex-col items-center space-y-2 hover:bg-accent/10 hover:border-accent border-border/50 transition-all duration-200 hover:shadow-lg text-center"
                   onClick={action.action}
                 >
                   <div className={`p-3 rounded-full ${action.color} text-white shadow-lg`}>
-                    <Icon className="h-6 w-6" />
+                    <Icon className="h-5 w-5" />
                   </div>
-                  <div className="text-center space-y-1">
-                    <div className="font-medium text-sm leading-tight text-card-foreground">{action.title}</div>
-                    <div className="text-xs text-muted-foreground leading-snug break-words text-center">{action.description}</div>
+                  <div className="space-y-1 flex-1 flex flex-col justify-center">
+                    <div className="font-medium text-xs leading-tight text-card-foreground">{action.title}</div>
+                    <div className="text-xs text-muted-foreground leading-tight break-words">{action.description}</div>
                   </div>
                 </Button>
               );

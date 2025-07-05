@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Upload, X } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Upload, X, Eye, AlertTriangle, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { parseFile } from '@/utils/fileParser';
 import { processTimesheetData } from '@/utils/timesheetDataProcessor';
@@ -15,14 +16,52 @@ interface TimesheetUploadProps {
   onUploadComplete: () => void;
 }
 
+interface PreviewRow {
+  data: any;
+  errors: string[];
+  warnings: string[];
+}
+
 const TimesheetUpload: React.FC<TimesheetUploadProps> = ({ onClose, onUploadComplete }) => {
   const { t } = useTranslation();
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewData, setPreviewData] = useState<PreviewRow[]>([]);
+  const [processedData, setProcessedData] = useState<any[]>([]);
 
   const uploadMutation = useTimesheetUpload(onUploadComplete, onClose);
 
-  const handleFileUpload = async () => {
+  const validateRow = (row: any): { errors: string[], warnings: string[] } => {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    if (!row.employee_name || row.employee_name.trim() === '') {
+      errors.push('Employee name is required');
+    }
+    if (!row.clock_in_date) {
+      errors.push('Clock in date is required');
+    }
+    if (!row.clock_in_time) {
+      errors.push('Clock in time is required');
+    }
+    if (!row.clock_out_date) {
+      errors.push('Clock out date is required');
+    }
+    if (!row.clock_out_time) {
+      errors.push('Clock out time is required');
+    }
+    if (row.total_hours && (row.total_hours < 0 || row.total_hours > 24)) {
+      warnings.push('Total hours seems unusual (< 0 or > 24)');
+    }
+    if (!row.payroll_id) {
+      warnings.push('Payroll ID is missing - will be auto-generated');
+    }
+
+    return { errors, warnings };
+  };
+
+  const handleFilePreview = async () => {
     if (!file) {
       toast.error(t('selectFile') || 'Please select a file');
       return;
@@ -41,7 +80,15 @@ const TimesheetUpload: React.FC<TimesheetUploadProps> = ({ onClose, onUploadComp
         return;
       }
 
-      uploadMutation.mutate(processedData);
+      // Create preview data with validation
+      const preview: PreviewRow[] = processedData.slice(0, 10).map(row => {
+        const { errors, warnings } = validateRow(row);
+        return { data: row, errors, warnings };
+      });
+
+      setPreviewData(preview);
+      setProcessedData(processedData);
+      setShowPreview(true);
     } catch (error) {
       console.error('Error processing file:', error);
       toast.error(t('errorProcessingFile') || 'Error processing file: ' + (error as Error).message);
@@ -49,6 +96,128 @@ const TimesheetUpload: React.FC<TimesheetUploadProps> = ({ onClose, onUploadComp
       setUploading(false);
     }
   };
+
+  const handleConfirmUpload = () => {
+    const hasErrors = previewData.some(row => row.errors.length > 0);
+    if (hasErrors) {
+      toast.error('Please fix the errors before uploading');
+      return;
+    }
+
+    uploadMutation.mutate(processedData);
+  };
+
+  const handleBackToFileSelection = () => {
+    setShowPreview(false);
+    setPreviewData([]);
+    setProcessedData([]);
+  };
+
+  if (showPreview) {
+    return (
+      <Dialog open={true} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Eye className="h-5 w-5" />
+                {t('previewData') || 'Preview Data'}
+              </span>
+              <Button variant="ghost" size="sm" onClick={onClose}>
+                <X className="h-4 w-4" />
+              </Button>
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-auto">
+            <div className="mb-4 p-4 bg-blue-50 rounded-md">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle className="h-5 w-5 text-green-500" />
+                <span className="font-medium">
+                  {processedData.length} records ready for import
+                </span>
+              </div>
+              <p className="text-sm text-gray-600">
+                Showing first 10 rows. Please review for accuracy before confirming the upload.
+              </p>
+            </div>
+
+            <div className="border rounded-md overflow-auto max-h-96">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-8">#</TableHead>
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Clock In</TableHead>
+                    <TableHead>Clock Out</TableHead>
+                    <TableHead>Hours</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {previewData.map((row, index) => (
+                    <TableRow key={index} className={row.errors.length > 0 ? 'bg-red-50' : row.warnings.length > 0 ? 'bg-yellow-50' : ''}>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell className="font-medium">{row.data.employee_name}</TableCell>
+                      <TableCell>{row.data.clock_in_date}</TableCell>
+                      <TableCell>{row.data.clock_in_time}</TableCell>
+                      <TableCell>{row.data.clock_out_time}</TableCell>
+                      <TableCell>{row.data.total_hours?.toFixed(2) || 'N/A'}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          {row.errors.map((error, i) => (
+                            <div key={i} className="flex items-center gap-1 text-red-600 text-xs">
+                              <AlertTriangle className="h-3 w-3" />
+                              {error}
+                            </div>
+                          ))}
+                          {row.warnings.map((warning, i) => (
+                            <div key={i} className="flex items-center gap-1 text-yellow-600 text-xs">
+                              <AlertTriangle className="h-3 w-3" />
+                              {warning}
+                            </div>
+                          ))}
+                          {row.errors.length === 0 && row.warnings.length === 0 && (
+                            <div className="flex items-center gap-1 text-green-600 text-xs">
+                              <CheckCircle className="h-3 w-3" />
+                              Valid
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+
+          <div className="flex justify-between pt-4 border-t">
+            <Button variant="outline" onClick={handleBackToFileSelection}>
+              Back to File Selection
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={onClose}>
+                {t('cancel') || 'Cancel'}
+              </Button>
+              <Button
+                onClick={handleConfirmUpload}
+                disabled={uploadMutation.isPending || previewData.some(row => row.errors.length > 0)}
+                className="flex items-center gap-2"
+              >
+                <Upload className="h-4 w-4" />
+                {uploadMutation.isPending 
+                  ? (t('uploading') || 'Uploading...') 
+                  : `Confirm Upload (${processedData.length} records)`
+                }
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -103,15 +272,15 @@ const TimesheetUpload: React.FC<TimesheetUploadProps> = ({ onClose, onUploadComp
           
           <div className="flex space-x-2">
             <Button
-              onClick={handleFileUpload}
-              disabled={!file || uploading || uploadMutation.isPending}
+              onClick={handleFilePreview}
+              disabled={!file || uploading}
               className="flex-1 flex items-center space-x-2"
             >
-              <Upload className="h-4 w-4" />
+              <Eye className="h-4 w-4" />
               <span>
-                {uploading || uploadMutation.isPending 
-                  ? (t('uploading') || 'Uploading...') 
-                  : (t('upload') || 'Upload')
+                {uploading 
+                  ? (t('processing') || 'Processing...') 
+                  : (t('preview') || 'Preview Data')
                 }
               </span>
             </Button>

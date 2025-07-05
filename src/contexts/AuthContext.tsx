@@ -1,7 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import bcrypt from 'bcryptjs';
 
 interface AuthUser {
   id: string;
@@ -34,33 +33,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
-      const { data, error } = await supabase
-        .from('admin_users')
-        .select('*')
-        .eq('username', username)
-        .single();
+      // Call the authentication edge function
+      const { data, error } = await supabase.functions.invoke('authenticate-user', {
+        body: { username, password }
+      });
 
-      if (error || !data) {
+      if (error) {
+        console.error('Authentication error:', error);
         return false;
       }
 
-      // Check password for both admin and employee users
-      let isValidPassword = false;
-      
-      if (username === 'admin' && password === 'admin123') {
-        isValidPassword = true;
-      } else {
-        // For employees, check if password is staff_id + 123
-        const expectedPassword = `${username}123`;
-        isValidPassword = password === expectedPassword;
-      }
-      
-      if (isValidPassword) {
+      if (data && data.success && data.user) {
         const authUser: AuthUser = {
-          id: data.id,
-          username: data.username,
-          full_name: data.full_name,
-          role: data.role,
+          id: data.user.id,
+          username: data.user.username,
+          full_name: data.user.full_name,
+          role: data.user.role,
         };
         
         setUser(authUser);
