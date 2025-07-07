@@ -35,12 +35,6 @@ const DashboardPage: React.FC = () => {
           to: endOfMonth(prevMonth),
           label: 'Previous Pay Period'
         };
-      case 'alltime':
-        return {
-          from: new Date('2020-01-01'),
-          to: now,
-          label: 'All Time'
-        };
       default:
         return {
           from: startOfMonth(now),
@@ -136,69 +130,73 @@ const DashboardPage: React.FC = () => {
 
       {/* Period Selection Tabs */}
       <Tabs value={selectedPeriod} onValueChange={setSelectedPeriod} className="mb-8">
-        <TabsList className="grid w-full grid-cols-3 bg-background/50 backdrop-blur border border-border/50">
+        <TabsList className="grid w-full grid-cols-2 bg-gradient-to-r from-card via-card to-primary/5 backdrop-blur-md border border-border/30 shadow-lg rounded-lg">
           <TabsTrigger 
             value="current" 
-            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm px-2 py-2 text-center leading-tight"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-sm font-medium px-4 py-3 rounded-md transition-all duration-200 hover:bg-primary/10"
           >
-            <span className="block">Current</span>
-            <span className="block">Pay Period</span>
+            <span className="whitespace-nowrap">Current Pay Period</span>
           </TabsTrigger>
           <TabsTrigger 
             value="previous" 
-            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm px-2 py-2 text-center leading-tight"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-sm font-medium px-4 py-3 rounded-md transition-all duration-200 hover:bg-primary/10"
           >
-            <span className="block">Previous</span>
-            <span className="block">Pay Period</span>
-          </TabsTrigger>
-          <TabsTrigger 
-            value="alltime" 
-            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm px-2 py-2 text-center leading-tight"
-          >
-            <span className="block">All Time</span>
+            <span className="whitespace-nowrap">Previous Pay Period</span>
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value={selectedPeriod} className="space-y-6">
           {/* Stats Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="bg-gradient-to-br from-card via-card to-primary/5 border-primary/20 shadow-lg hover:shadow-xl transition-all duration-200">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-card-foreground">Total Employees</CardTitle>
-                <Users className="h-4 w-4 text-primary" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            <Card className="group bg-gradient-to-br from-card via-card to-primary/5 border-primary/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 p-4 sm:p-6">
+                <CardTitle className="text-xs sm:text-sm font-semibold text-card-foreground/80 leading-relaxed">Total Employees</CardTitle>
+                <div className="p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
+                  <Users className="h-4 w-4 text-primary" />
+                </div>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-primary">{Math.round(employeeCount || 0)}</div>
+              <CardContent className="p-4 sm:p-6 pt-0">
+                <div className="text-2xl sm:text-3xl font-bold text-primary mb-1">{Math.round(employeeCount || 0)}</div>
+                <p className="text-xs text-muted-foreground">Active staff members</p>
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-card via-card to-secondary/5 border-secondary/20 shadow-lg hover:shadow-xl transition-all duration-200">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-card-foreground">Total Hours</CardTitle>
-                <Clock className="h-4 w-4 text-secondary" />
+            <Card className="group bg-gradient-to-br from-card via-card to-secondary/5 border-secondary/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 p-4 sm:p-6">
+                <CardTitle className="text-xs sm:text-sm font-semibold text-card-foreground/80 leading-relaxed">Total Hours</CardTitle>
+                <div className="p-2 bg-secondary/10 rounded-lg group-hover:bg-secondary/20 transition-colors">
+                  <Clock className="h-4 w-4 text-secondary" />
+                </div>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-secondary">{Math.round(timesheetSummary?.totalHours || 0)}</div>
+              <CardContent className="p-4 sm:p-6 pt-0">
+                <div className="text-2xl sm:text-3xl font-bold text-secondary mb-1">{Math.round(timesheetSummary?.totalHours || 0)}</div>
+                <p className="text-xs text-muted-foreground">Hours worked</p>
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-card via-card to-accent/5 border-accent/20 shadow-lg hover:shadow-xl transition-all duration-200">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-card-foreground">Total Payroll</CardTitle>
-                <DollarSign className="h-4 w-4 text-accent" />
+            <Card className="group bg-gradient-to-br from-card via-card to-accent/5 border-accent/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 p-4 sm:p-6">
+                <CardTitle className="text-xs sm:text-sm font-semibold text-card-foreground/80 leading-relaxed">Total Payroll</CardTitle>
+                <div className="p-2 bg-accent/10 rounded-lg group-hover:bg-accent/20 transition-colors">
+                  <DollarSign className="h-4 w-4 text-accent" />
+                </div>
               </CardHeader>
-              <CardContent>
-                <div className="text-xl lg:text-2xl font-bold text-accent">{Math.round(timesheetSummary?.totalPayroll || 0)} LE</div>
+              <CardContent className="p-4 sm:p-6 pt-0">
+                <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-accent mb-1">{Math.round(timesheetSummary?.totalPayroll || 0)} LE</div>
+                <p className="text-xs text-muted-foreground">Total earnings</p>
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-card via-card to-success/5 border-success/20 shadow-lg hover:shadow-xl transition-all duration-200">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-card-foreground">Total Shifts</CardTitle>
-                <TrendingUp className="h-4 w-4 text-success" />
+            <Card className="group bg-gradient-to-br from-card via-card to-success/5 border-success/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 p-4 sm:p-6">
+                <CardTitle className="text-xs sm:text-sm font-semibold text-card-foreground/80 leading-relaxed">Total Shifts</CardTitle>
+                <div className="p-2 bg-success/10 rounded-lg group-hover:bg-success/20 transition-colors">
+                  <TrendingUp className="h-4 w-4 text-success" />
+                </div>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-success">{Math.round(timesheetSummary?.totalShifts || 0)}</div>
+              <CardContent className="p-4 sm:p-6 pt-0">
+                <div className="text-2xl sm:text-3xl font-bold text-success mb-1">{Math.round(timesheetSummary?.totalShifts || 0)}</div>
+                <p className="text-xs text-muted-foreground">Completed shifts</p>
               </CardContent>
             </Card>
           </div>
@@ -229,31 +227,31 @@ const DashboardPage: React.FC = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Quick Actions - Fixed text wrapping */}
-      <Card className="mb-8 bg-gradient-to-br from-card via-card to-muted/5 border-border/50 shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold text-card-foreground">Quick Actions</CardTitle>
-          <CardDescription className="text-muted-foreground">Common tasks and navigation shortcuts</CardDescription>
+      {/* Quick Actions - Enhanced with better text wrapping */}
+      <Card className="mb-8 bg-gradient-to-br from-card via-card to-muted/5 border-border/30 shadow-card hover:shadow-elegant transition-all duration-300 rounded-xl overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-primary/5 to-secondary/5 border-b border-border/20">
+          <CardTitle className="text-lg font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Quick Actions</CardTitle>
+          <CardDescription className="text-muted-foreground font-medium">Common tasks and navigation shortcuts</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
             {quickActions.map((action, index) => {
               const Icon = action.icon;
               return (
                 <Button
                   key={index}
                   variant="outline"
-                  className="h-auto min-h-[120px] p-4 flex flex-col items-center justify-center space-y-3 hover:bg-accent/10 hover:border-accent border-border/50 transition-all duration-200 hover:shadow-lg text-center group"
+                  className="h-auto min-h-[140px] p-4 sm:p-6 flex flex-col items-center justify-center space-y-4 hover:bg-accent/10 hover:border-accent/50 border-border/30 transition-all duration-300 hover:shadow-lg hover:scale-105 text-center group rounded-xl bg-gradient-to-br from-background/80 to-primary/5"
                   onClick={action.action}
                 >
-                  <div className={`p-3 rounded-full ${action.color} text-white shadow-lg group-hover:scale-110 transition-transform duration-200`}>
-                    <Icon className="h-5 w-5" />
+                  <div className={`p-3 sm:p-4 rounded-xl ${action.color} text-white shadow-lg group-hover:scale-110 group-hover:shadow-xl transition-all duration-300`}>
+                    <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
                   </div>
-                  <div className="space-y-1 text-center w-full">
-                    <div className="font-medium text-sm leading-tight text-card-foreground break-words">
+                  <div className="space-y-2 text-center w-full max-w-[120px]">
+                    <div className="font-semibold text-sm sm:text-base leading-snug text-card-foreground group-hover:text-primary transition-colors break-words">
                       {action.title}
                     </div>
-                    <div className="text-xs text-muted-foreground leading-tight px-1 break-words hyphens-auto">
+                    <div className="text-xs sm:text-sm text-muted-foreground leading-relaxed break-words hyphens-auto line-clamp-3">
                       {action.description}
                     </div>
                   </div>

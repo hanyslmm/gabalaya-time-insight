@@ -63,10 +63,11 @@ All colors MUST be HSL.
     --gradient-accent: linear-gradient(135deg, hsl(15 85% 65%), hsl(15 70% 75%));
     --gradient-success: linear-gradient(135deg, hsl(140 70% 45%), hsl(140 60% 55%));
     
-    /* Enhanced shadows */
-    --shadow-elegant: 0 10px 30px -10px hsl(195 100% 25% / 0.3);
-    --shadow-glow: 0 0 40px hsl(45 100% 60% / 0.4);
-    --shadow-card: 0 4px 20px -4px hsl(195 100% 25% / 0.15);
+  /* Enhanced shadows */
+  --shadow-elegant: 0 15px 40px -15px hsl(195 100% 25% / 0.25);
+  --shadow-glow: 0 0 50px hsl(45 100% 60% / 0.3);
+  --shadow-card: 0 6px 25px -6px hsl(195 100% 25% / 0.12);
+  --shadow-hover: 0 20px 50px -20px hsl(195 100% 25% / 0.3);
   }
 
   .dark {
@@ -269,6 +270,40 @@ All colors MUST be HSL.
   }
 
   .hover-glow:hover {
-    box-shadow: 0 10px 30px -10px hsl(var(--primary) / 0.3);
+    box-shadow: var(--shadow-elegant);
+  }
+
+  /* Enhanced text wrapping utilities */
+  .text-wrap-balance {
+    text-wrap: balance;
+  }
+
+  .text-wrap-pretty {
+    text-wrap: pretty;
+  }
+
+  /* Line clamping utilities */
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Enhanced card interactions */
+  .card-interactive {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card-interactive:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: var(--shadow-hover);
   }
 }

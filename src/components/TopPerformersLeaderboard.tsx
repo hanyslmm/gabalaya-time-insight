@@ -120,53 +120,53 @@ const TopPerformersLeaderboard: React.FC<TopPerformersProps> = ({
   }
 
   return (
-    <Card className="bg-gradient-to-br from-card via-card to-primary/5 border-border/50 shadow-lg hover:shadow-xl transition-all duration-300">
-      <CardHeader className="border-b border-border/20">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-3 text-lg">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <Trophy className="h-5 w-5 text-primary" />
+    <Card className="bg-gradient-to-br from-card via-card to-primary/5 border-border/30 shadow-card hover:shadow-elegant transition-all duration-300 rounded-xl overflow-hidden">
+      <CardHeader className="bg-gradient-to-r from-primary/5 to-accent/5 border-b border-border/20 p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <CardTitle className="flex items-center gap-3 text-lg sm:text-xl">
+            <div className="p-2 sm:p-3 bg-primary/10 rounded-xl shadow-lg">
+              <Trophy className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
             </div>
-            <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent font-bold">
               Top Performers
             </span>
           </CardTitle>
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background/50 px-3 py-1.5 rounded-full">
             <TrendingUp className="h-4 w-4" />
-            <span>{dateRange?.label || 'Current Period'}</span>
+            <span className="font-medium">{dateRange?.label || 'Current Period'}</span>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="p-6">
-        <div className="space-y-4">
+      <CardContent className="p-4 sm:p-6">
+        <div className="space-y-3 sm:space-y-4">
           {topPerformers?.map((performer, index) => (
             <div
               key={performer.name}
-              className="group flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-background/80 via-background/60 to-primary/5 border border-border/30 hover:border-primary/40 transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
+              className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 p-4 sm:p-5 rounded-xl bg-gradient-to-r from-background/80 via-background/60 to-primary/5 border border-border/30 hover:border-primary/40 transition-all duration-300 hover:shadow-lg hover:scale-[1.02] cursor-pointer"
             >
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   {getLeaderIcon(index)}
                   {getLeaderBadge(index)}
                 </div>
-                <div className="space-y-1">
-                  <h4 className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                <div className="space-y-1 sm:space-y-2 min-w-0 flex-1">
+                  <h4 className="font-semibold text-sm sm:text-base text-foreground group-hover:text-primary transition-colors truncate">
                     {performer.name}
                   </h4>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <span>{Math.round(performer.hours)} hours</span>
-                    <span>•</span>
-                    <span>{performer.shifts} shifts</span>
-                    <span>•</span>
-                    <span>{Math.round(performer.avgHours)} avg</span>
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
+                    <span className="whitespace-nowrap">{Math.round(performer.hours)} hours</span>
+                    <span className="hidden sm:inline">•</span>
+                    <span className="whitespace-nowrap">{performer.shifts} shifts</span>
+                    <span className="hidden sm:inline">•</span>
+                    <span className="whitespace-nowrap">{Math.round(performer.avgHours)} avg</span>
                   </div>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-lg font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              <div className="text-right flex-shrink-0 sm:ml-4">
+                <div className="text-lg sm:text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                   {Math.round(performer.amount)} LE
                 </div>
-                <div className="text-xs text-muted-foreground">
+                <div className="text-xs text-muted-foreground font-medium">
                   Total earnings
                 </div>
               </div>
@@ -174,9 +174,11 @@ const TopPerformersLeaderboard: React.FC<TopPerformersProps> = ({
           ))}
           
           {(!topPerformers || topPerformers.length === 0) && (
-            <div className="text-center py-8 text-muted-foreground">
-              <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No performance data available for the selected period.</p>
+            <div className="text-center py-8 sm:py-12 text-muted-foreground">
+              <div className="p-4 bg-muted/20 rounded-full w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-4 flex items-center justify-center">
+                <Trophy className="h-10 w-10 sm:h-12 sm:w-12 opacity-50" />
+              </div>
+              <p className="text-sm sm:text-base font-medium">No performance data available for the selected period.</p>
             </div>
           )}
         </div>
