@@ -32,6 +32,7 @@ const employeeSchema = z.object({
   full_name: z.string().min(2, 'Full name must be at least 2 characters').max(100, 'Full name must be less than 100 characters'),
   role: z.string().min(1, 'Role is required'),
   hiring_date: z.string().min(1, 'Hiring date is required'),
+  // Email and phone are now optional
   email: z.string().email('Invalid email format').optional().or(z.literal('')),
   phone_number: z.string().max(20, 'Phone number must be less than 20 characters').optional().or(z.literal('')),
 });
@@ -52,7 +53,9 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
   const [availableRoles, setAvailableRoles] = useState([
     'Champion',
     'Barista', 
-    'Host'
+    'Host',
+    'Employee',
+    'admin'
   ]);
 
   useEffect(() => {
@@ -213,24 +216,26 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">{t('email')}</Label>
+            <Label htmlFor="email">{t('email')} (Optional)</Label>
             <Input
               id="email"
               type="email"
               value={formData.email || ''}
               onChange={(e) => handleInputChange('email', e.target.value)}
               className={errors.email ? 'border-red-500' : ''}
+              placeholder="Optional - enter email if available"
             />
             {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="phone_number">{t('phoneNumber')}</Label>
+            <Label htmlFor="phone_number">{t('phoneNumber')} (Optional)</Label>
             <Input
               id="phone_number"
               value={formData.phone_number || ''}
               onChange={(e) => handleInputChange('phone_number', e.target.value)}
               className={errors.phone_number ? 'border-red-500' : ''}
+              placeholder="Optional - enter phone if available"
             />
             {errors.phone_number && <p className="text-sm text-red-500">{errors.phone_number}</p>}
           </div>

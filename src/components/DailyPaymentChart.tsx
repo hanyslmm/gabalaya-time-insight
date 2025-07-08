@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
-import { format, subDays, eachDayOfInterval } from 'date-fns';
+import { format, subDays, eachDayOfInterval, startOfWeek, endOfWeek } from 'date-fns';
 import { DollarSign, TrendingUp } from 'lucide-react';
 
 interface DailyData {
@@ -30,10 +30,11 @@ const DailyPaymentChart: React.FC<DailyPaymentChartProps> = ({
   const { data: dailyData, isLoading } = useQuery({
     queryKey: ['daily-payment-chart', timePeriod, dateRange],
     queryFn: async () => {
-      // Default to last 7 days if no date range provided
+      // Default to current week (last 7 days) if no date range provided
+      const today = new Date();
       const defaultRange = {
-        from: subDays(new Date(), 7),
-        to: new Date()
+        from: subDays(today, 6), // Last 7 days including today
+        to: today
       };
       
       const effectiveRange = dateRange || defaultRange;
@@ -57,12 +58,12 @@ const DailyPaymentChart: React.FC<DailyPaymentChartProps> = ({
       });
       const dailyStats: Record<string, DailyData> = {};
       
-      // Initialize all dates with 0
+      // Initialize all dates with 0 and show weekday names
       dates.forEach(date => {
         const dateKey = format(date, 'yyyy-MM-dd');
         dailyStats[dateKey] = {
           date: dateKey,
-          displayDate: format(date, 'MMM dd'),
+          displayDate: format(date, 'EEE'), // Show weekday (Sat, Sun, Mon, etc.)
           amount: 0
         };
       });

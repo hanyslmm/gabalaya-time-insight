@@ -100,37 +100,10 @@ const ClockInOutPage: React.FC = () => {
     });
   };
 
-  const capturePhoto = async (): Promise<string | null> => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'user' } 
-      });
-      
-      const video = document.createElement('video');
-      video.srcObject = stream;
-      video.play();
-
-      return new Promise((resolve) => {
-        video.addEventListener('loadedmetadata', () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(video, 0, 0);
-          
-          stream.getTracks().forEach(track => track.stop());
-          
-          const photoDataURL = canvas.toDataURL('image/jpeg', 0.8);
-          setCapturedPhoto(photoDataURL);
-          resolve(photoDataURL);
-        });
-      });
-    } catch (error) {
-      console.warn('Camera access failed:', error);
-      toast.error('Camera access denied. Continuing without photo.');
-      return null;
-    }
+  // Remove camera functionality - location tracking only
+  const captureLocationSnapshot = async (): Promise<string | null> => {
+    // Just return null - we're only tracking location now
+    return null;
   };
 
   const fetchTodayEntries = async () => {
@@ -173,8 +146,8 @@ const ClockInOutPage: React.FC = () => {
       const userLocation = await getCurrentLocation();
       setLocation(userLocation);
       
-      // Attempt to capture photo (optional)
-      const photo = await capturePhoto();
+      // Location snapshot for record keeping
+      await captureLocationSnapshot();
       
       const now = new Date();
       const { data, error } = await supabase
@@ -215,8 +188,8 @@ const ClockInOutPage: React.FC = () => {
     try {
       const userLocation = await getCurrentLocation();
       
-      // Attempt to capture photo (optional)
-      const photo = await capturePhoto();
+      // Location snapshot for record keeping
+      await captureLocationSnapshot();
       
       const now = new Date();
       const clockOutTime = format(now, 'HH:mm:ss');
@@ -321,10 +294,10 @@ const ClockInOutPage: React.FC = () => {
                 </Button>
               )}
               
-              {capturedPhoto && (
+              {location && (
                 <div className="flex items-center space-x-2 ml-4">
-                  <Camera className="h-4 w-4 text-green-600" />
-                  <span className="text-sm text-green-600">Photo captured</span>
+                  <MapPin className="h-4 w-4 text-green-600" />
+                  <span className="text-sm text-green-600">Location captured</span>
                 </div>
               )}
             </div>

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Clock, CalendarDays, DollarSign, User, Edit } from 'lucide-react';
 import { formatTimeToAMPM } from '@/utils/timeFormatter';
 import { useAuth } from '@/hooks/useAuth';
+import TimesheetEditDialog from './TimesheetEditDialog';
 
 interface TimesheetEntry {
   id: string;
@@ -38,6 +39,7 @@ const TimesheetMobileCard: React.FC<TimesheetMobileCardProps> = ({
 }) => {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
+  const [showEditDialog, setShowEditDialog] = React.useState(false);
 
   return (
     <Card className={`mb-4 transition-all duration-200 hover:shadow-md ${isSelected ? 'ring-2 ring-blue-500 bg-blue-50' : 'hover:bg-gray-50'}`}>
@@ -58,11 +60,11 @@ const TimesheetMobileCard: React.FC<TimesheetMobileCardProps> = ({
             <Badge variant={entry.is_split_calculation ? "default" : "secondary"} className="text-xs">
               {entry.is_split_calculation ? "Split Rate" : "Flat Rate"}
             </Badge>
-            {isAdmin && onEdit && (
+            {isAdmin && (
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => onEdit(entry)}
+                onClick={() => setShowEditDialog(true)}
                 className="h-6 w-6 p-0"
               >
                 <Edit className="h-3 w-3" />
@@ -135,6 +137,17 @@ const TimesheetMobileCard: React.FC<TimesheetMobileCardProps> = ({
           )}
         </div>
       </CardContent>
+      
+      {showEditDialog && (
+        <TimesheetEditDialog
+          entry={entry}
+          onClose={() => setShowEditDialog(false)}
+          onSave={() => {
+            setShowEditDialog(false);
+            if (onEdit) onEdit(entry);
+          }}
+        />
+      )}
     </Card>
   );
 };

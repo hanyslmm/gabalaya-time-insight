@@ -1,11 +1,13 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Clock, DollarSign, Calendar, TrendingUp } from 'lucide-react';
+import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 
 interface Employee {
   id: string;
@@ -22,17 +24,50 @@ interface EmployeeStatsProps {
 
 const EmployeeStats: React.FC<EmployeeStatsProps> = ({ employee, onClose }) => {
   const { t } = useTranslation();
+  const [viewMode, setViewMode] = useState<'current' | 'previous'>('current');
+
+  // Calculate date ranges for current and previous pay periods
+  const getCurrentPayPeriod = () => {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    
+    // Assuming pay period is monthly (28th to 27th)
+    if (today.getDate() >= 28) {
+      return {
+        from: new Date(currentYear, currentMonth, 28),
+        to: new Date(currentYear, currentMonth + 1, 27)
+      };
+    } else {
+      return {
+        from: new Date(currentYear, currentMonth - 1, 28),
+        to: new Date(currentYear, currentMonth, 27)
+      };
+    }
+  };
+
+  const getPreviousPayPeriod = () => {
+    const current = getCurrentPayPeriod();
+    return {
+      from: subDays(current.from, 30),
+      to: subDays(current.to, 30)
+    };
+  };
 
   const { data: stats, isLoading } = useQuery({
-    queryKey: ['employee-stats', employee.id],
+    queryKey: ['employee-stats', employee.id, viewMode],
     queryFn: async () => {
       console.log('Fetching stats for employee:', employee.full_name);
       
-      // Query timesheet entries by employee name since that's what we have in the data
+      const payPeriod = viewMode === 'current' ? getCurrentPayPeriod() : getPreviousPayPeriod();
+      
+      // Query timesheet entries by employee name with date filtering
       const { data, error } = await supabase
         .from('timesheet_entries')
         .select('*')
-        .eq('employee_name', employee.full_name);
+        .eq('employee_name', employee.full_name)
+        .gte('clock_in_date', format(payPeriod.from, 'yyyy-MM-dd'))
+        .lte('clock_in_date', format(payPeriod.to, 'yyyy-MM-dd'));
 
       if (error) {
         console.error('Error fetching timesheet entries:', error);
@@ -68,7 +103,8 @@ const EmployeeStats: React.FC<EmployeeStatsProps> = ({ employee, onClose }) => {
         totalShifts,
         totalHours: totalHours.toFixed(2),
         totalAmount: totalAmount.toFixed(2),
-        averageHours: totalShifts > 0 ? (totalHours / totalShifts).toFixed(2) : '0.00'
+        averageHours: totalShifts > 0 ? (totalHours / totalShifts).toFixed(2) : '0.00',
+        payPeriod: viewMode
       };
     }
   });
@@ -78,6 +114,22 @@ const EmployeeStats: React.FC<EmployeeStatsProps> = ({ employee, onClose }) => {
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Employee Statistics - {employee.full_name}</DialogTitle>
+          <div className="flex gap-2 pt-2">
+            <Button 
+              variant={viewMode === 'current' ? 'default' : 'outline'} 
+              size="sm"
+              onClick={() => setViewMode('current')}
+            >
+              Current Pay Period
+            </Button>
+            <Button 
+              variant={viewMode === 'previous' ? 'default' : 'outline'} 
+              size="sm"
+              onClick={() => setViewMode('previous')}
+            >
+              Previous Pay Period
+            </Button>
+          </div>
         </DialogHeader>
         
         {isLoading ? (

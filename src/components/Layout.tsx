@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import NotificationSystem from './NotificationSystem';
 import ProfileAvatar from './ProfileAvatar';
-import LanguageSwitcher from './LanguageSwitcher';
+// Language switcher removed - English only now
 import { ThemeToggle } from './ThemeToggle';
 
 const Layout: React.FC = () => {
@@ -215,7 +215,6 @@ const Layout: React.FC = () => {
           
           <div className="flex items-center space-x-4 ml-auto">
             <ThemeToggle />
-            <LanguageSwitcher />
             <NotificationSystem />
             <div className="flex items-center space-x-2">
               <ProfileAvatar size="sm" />

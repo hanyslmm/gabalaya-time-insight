@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import React, { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Edit3, Save, X } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface TimesheetEntry {
@@ -17,66 +16,35 @@ interface TimesheetEntry {
   clock_out_date: string;
   clock_out_time: string;
   total_hours: number;
+  morning_hours?: number;
+  night_hours?: number;
   total_card_amount_flat: number;
+  total_card_amount_split?: number;
   manager_note?: string;
+  employee_note?: string;
 }
 
 interface TimesheetEditDialogProps {
-  entry: TimesheetEntry | null;
-  isOpen: boolean;
+  entry: TimesheetEntry;
   onClose: () => void;
-  onUpdate: () => void;
+  onSave: () => void;
 }
 
-const TimesheetEditDialog: React.FC<TimesheetEditDialogProps> = ({
-  entry,
-  isOpen,
-  onClose,
-  onUpdate
+const TimesheetEditDialog: React.FC<TimesheetEditDialogProps> = ({ 
+  entry, 
+  onClose, 
+  onSave 
 }) => {
-  const [formData, setFormData] = useState({
-    clock_in_date: '',
-    clock_in_time: '',
-    clock_out_date: '',
-    clock_out_time: '',
-    manager_note: ''
-  });
+  const [formData, setFormData] = useState<Partial<TimesheetEntry>>({});
   const [loading, setLoading] = useState(false);
 
-  React.useEffect(() => {
-    if (entry) {
-      setFormData({
-        clock_in_date: entry.clock_in_date || '',
-        clock_in_time: entry.clock_in_time || '',
-        clock_out_date: entry.clock_out_date || '',
-        clock_out_time: entry.clock_out_time || '',
-        manager_note: entry.manager_note || ''
-      });
-    }
+  useEffect(() => {
+    setFormData({ ...entry });
   }, [entry]);
 
-  const calculateTotalHours = () => {
-    if (!formData.clock_in_date || !formData.clock_in_time || !formData.clock_out_date || !formData.clock_out_time) {
-      return 0;
-    }
-
-    const clockIn = new Date(`${formData.clock_in_date}T${formData.clock_in_time}`);
-    const clockOut = new Date(`${formData.clock_out_date}T${formData.clock_out_time}`);
-    
-    if (clockOut <= clockIn) {
-      return 0;
-    }
-
-    return (clockOut.getTime() - clockIn.getTime()) / (1000 * 60 * 60);
-  };
-
   const handleSave = async () => {
-    if (!entry) return;
-
     setLoading(true);
     try {
-      const totalHours = calculateTotalHours();
-      
       const { error } = await supabase
         .from('timesheet_entries')
         .update({
@@ -84,109 +52,210 @@ const TimesheetEditDialog: React.FC<TimesheetEditDialogProps> = ({
           clock_in_time: formData.clock_in_time,
           clock_out_date: formData.clock_out_date,
           clock_out_time: formData.clock_out_time,
-          total_hours: totalHours,
+          total_hours: formData.total_hours,
+          morning_hours: formData.morning_hours,
+          night_hours: formData.night_hours,
+          total_card_amount_flat: formData.total_card_amount_flat,
+          total_card_amount_split: formData.total_card_amount_split,
           manager_note: formData.manager_note,
-          updated_at: new Date().toISOString()
+          employee_note: formData.employee_note,
         })
         .eq('id', entry.id);
 
       if (error) throw error;
 
-      toast.success('Timesheet updated successfully');
-      onUpdate();
+      toast.success('Timesheet entry updated successfully');
+      onSave();
       onClose();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to update timesheet');
+      toast.error(error.message || 'Failed to update entry');
     } finally {
       setLoading(false);
     }
   };
 
-  const totalHours = calculateTotalHours();
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this entry?')) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('timesheet_entries')
+        .delete()
+        .eq('id', entry.id);
+
+      if (error) throw error;
+
+      toast.success('Timesheet entry deleted successfully');
+      onSave();
+      onClose();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete entry');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Edit3 className="h-5 w-5" />
-            Edit Timesheet - {entry?.employee_name}
-          </DialogTitle>
+          <DialogTitle>Edit Timesheet Entry - {entry.employee_name}</DialogTitle>
         </DialogHeader>
-
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
+        
+        <div className="space-y-4 py-4">
+          {/* Basic Info */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label htmlFor="clock_in_date">Clock In Date</Label>
               <Input
                 id="clock_in_date"
                 type="date"
-                value={formData.clock_in_date}
+                value={formData.clock_in_date || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, clock_in_date: e.target.value }))}
               />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="clock_in_time">Clock In Time</Label>
               <Input
                 id="clock_in_time"
                 type="time"
-                value={formData.clock_in_time}
+                value={formData.clock_in_time || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, clock_in_time: e.target.value }))}
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label htmlFor="clock_out_date">Clock Out Date</Label>
               <Input
                 id="clock_out_date"
                 type="date"
-                value={formData.clock_out_date}
+                value={formData.clock_out_date || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, clock_out_date: e.target.value }))}
               />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="clock_out_time">Clock Out Time</Label>
               <Input
                 id="clock_out_time"
                 type="time"
-                value={formData.clock_out_time}
+                value={formData.clock_out_time || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, clock_out_time: e.target.value }))}
               />
             </div>
           </div>
 
-          {totalHours > 0 && (
-            <div className="p-3 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-800">
-                <strong>Calculated Hours:</strong> {totalHours.toFixed(2)} hours
-              </p>
+          {/* Hours */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="total_hours">Total Hours</Label>
+              <Input
+                id="total_hours"
+                type="number"
+                step="0.01"
+                value={formData.total_hours || 0}
+                onChange={(e) => setFormData(prev => ({ ...prev, total_hours: parseFloat(e.target.value) || 0 }))}
+              />
             </div>
-          )}
+            <div className="space-y-2">
+              <Label htmlFor="morning_hours">Morning Hours</Label>
+              <Input
+                id="morning_hours"
+                type="number"
+                step="0.01"
+                value={formData.morning_hours || 0}
+                onChange={(e) => setFormData(prev => ({ ...prev, morning_hours: parseFloat(e.target.value) || 0 }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="night_hours">Night Hours</Label>
+              <Input
+                id="night_hours"
+                type="number"
+                step="0.01"
+                value={formData.night_hours || 0}
+                onChange={(e) => setFormData(prev => ({ ...prev, night_hours: parseFloat(e.target.value) || 0 }))}
+              />
+            </div>
+          </div>
 
-          <div>
-            <Label htmlFor="manager_note">Manager Notes</Label>
+          {/* Amounts */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="total_card_amount_flat">Flat Amount (LE)</Label>
+              <Input
+                id="total_card_amount_flat"
+                type="number"
+                step="0.01"
+                value={formData.total_card_amount_flat || 0}
+                onChange={(e) => setFormData(prev => ({ ...prev, total_card_amount_flat: parseFloat(e.target.value) || 0 }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="total_card_amount_split">Split Amount (LE)</Label>
+              <Input
+                id="total_card_amount_split"
+                type="number"
+                step="0.01"
+                value={formData.total_card_amount_split || 0}
+                onChange={(e) => setFormData(prev => ({ ...prev, total_card_amount_split: parseFloat(e.target.value) || 0 }))}
+              />
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div className="space-y-2">
+            <Label htmlFor="manager_note">Manager Note</Label>
             <Textarea
               id="manager_note"
-              placeholder="Add notes about this timesheet entry..."
-              value={formData.manager_note}
-              onChange={(e) => setFormData(prev => ({ ...prev, manager_note: e.target.value }))}
               rows={3}
+              value={formData.manager_note || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, manager_note: e.target.value }))}
+              placeholder="Add manager notes..."
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="employee_note">Employee Note</Label>
+            <Textarea
+              id="employee_note"
+              rows={3}
+              value={formData.employee_note || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, employee_note: e.target.value }))}
+              placeholder="Employee notes..."
             />
           </div>
         </div>
 
-        <DialogFooter className="flex gap-2">
-          <Button variant="outline" onClick={onClose} disabled={loading}>
-            <X className="h-4 w-4 mr-2" />
-            Cancel
+        <div className="flex flex-col sm:flex-row justify-between gap-2 pt-4 border-t">
+          <Button 
+            variant="destructive" 
+            onClick={handleDelete}
+            disabled={loading}
+            className="w-full sm:w-auto"
+          >
+            Delete Entry
           </Button>
-          <Button onClick={handleSave} disabled={loading || totalHours <= 0}>
-            <Save className="h-4 w-4 mr-2" />
-            {loading ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </DialogFooter>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={onClose}
+              disabled={loading}
+              className="flex-1 sm:flex-none"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSave}
+              disabled={loading}
+              className="flex-1 sm:flex-none"
+            >
+              {loading ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );

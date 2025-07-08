@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import MobileDropdownTabs from '@/components/MobileDropdownTabs';
 import { Button } from '@/components/ui/button';
 import { Calendar, Download, FileBarChart, Users, FileSpreadsheet, Upload } from 'lucide-react';
 import TimesheetDateFilter from '@/components/TimesheetDateFilter';
@@ -26,8 +26,7 @@ interface DateRange {
 }
 
 const ReportsPage: React.FC = () => {
-  const { t, i18n } = useTranslation();
-  const isRTL = i18n.language === 'ar';
+  const { t } = useTranslation();
   const [dateRange, setDateRange] = useState<DateRange>({ 
     from: new Date(new Date().getFullYear(), new Date().getMonth(), 1), 
     to: new Date() 
@@ -317,14 +316,14 @@ const ReportsPage: React.FC = () => {
   };
 
   return (
-    <div className={`px-4 sm:px-6 lg:px-8 ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
-      <div className={`flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 space-y-4 sm:space-y-0 ${isRTL ? 'sm:flex-row-reverse' : ''}`}>
-        <div className={isRTL ? 'text-right' : 'text-left'}>
+    <div className="px-4 sm:px-6 lg:px-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 space-y-4 sm:space-y-0">
+        <div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            {t('reports') || 'Reports'}
+            Reports
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {isRTL ? 'إنشاء وتصدير تقارير الحضور والرواتب' : 'Generate and export attendance and payroll reports'}
+            Generate and export attendance and payroll reports
           </p>
         </div>
       </div>
@@ -339,39 +338,29 @@ const ReportsPage: React.FC = () => {
         />
       </div>
 
-      <Tabs defaultValue="attendance" className="space-y-6">
-        <TabsList className={`grid w-full grid-cols-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
-          <TabsTrigger value="attendance" className={`${isRTL ? 'font-arabic' : ''}`}>
-            {isRTL ? 'تقرير الحضور' : 'Attendance Report'}
-          </TabsTrigger>
-          <TabsTrigger value="payroll" className={`${isRTL ? 'font-arabic' : ''}`}>
-            {isRTL ? 'ملخص الرواتب' : 'Payroll Summary'}
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className={`${isRTL ? 'font-arabic' : ''}`}>
-            {isRTL ? 'التحليلات' : 'Analytics'}
-          </TabsTrigger>
-          <TabsTrigger value="import" className={`${isRTL ? 'font-arabic' : ''}`}>
-            {isRTL ? 'استيراد البيانات' : 'Import Data'}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="attendance">
+      <MobileDropdownTabs
+        defaultValue="attendance"
+        tabs={[
+          {
+            value: "attendance",
+            label: "Attendance Report",
+            content: (
           <Card className="shadow-lg border-0 bg-gradient-to-br from-card to-card/80 backdrop-blur-xl">
-            <CardHeader className={`flex flex-row items-center justify-between border-b border-border/50 ${isRTL ? 'flex-row-reverse' : ''}`}>
-              <div className={`flex items-center space-x-3 ${isRTL ? 'space-x-reverse' : ''}`}>
+            <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
+              <div className="flex items-center space-x-3">
                 <Calendar className="h-5 w-5 text-primary" />
-                <CardTitle className={`text-xl ${isRTL ? 'font-arabic' : ''}`}>
-                  {isRTL ? 'تقرير الحضور' : 'Attendance Report'}
+                <CardTitle className="text-xl">
+                  Attendance Report
                 </CardTitle>
               </div>
               <div className="flex space-x-2">
                 <Button onClick={() => exportReport('attendance', 'csv')} size="sm" className="shadow-md hover:shadow-lg transition-all duration-200">
                   <Download className="h-4 w-4 mr-2" />
-                  {isRTL ? 'تصدير CSV' : 'Export CSV'}
+                  Export CSV
                 </Button>
                 <Button onClick={() => exportReport('attendance', 'excel')} size="sm" variant="outline" className="shadow-md hover:shadow-lg transition-all duration-200">
                   <FileSpreadsheet className="h-4 w-4 mr-2" />
-                  {isRTL ? 'تصدير Excel' : 'Export Excel'}
+                  Export Excel
                 </Button>
               </div>
             </CardHeader>
@@ -380,17 +369,17 @@ const ReportsPage: React.FC = () => {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/30">
-                      <TableHead className={`font-semibold ${isRTL ? 'text-right font-arabic' : 'text-left'}`}>
-                        {isRTL ? 'الموظف' : 'Employee'}
+                      <TableHead className="font-semibold text-left">
+                        Employee
                       </TableHead>
-                      <TableHead className={`font-semibold ${isRTL ? 'text-right font-arabic' : 'text-left'}`}>
-                        {isRTL ? 'التاريخ' : 'Date'}
+                      <TableHead className="font-semibold text-left">
+                        Date
                       </TableHead>
-                      <TableHead className={`font-semibold ${isRTL ? 'text-right font-arabic' : 'text-left'}`}>
-                        {isRTL ? 'الساعات' : 'Hours'}
+                      <TableHead className="font-semibold text-left">
+                        Hours
                       </TableHead>
-                      <TableHead className={`font-semibold ${isRTL ? 'text-right font-arabic' : 'text-left'}`}>
-                        {isRTL ? 'المبلغ (جنيه)' : 'Amount (LE)'}
+                      <TableHead className="font-semibold text-left">
+                        Amount (LE)
                       </TableHead>
                     </TableRow>
                   </TableHeader>
@@ -399,12 +388,12 @@ const ReportsPage: React.FC = () => {
                       const employeeName = (entry as any).display_name || entry.employee_name;
                       return (
                         <TableRow key={index} className="hover:bg-muted/20 transition-colors duration-150">
-                          <TableCell className={`font-medium ${isRTL ? 'text-right font-arabic' : ''}`}>
+                          <TableCell className="font-medium">
                             {employeeName}
                           </TableCell>
-                          <TableCell className={isRTL ? 'text-right' : ''}>{entry.clock_in_date}</TableCell>
-                          <TableCell className={isRTL ? 'text-right' : ''}>{entry.total_hours?.toFixed(2)}</TableCell>
-                          <TableCell className={isRTL ? 'text-right' : ''}>{Math.round(entry.total_card_amount_flat || 0)}</TableCell>
+                          <TableCell>{entry.clock_in_date}</TableCell>
+                          <TableCell>{entry.total_hours?.toFixed(2)}</TableCell>
+                          <TableCell>{Math.round(entry.total_card_amount_flat || 0)}</TableCell>
                         </TableRow>
                       );
                     })}
@@ -413,25 +402,28 @@ const ReportsPage: React.FC = () => {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="payroll">
+            )
+          },
+          {
+            value: "payroll",
+            label: "Payroll Summary",
+            content: (
           <Card className="shadow-lg border-0 bg-gradient-to-br from-card to-card/80 backdrop-blur-xl">
-            <CardHeader className={`flex flex-row items-center justify-between border-b border-border/50 ${isRTL ? 'flex-row-reverse' : ''}`}>
-              <div className={`flex items-center space-x-3 ${isRTL ? 'space-x-reverse' : ''}`}>
+            <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
+              <div className="flex items-center space-x-3">
                 <Users className="h-5 w-5 text-primary" />
-                <CardTitle className={`text-xl ${isRTL ? 'font-arabic' : ''}`}>
-                  {isRTL ? 'ملخص الرواتب' : 'Payroll Summary'}
+                <CardTitle className="text-xl">
+                  Payroll Summary
                 </CardTitle>
               </div>
               <div className="flex space-x-2">
                 <Button onClick={() => exportReport('payroll', 'csv')} size="sm" className="shadow-md hover:shadow-lg transition-all duration-200">
                   <Download className="h-4 w-4 mr-2" />
-                  {isRTL ? 'تصدير CSV' : 'Export CSV'}
+                  Export CSV
                 </Button>
                 <Button onClick={() => exportReport('payroll', 'excel')} size="sm" variant="outline" className="shadow-md hover:shadow-lg transition-all duration-200">
                   <FileSpreadsheet className="h-4 w-4 mr-2" />
-                  {isRTL ? 'تصدير Excel' : 'Export Excel'}
+                  Export Excel
                 </Button>
               </div>
             </CardHeader>
@@ -440,37 +432,23 @@ const ReportsPage: React.FC = () => {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/30">
-                      <TableHead className={`font-semibold ${isRTL ? 'text-right font-arabic' : 'text-left'}`}>
-                        {isRTL ? 'الموظف' : 'Employee'}
-                      </TableHead>
-                      <TableHead className={`font-semibold ${isRTL ? 'text-right font-arabic' : 'text-left'}`}>
-                        {isRTL ? 'إجمالي الساعات' : 'Total Hours'}
-                      </TableHead>
-                      <TableHead className={`font-semibold ${isRTL ? 'text-right font-arabic' : 'text-left'}`}>
-                        {isRTL ? 'ساعات الصباح' : 'Morning Hours'}
-                      </TableHead>
-                      <TableHead className={`font-semibold ${isRTL ? 'text-right font-arabic' : 'text-left'}`}>
-                        {isRTL ? 'ساعات الليل' : 'Night Hours'}
-                      </TableHead>
-                      <TableHead className={`font-semibold ${isRTL ? 'text-right font-arabic' : 'text-left'}`}>
-                        {isRTL ? 'الورديات' : 'Shifts'}
-                      </TableHead>
-                      <TableHead className={`font-semibold ${isRTL ? 'text-right font-arabic' : 'text-left'}`}>
-                        {isRTL ? 'إجمالي المبلغ (جنيه)' : 'Total Amount (LE)'}
-                      </TableHead>
+                      <TableHead className="font-semibold text-left">Employee</TableHead>
+                      <TableHead className="font-semibold text-left">Total Hours</TableHead>
+                      <TableHead className="font-semibold text-left">Morning Hours</TableHead>
+                      <TableHead className="font-semibold text-left">Night Hours</TableHead>
+                      <TableHead className="font-semibold text-left">Shifts</TableHead>
+                      <TableHead className="font-semibold text-left">Total Amount (LE)</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {payrollSummary?.map((summary: any, index) => (
                       <TableRow key={index} className="hover:bg-muted/20 transition-colors duration-150">
-                        <TableCell className={`font-medium ${isRTL ? 'text-right font-arabic' : ''}`}>
-                          {summary.employee_name}
-                        </TableCell>
-                        <TableCell className={isRTL ? 'text-right' : ''}>{summary.total_hours?.toFixed(2)}</TableCell>
-                        <TableCell className={isRTL ? 'text-right' : ''}>{summary.morning_hours?.toFixed(2)}</TableCell>
-                        <TableCell className={isRTL ? 'text-right' : ''}>{summary.night_hours?.toFixed(2)}</TableCell>
-                        <TableCell className={isRTL ? 'text-right' : ''}>{summary.shifts}</TableCell>
-                        <TableCell className={isRTL ? 'text-right' : ''}>{Math.round(summary.total_split_amount || 0)}</TableCell>
+                        <TableCell className="font-medium">{summary.employee_name}</TableCell>
+                        <TableCell>{summary.total_hours?.toFixed(2)}</TableCell>
+                        <TableCell>{summary.morning_hours?.toFixed(2)}</TableCell>
+                        <TableCell>{summary.night_hours?.toFixed(2)}</TableCell>
+                        <TableCell>{summary.shifts}</TableCell>
+                        <TableCell>{Math.round(summary.total_split_amount || 0)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -478,39 +456,37 @@ const ReportsPage: React.FC = () => {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="analytics">
-          <HRAnalytics dateRange={dateRange} />
-        </TabsContent>
-
-        <TabsContent value="import">
+            )
+          },
+          {
+            value: "analytics",
+            label: "Analytics",
+            content: <HRAnalytics dateRange={dateRange} />
+          },
+          {
+            value: "import",
+            label: "Import Data",
+            content: (
           <Card className="shadow-lg border-0 bg-gradient-to-br from-card to-card/80 backdrop-blur-xl">
-            <CardHeader className={`flex flex-row items-center justify-between border-b border-border/50 ${isRTL ? 'flex-row-reverse' : ''}`}>
-              <div className={`flex items-center space-x-3 ${isRTL ? 'space-x-reverse' : ''}`}>
+            <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
+              <div className="flex items-center space-x-3">
                 <Upload className="h-5 w-5 text-primary" />
-                <CardTitle className={`text-xl ${isRTL ? 'font-arabic' : ''}`}>
-                  {isRTL ? 'استيراد البيانات' : 'Import Data'}
-                </CardTitle>
+                <CardTitle className="text-xl">Import Data</CardTitle>
               </div>
             </CardHeader>
             <CardContent className="p-6">
               <div className="space-y-4">
-                <p className={`text-sm text-muted-foreground ${isRTL ? 'font-arabic text-right' : ''}`}>
-                  {isRTL ? 'قم بتحميل ملف CSV أو Excel لاستيراد بيانات الموظفين' : 'Upload a CSV or Excel file to import employee data'}
+                <p className="text-sm text-muted-foreground">
+                  Upload a CSV or Excel file to import employee data
                 </p>
                 <div className="flex items-center justify-center w-full">
                   <label className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-border rounded-lg cursor-pointer bg-muted/50 hover:bg-muted/80 transition-colors">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
                       <Upload className="w-8 h-8 mb-4 text-muted-foreground" />
-                      <p className={`mb-2 text-sm text-muted-foreground ${isRTL ? 'font-arabic' : ''}`}>
-                        <span className="font-semibold">
-                          {isRTL ? 'انقر للتحميل' : 'Click to upload'}
-                        </span> {isRTL ? 'أو اسحب وأفلت' : 'or drag and drop'}
+                      <p className="mb-2 text-sm text-muted-foreground">
+                        <span className="font-semibold">Click to upload</span> or drag and drop
                       </p>
-                      <p className={`text-xs text-muted-foreground ${isRTL ? 'font-arabic' : ''}`}>
-                        {isRTL ? 'CSV أو Excel (الحد الأقصى 10 ميجابايت)' : 'CSV or Excel (MAX. 10MB)'}
-                      </p>
+                      <p className="text-xs text-muted-foreground">CSV or Excel (MAX. 10MB)</p>
                     </div>
                     <input
                       type="file"
@@ -523,8 +499,10 @@ const ReportsPage: React.FC = () => {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+            )
+          }
+        ]}
+      />
     </div>
   );
 };
