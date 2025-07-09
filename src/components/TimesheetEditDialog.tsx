@@ -25,21 +25,25 @@ interface TimesheetEntry {
 }
 
 interface TimesheetEditDialogProps {
-  entry: TimesheetEntry;
+  entry: TimesheetEntry | null;
+  isOpen: boolean;
   onClose: () => void;
-  onSave: () => void;
+  onUpdate: () => void;
 }
 
 const TimesheetEditDialog: React.FC<TimesheetEditDialogProps> = ({ 
   entry, 
+  isOpen,
   onClose, 
-  onSave 
+  onUpdate 
 }) => {
   const [formData, setFormData] = useState<Partial<TimesheetEntry>>({});
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    setFormData({ ...entry });
+    if (entry) {
+      setFormData({ ...entry });
+    }
   }, [entry]);
 
   const handleSave = async () => {
@@ -65,7 +69,7 @@ const TimesheetEditDialog: React.FC<TimesheetEditDialogProps> = ({
       if (error) throw error;
 
       toast.success('Timesheet entry updated successfully');
-      onSave();
+      onUpdate();
       onClose();
     } catch (error: any) {
       toast.error(error.message || 'Failed to update entry');
@@ -87,7 +91,7 @@ const TimesheetEditDialog: React.FC<TimesheetEditDialogProps> = ({
       if (error) throw error;
 
       toast.success('Timesheet entry deleted successfully');
-      onSave();
+      onUpdate();
       onClose();
     } catch (error: any) {
       toast.error(error.message || 'Failed to delete entry');
@@ -96,8 +100,10 @@ const TimesheetEditDialog: React.FC<TimesheetEditDialogProps> = ({
     }
   };
 
+  if (!entry) return null;
+
   return (
-    <Dialog open={true} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Timesheet Entry - {entry.employee_name}</DialogTitle>

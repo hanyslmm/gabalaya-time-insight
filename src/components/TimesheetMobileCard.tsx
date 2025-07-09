@@ -141,8 +141,9 @@ const TimesheetMobileCard: React.FC<TimesheetMobileCardProps> = ({
       {showEditDialog && (
         <TimesheetEditDialog
           entry={entry}
+          isOpen={showEditDialog}
           onClose={() => setShowEditDialog(false)}
-          onSave={() => {
+          onUpdate={() => {
             setShowEditDialog(false);
             if (onEdit) onEdit(entry);
           }}
