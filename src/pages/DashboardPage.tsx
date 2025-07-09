@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import MobileDropdownTabs from '@/components/MobileDropdownTabs';
 import { Users, Clock, DollarSign, TrendingUp, Upload, Download, Settings } from 'lucide-react';
 import DashboardCharts from '@/components/DashboardCharts';
 import DailyPaymentChart from '@/components/DailyPaymentChart';
@@ -17,38 +17,19 @@ import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 const DashboardPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [selectedPeriod, setSelectedPeriod] = useState('current');
+  // Default to current period for data loading
 
-  const getDateRange = () => {
-    const now = new Date();
-    switch (selectedPeriod) {
-      case 'current':
-        return {
-          from: startOfMonth(now),
-          to: endOfMonth(now),
-          label: 'Current Pay Period'
-        };
-      case 'previous':
-        const prevMonth = subMonths(now, 1);
-        return {
-          from: startOfMonth(prevMonth),
-          to: endOfMonth(prevMonth),
-          label: 'Previous Pay Period'
-        };
-      default:
-        return {
-          from: startOfMonth(now),
-          to: endOfMonth(now),
-          label: 'Current Pay Period'
-        };
-    }
+  // Get current date range for default data loading
+  const now = new Date();
+  const dateRange = {
+    from: startOfMonth(now),
+    to: endOfMonth(now),
+    label: 'Current Pay Period'
   };
-
-  const dateRange = getDateRange();
 
   // Fetch employee count
   const { data: employeeCount } = useQuery({
-    queryKey: ['employee-count', selectedPeriod],
+    queryKey: ['employee-count'],
     queryFn: async () => {
       const { count, error } = await supabase
         .from('employees')
@@ -61,15 +42,13 @@ const DashboardPage: React.FC = () => {
 
   // Fetch timesheet summary with date filtering
   const { data: timesheetSummary } = useQuery({
-    queryKey: ['timesheet-summary', selectedPeriod, dateRange],
+    queryKey: ['timesheet-summary', dateRange],
     queryFn: async () => {
-      let query = supabase.from('timesheet_entries').select('total_hours, total_card_amount_flat');
-      
-      if (selectedPeriod !== 'alltime') {
-        query = query
-          .gte('clock_in_date', format(dateRange.from, 'yyyy-MM-dd'))
-          .lte('clock_in_date', format(dateRange.to, 'yyyy-MM-dd'));
-      }
+      const query = supabase
+        .from('timesheet_entries')
+        .select('total_hours, total_card_amount_flat')
+        .gte('clock_in_date', format(dateRange.from, 'yyyy-MM-dd'))
+        .lte('clock_in_date', format(dateRange.to, 'yyyy-MM-dd'));
       
       const { data, error } = await query;
       
@@ -128,104 +107,185 @@ const DashboardPage: React.FC = () => {
         <p className="mt-2 text-muted-foreground">Overview of your HRM system</p>
       </div>
 
-      {/* Period Selection Tabs */}
-      <Tabs value={selectedPeriod} onValueChange={setSelectedPeriod} className="mb-8">
-        <TabsList className="grid w-full grid-cols-2 bg-gradient-to-r from-card via-card to-primary/5 backdrop-blur-md border border-border/30 shadow-lg rounded-lg">
-          <TabsTrigger 
-            value="current" 
-            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-sm font-medium px-4 py-3 rounded-md transition-all duration-200 hover:bg-primary/10"
-          >
-            <span className="whitespace-nowrap">Current Pay Period</span>
-          </TabsTrigger>
-          <TabsTrigger 
-            value="previous" 
-            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-sm font-medium px-4 py-3 rounded-md transition-all duration-200 hover:bg-primary/10"
-          >
-            <span className="whitespace-nowrap">Previous Pay Period</span>
-          </TabsTrigger>
-        </TabsList>
+      {/* Period Selection and Dashboard Content */}
+      <MobileDropdownTabs
+        defaultValue="current"
+        tabs={[
+          {
+            value: "current",
+            label: "Current Pay Period",
+            content: (
+              <div className="space-y-6">
+                {/* Stats Cards */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                  <Card className="group bg-gradient-to-br from-card via-card to-primary/5 border-primary/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 p-4 sm:p-6">
+                      <CardTitle className="text-xs sm:text-sm font-semibold text-card-foreground/80 leading-relaxed">Total Employees</CardTitle>
+                      <div className="p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
+                        <Users className="h-4 w-4 text-primary" />
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 sm:p-6 pt-0">
+                      <div className="text-2xl sm:text-3xl font-bold text-primary mb-1">{Math.round(employeeCount || 0)}</div>
+                      <p className="text-xs text-muted-foreground">Active staff members</p>
+                    </CardContent>
+                  </Card>
 
-        <TabsContent value={selectedPeriod} className="space-y-6">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            <Card className="group bg-gradient-to-br from-card via-card to-primary/5 border-primary/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 p-4 sm:p-6">
-                <CardTitle className="text-xs sm:text-sm font-semibold text-card-foreground/80 leading-relaxed">Total Employees</CardTitle>
-                <div className="p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
-                  <Users className="h-4 w-4 text-primary" />
+                  <Card className="group bg-gradient-to-br from-card via-card to-secondary/5 border-secondary/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 p-4 sm:p-6">
+                      <CardTitle className="text-xs sm:text-sm font-semibold text-card-foreground/80 leading-relaxed">Total Hours</CardTitle>
+                      <div className="p-2 bg-secondary/10 rounded-lg group-hover:bg-secondary/20 transition-colors">
+                        <Clock className="h-4 w-4 text-secondary" />
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 sm:p-6 pt-0">
+                      <div className="text-2xl sm:text-3xl font-bold text-secondary mb-1">{Math.round(timesheetSummary?.totalHours || 0)}</div>
+                      <p className="text-xs text-muted-foreground">Hours worked</p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="group bg-gradient-to-br from-card via-card to-accent/5 border-accent/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 p-4 sm:p-6">
+                      <CardTitle className="text-xs sm:text-sm font-semibold text-card-foreground/80 leading-relaxed">Total Payroll</CardTitle>
+                      <div className="p-2 bg-accent/10 rounded-lg group-hover:bg-accent/20 transition-colors">
+                        <DollarSign className="h-4 w-4 text-accent" />
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 sm:p-6 pt-0">
+                      <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-accent mb-1">{Math.round(timesheetSummary?.totalPayroll || 0)} LE</div>
+                      <p className="text-xs text-muted-foreground">Total earnings</p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="group bg-gradient-to-br from-card via-card to-success/5 border-success/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 p-4 sm:p-6">
+                      <CardTitle className="text-xs sm:text-sm font-semibold text-card-foreground/80 leading-relaxed">Total Shifts</CardTitle>
+                      <div className="p-2 bg-success/10 rounded-lg group-hover:bg-success/20 transition-colors">
+                        <TrendingUp className="h-4 w-4 text-success" />
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 sm:p-6 pt-0">
+                      <div className="text-2xl sm:text-3xl font-bold text-success mb-1">{Math.round(timesheetSummary?.totalShifts || 0)}</div>
+                      <p className="text-xs text-muted-foreground">Completed shifts</p>
+                    </CardContent>
+                  </Card>
                 </div>
-              </CardHeader>
-              <CardContent className="p-4 sm:p-6 pt-0">
-                <div className="text-2xl sm:text-3xl font-bold text-primary mb-1">{Math.round(employeeCount || 0)}</div>
-                <p className="text-xs text-muted-foreground">Active staff members</p>
-              </CardContent>
-            </Card>
 
-            <Card className="group bg-gradient-to-br from-card via-card to-secondary/5 border-secondary/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 p-4 sm:p-6">
-                <CardTitle className="text-xs sm:text-sm font-semibold text-card-foreground/80 leading-relaxed">Total Hours</CardTitle>
-                <div className="p-2 bg-secondary/10 rounded-lg group-hover:bg-secondary/20 transition-colors">
-                  <Clock className="h-4 w-4 text-secondary" />
+                {/* Charts and Analytics Section */}
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                  {/* Main Charts */}
+                  <div className="xl:col-span-2 space-y-6">
+                    <DashboardCharts timePeriod="current" dateRange={dateRange} />
+                  </div>
+                  
+                  {/* Leaderboard */}
+                  <div className="xl:col-span-1">
+                    <TopPerformersLeaderboard timePeriod="current" dateRange={dateRange} />
+                  </div>
                 </div>
-              </CardHeader>
-              <CardContent className="p-4 sm:p-6 pt-0">
-                <div className="text-2xl sm:text-3xl font-bold text-secondary mb-1">{Math.round(timesheetSummary?.totalHours || 0)}</div>
-                <p className="text-xs text-muted-foreground">Hours worked</p>
-              </CardContent>
-            </Card>
 
-            <Card className="group bg-gradient-to-br from-card via-card to-accent/5 border-accent/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 p-4 sm:p-6">
-                <CardTitle className="text-xs sm:text-sm font-semibold text-card-foreground/80 leading-relaxed">Total Payroll</CardTitle>
-                <div className="p-2 bg-accent/10 rounded-lg group-hover:bg-accent/20 transition-colors">
-                  <DollarSign className="h-4 w-4 text-accent" />
+                {/* Additional Charts Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <MonthlyHoursTrend timePeriod="current" dateRange={dateRange} />
+                  <MonthlyShiftsActivity timePeriod="current" dateRange={dateRange} />
                 </div>
-              </CardHeader>
-              <CardContent className="p-4 sm:p-6 pt-0">
-                <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-accent mb-1">{Math.round(timesheetSummary?.totalPayroll || 0)} LE</div>
-                <p className="text-xs text-muted-foreground">Total earnings</p>
-              </CardContent>
-            </Card>
 
-            <Card className="group bg-gradient-to-br from-card via-card to-success/5 border-success/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 p-4 sm:p-6">
-                <CardTitle className="text-xs sm:text-sm font-semibold text-card-foreground/80 leading-relaxed">Total Shifts</CardTitle>
-                <div className="p-2 bg-success/10 rounded-lg group-hover:bg-success/20 transition-colors">
-                  <TrendingUp className="h-4 w-4 text-success" />
+                {/* Daily Payment Chart */}
+                <div>
+                  <DailyPaymentChart timePeriod="current" dateRange={dateRange} />
                 </div>
-              </CardHeader>
-              <CardContent className="p-4 sm:p-6 pt-0">
-                <div className="text-2xl sm:text-3xl font-bold text-success mb-1">{Math.round(timesheetSummary?.totalShifts || 0)}</div>
-                <p className="text-xs text-muted-foreground">Completed shifts</p>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            )
+          },
+          {
+            value: "previous",
+            label: "Previous Pay Period",
+            content: (
+              <div className="space-y-6">
+                {/* Stats Cards */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                  <Card className="group bg-gradient-to-br from-card via-card to-primary/5 border-primary/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 p-4 sm:p-6">
+                      <CardTitle className="text-xs sm:text-sm font-semibold text-card-foreground/80 leading-relaxed">Total Employees</CardTitle>
+                      <div className="p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
+                        <Users className="h-4 w-4 text-primary" />
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 sm:p-6 pt-0">
+                      <div className="text-2xl sm:text-3xl font-bold text-primary mb-1">{Math.round(employeeCount || 0)}</div>
+                      <p className="text-xs text-muted-foreground">Active staff members</p>
+                    </CardContent>
+                  </Card>
 
-          {/* Charts and Analytics Section */}
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-            {/* Main Charts */}
-            <div className="xl:col-span-2 space-y-6">
-              <DashboardCharts timePeriod={selectedPeriod} dateRange={dateRange} />
-            </div>
-            
-            {/* Leaderboard */}
-            <div className="xl:col-span-1">
-              <TopPerformersLeaderboard timePeriod={selectedPeriod} dateRange={dateRange} />
-            </div>
-          </div>
+                  <Card className="group bg-gradient-to-br from-card via-card to-secondary/5 border-secondary/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 p-4 sm:p-6">
+                      <CardTitle className="text-xs sm:text-sm font-semibold text-card-foreground/80 leading-relaxed">Total Hours</CardTitle>
+                      <div className="p-2 bg-secondary/10 rounded-lg group-hover:bg-secondary/20 transition-colors">
+                        <Clock className="h-4 w-4 text-secondary" />
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 sm:p-6 pt-0">
+                      <div className="text-2xl sm:text-3xl font-bold text-secondary mb-1">{Math.round(timesheetSummary?.totalHours || 0)}</div>
+                      <p className="text-xs text-muted-foreground">Hours worked</p>
+                    </CardContent>
+                  </Card>
 
-          {/* Additional Charts Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <MonthlyHoursTrend timePeriod={selectedPeriod} dateRange={dateRange} />
-            <MonthlyShiftsActivity timePeriod={selectedPeriod} dateRange={dateRange} />
-          </div>
+                  <Card className="group bg-gradient-to-br from-card via-card to-accent/5 border-accent/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 p-4 sm:p-6">
+                      <CardTitle className="text-xs sm:text-sm font-semibold text-card-foreground/80 leading-relaxed">Total Payroll</CardTitle>
+                      <div className="p-2 bg-accent/10 rounded-lg group-hover:bg-accent/20 transition-colors">
+                        <DollarSign className="h-4 w-4 text-accent" />
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 sm:p-6 pt-0">
+                      <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-accent mb-1">{Math.round(timesheetSummary?.totalPayroll || 0)} LE</div>
+                      <p className="text-xs text-muted-foreground">Total earnings</p>
+                    </CardContent>
+                  </Card>
 
-          {/* Daily Payment Chart */}
-          <div>
-            <DailyPaymentChart timePeriod={selectedPeriod} dateRange={dateRange} />
-          </div>
-        </TabsContent>
-      </Tabs>
+                  <Card className="group bg-gradient-to-br from-card via-card to-success/5 border-success/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 p-4 sm:p-6">
+                      <CardTitle className="text-xs sm:text-sm font-semibold text-card-foreground/80 leading-relaxed">Total Shifts</CardTitle>
+                      <div className="p-2 bg-success/10 rounded-lg group-hover:bg-success/20 transition-colors">
+                        <TrendingUp className="h-4 w-4 text-success" />
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 sm:p-6 pt-0">
+                      <div className="text-2xl sm:text-3xl font-bold text-success mb-1">{Math.round(timesheetSummary?.totalShifts || 0)}</div>
+                      <p className="text-xs text-muted-foreground">Completed shifts</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Charts and Analytics Section */}
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                  {/* Main Charts */}
+                  <div className="xl:col-span-2 space-y-6">
+                    <DashboardCharts timePeriod="previous" dateRange={dateRange} />
+                  </div>
+                  
+                  {/* Leaderboard */}
+                  <div className="xl:col-span-1">
+                    <TopPerformersLeaderboard timePeriod="previous" dateRange={dateRange} />
+                  </div>
+                </div>
+
+                {/* Additional Charts Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <MonthlyHoursTrend timePeriod="previous" dateRange={dateRange} />
+                  <MonthlyShiftsActivity timePeriod="previous" dateRange={dateRange} />
+                </div>
+
+                {/* Daily Payment Chart */}
+                <div>
+                  <DailyPaymentChart timePeriod="previous" dateRange={dateRange} />
+                </div>
+              </div>
+            )
+          }
+        ]}
+        className="mb-8"
+      />
 
       {/* Quick Actions - Enhanced with better text wrapping */}
       <Card className="mb-8 bg-gradient-to-br from-card via-card to-muted/5 border-border/30 shadow-card hover:shadow-elegant transition-all duration-300 rounded-xl overflow-hidden">

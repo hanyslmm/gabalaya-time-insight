@@ -150,21 +150,29 @@ const ClockInOutPage: React.FC = () => {
       await captureLocationSnapshot();
       
       const now = new Date();
+      console.log('Attempting to clock in user:', user.username);
+      
+      const insertData = {
+        employee_name: user.username,
+        employee_id: null,
+        clock_in_date: format(now, 'yyyy-MM-dd'),
+        clock_in_time: format(now, 'HH:mm:ss'),
+        clock_out_date: format(now, 'yyyy-MM-dd'),
+        clock_out_time: '00:00:00',
+        total_hours: 0,
+        total_card_amount_flat: 0,
+        clock_in_location: userLocation
+      };
+      
+      console.log('Insert data:', insertData);
+      
       const { data, error } = await supabase
         .from('timesheet_entries')
-        .insert({
-          employee_name: user.username,
-          employee_id: null, // Set to null since we don't have the actual employee table ID
-          clock_in_date: format(now, 'yyyy-MM-dd'),
-          clock_in_time: format(now, 'HH:mm:ss'),
-          clock_out_date: format(now, 'yyyy-MM-dd'), // Required field but will be updated on clock out
-          clock_out_time: '00:00:00', // Will be updated when employee clocks out
-          total_hours: 0,
-          total_card_amount_flat: 0,
-          clock_in_location: userLocation
-        })
+        .insert(insertData)
         .select()
         .single();
+        
+      console.log('Insert result:', { data, error });
 
       if (error) throw error;
 
