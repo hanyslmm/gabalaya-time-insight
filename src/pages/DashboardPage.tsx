@@ -21,10 +21,16 @@ const DashboardPage: React.FC = () => {
 
   // Get current date range for default data loading
   const now = new Date();
-  const dateRange = {
+  const currentDateRange = {
     from: startOfMonth(now),
     to: endOfMonth(now),
     label: 'Current Pay Period'
+  };
+
+  const previousDateRange = {
+    from: startOfMonth(subMonths(now, 1)),
+    to: endOfMonth(subMonths(now, 1)),
+    label: 'Previous Pay Period'
   };
 
   // Fetch employee count
@@ -40,15 +46,37 @@ const DashboardPage: React.FC = () => {
     }
   });
 
-  // Fetch timesheet summary with date filtering
-  const { data: timesheetSummary } = useQuery({
-    queryKey: ['timesheet-summary', dateRange],
+  // Fetch timesheet summary for current period
+  const { data: currentTimesheetSummary } = useQuery({
+    queryKey: ['timesheet-summary-current', currentDateRange],
     queryFn: async () => {
       const query = supabase
         .from('timesheet_entries')
         .select('total_hours, total_card_amount_flat')
-        .gte('clock_in_date', format(dateRange.from, 'yyyy-MM-dd'))
-        .lte('clock_in_date', format(dateRange.to, 'yyyy-MM-dd'));
+        .gte('clock_in_date', format(currentDateRange.from, 'yyyy-MM-dd'))
+        .lte('clock_in_date', format(currentDateRange.to, 'yyyy-MM-dd'));
+      
+      const { data, error } = await query;
+      
+      if (error) throw error;
+      
+      const totalHours = data?.reduce((sum, entry) => sum + (entry.total_hours || 0), 0) || 0;
+      const totalPayroll = data?.reduce((sum, entry) => sum + (entry.total_card_amount_flat || 0), 0) || 0;
+      const totalShifts = data?.length || 0;
+      
+      return { totalHours, totalPayroll, totalShifts };
+    }
+  });
+
+  // Fetch timesheet summary for previous period
+  const { data: previousTimesheetSummary } = useQuery({
+    queryKey: ['timesheet-summary-previous', previousDateRange],
+    queryFn: async () => {
+      const query = supabase
+        .from('timesheet_entries')
+        .select('total_hours, total_card_amount_flat')
+        .gte('clock_in_date', format(previousDateRange.from, 'yyyy-MM-dd'))
+        .lte('clock_in_date', format(previousDateRange.to, 'yyyy-MM-dd'));
       
       const { data, error } = await query;
       
@@ -138,10 +166,10 @@ const DashboardPage: React.FC = () => {
                         <Clock className="h-4 w-4 text-secondary" />
                       </div>
                     </CardHeader>
-                    <CardContent className="p-4 sm:p-6 pt-0">
-                      <div className="text-2xl sm:text-3xl font-bold text-secondary mb-1">{Math.round(timesheetSummary?.totalHours || 0)}</div>
-                      <p className="text-xs text-muted-foreground">Hours worked</p>
-                    </CardContent>
+                     <CardContent className="p-4 sm:p-6 pt-0">
+                       <div className="text-2xl sm:text-3xl font-bold text-secondary mb-1">{Math.round(currentTimesheetSummary?.totalHours || 0)}</div>
+                       <p className="text-xs text-muted-foreground">Hours worked</p>
+                     </CardContent>
                   </Card>
 
                   <Card className="group bg-gradient-to-br from-card via-card to-accent/5 border-accent/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
@@ -151,10 +179,10 @@ const DashboardPage: React.FC = () => {
                         <DollarSign className="h-4 w-4 text-accent" />
                       </div>
                     </CardHeader>
-                    <CardContent className="p-4 sm:p-6 pt-0">
-                      <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-accent mb-1">{Math.round(timesheetSummary?.totalPayroll || 0)} LE</div>
-                      <p className="text-xs text-muted-foreground">Total earnings</p>
-                    </CardContent>
+                     <CardContent className="p-4 sm:p-6 pt-0">
+                       <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-accent mb-1">{Math.round(currentTimesheetSummary?.totalPayroll || 0)} LE</div>
+                       <p className="text-xs text-muted-foreground">Total earnings</p>
+                     </CardContent>
                   </Card>
 
                   <Card className="group bg-gradient-to-br from-card via-card to-success/5 border-success/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
@@ -164,10 +192,10 @@ const DashboardPage: React.FC = () => {
                         <TrendingUp className="h-4 w-4 text-success" />
                       </div>
                     </CardHeader>
-                    <CardContent className="p-4 sm:p-6 pt-0">
-                      <div className="text-2xl sm:text-3xl font-bold text-success mb-1">{Math.round(timesheetSummary?.totalShifts || 0)}</div>
-                      <p className="text-xs text-muted-foreground">Completed shifts</p>
-                    </CardContent>
+                     <CardContent className="p-4 sm:p-6 pt-0">
+                       <div className="text-2xl sm:text-3xl font-bold text-success mb-1">{Math.round(currentTimesheetSummary?.totalShifts || 0)}</div>
+                       <p className="text-xs text-muted-foreground">Completed shifts</p>
+                     </CardContent>
                   </Card>
                 </div>
 
@@ -175,24 +203,24 @@ const DashboardPage: React.FC = () => {
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                   {/* Main Charts */}
                   <div className="xl:col-span-2 space-y-6">
-                    <DashboardCharts timePeriod="current" dateRange={dateRange} />
+                    <DashboardCharts timePeriod="current" dateRange={currentDateRange} />
                   </div>
                   
                   {/* Leaderboard */}
                   <div className="xl:col-span-1">
-                    <TopPerformersLeaderboard timePeriod="current" dateRange={dateRange} />
+                    <TopPerformersLeaderboard timePeriod="current" dateRange={currentDateRange} />
                   </div>
                 </div>
 
                 {/* Additional Charts Section */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <MonthlyHoursTrend timePeriod="current" dateRange={dateRange} />
-                  <MonthlyShiftsActivity timePeriod="current" dateRange={dateRange} />
+                   <MonthlyHoursTrend timePeriod="current" dateRange={currentDateRange} />
+                   <MonthlyShiftsActivity timePeriod="current" dateRange={currentDateRange} />
                 </div>
 
                 {/* Daily Payment Chart */}
                 <div>
-                  <DailyPaymentChart timePeriod="current" dateRange={dateRange} />
+                  <DailyPaymentChart timePeriod="current" dateRange={currentDateRange} />
                 </div>
               </div>
             )
@@ -224,10 +252,10 @@ const DashboardPage: React.FC = () => {
                         <Clock className="h-4 w-4 text-secondary" />
                       </div>
                     </CardHeader>
-                    <CardContent className="p-4 sm:p-6 pt-0">
-                      <div className="text-2xl sm:text-3xl font-bold text-secondary mb-1">{Math.round(timesheetSummary?.totalHours || 0)}</div>
-                      <p className="text-xs text-muted-foreground">Hours worked</p>
-                    </CardContent>
+                     <CardContent className="p-4 sm:p-6 pt-0">
+                       <div className="text-2xl sm:text-3xl font-bold text-secondary mb-1">{Math.round(previousTimesheetSummary?.totalHours || 0)}</div>
+                       <p className="text-xs text-muted-foreground">Hours worked</p>
+                     </CardContent>
                   </Card>
 
                   <Card className="group bg-gradient-to-br from-card via-card to-accent/5 border-accent/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
@@ -237,10 +265,10 @@ const DashboardPage: React.FC = () => {
                         <DollarSign className="h-4 w-4 text-accent" />
                       </div>
                     </CardHeader>
-                    <CardContent className="p-4 sm:p-6 pt-0">
-                      <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-accent mb-1">{Math.round(timesheetSummary?.totalPayroll || 0)} LE</div>
-                      <p className="text-xs text-muted-foreground">Total earnings</p>
-                    </CardContent>
+                     <CardContent className="p-4 sm:p-6 pt-0">
+                       <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-accent mb-1">{Math.round(previousTimesheetSummary?.totalPayroll || 0)} LE</div>
+                       <p className="text-xs text-muted-foreground">Total earnings</p>
+                     </CardContent>
                   </Card>
 
                   <Card className="group bg-gradient-to-br from-card via-card to-success/5 border-success/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
@@ -250,10 +278,10 @@ const DashboardPage: React.FC = () => {
                         <TrendingUp className="h-4 w-4 text-success" />
                       </div>
                     </CardHeader>
-                    <CardContent className="p-4 sm:p-6 pt-0">
-                      <div className="text-2xl sm:text-3xl font-bold text-success mb-1">{Math.round(timesheetSummary?.totalShifts || 0)}</div>
-                      <p className="text-xs text-muted-foreground">Completed shifts</p>
-                    </CardContent>
+                     <CardContent className="p-4 sm:p-6 pt-0">
+                       <div className="text-2xl sm:text-3xl font-bold text-success mb-1">{Math.round(previousTimesheetSummary?.totalShifts || 0)}</div>
+                       <p className="text-xs text-muted-foreground">Completed shifts</p>
+                     </CardContent>
                   </Card>
                 </div>
 
@@ -261,24 +289,24 @@ const DashboardPage: React.FC = () => {
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                   {/* Main Charts */}
                   <div className="xl:col-span-2 space-y-6">
-                    <DashboardCharts timePeriod="previous" dateRange={dateRange} />
+                    <DashboardCharts timePeriod="previous" dateRange={previousDateRange} />
                   </div>
                   
                   {/* Leaderboard */}
                   <div className="xl:col-span-1">
-                    <TopPerformersLeaderboard timePeriod="previous" dateRange={dateRange} />
+                    <TopPerformersLeaderboard timePeriod="previous" dateRange={previousDateRange} />
                   </div>
                 </div>
 
                 {/* Additional Charts Section */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <MonthlyHoursTrend timePeriod="previous" dateRange={dateRange} />
-                  <MonthlyShiftsActivity timePeriod="previous" dateRange={dateRange} />
+                   <MonthlyHoursTrend timePeriod="previous" dateRange={previousDateRange} />
+                   <MonthlyShiftsActivity timePeriod="previous" dateRange={previousDateRange} />
                 </div>
 
                 {/* Daily Payment Chart */}
                 <div>
-                  <DailyPaymentChart timePeriod="previous" dateRange={dateRange} />
+                  <DailyPaymentChart timePeriod="previous" dateRange={previousDateRange} />
                 </div>
               </div>
             )

@@ -49,6 +49,16 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
     label: 'Last 30 Days'
   };
 
+  // Determine grouping format based on date range
+  const daysDifference = Math.ceil((effectiveDateRange.to.getTime() - effectiveDateRange.from.getTime()) / (1000 * 60 * 60 * 24));
+  let groupingFormat = 'MMM dd';
+  
+  if (daysDifference > 60) {
+    groupingFormat = 'MMM yyyy';
+  } else if (daysDifference <= 7) {
+    groupingFormat = 'EEE';
+  }
+
   const { data: chartData, isLoading } = useQuery({
     queryKey: ['dashboard-charts', timePeriod, effectiveDateRange],
     queryFn: async () => {
@@ -62,13 +72,7 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
       
       if (error) throw error;
       
-      // Process data for enhanced analytics
-      let groupingFormat = 'MMM dd';
-      if (timePeriod === '6months' || timePeriod === '1year' || timePeriod === 'alltime') {
-        groupingFormat = 'MMM yyyy';
-      } else if (timePeriod === '7days' || timePeriod === 'thisweek') {
-        groupingFormat = 'EEE';
-      }
+      // Use the pre-calculated grouping format based on actual date range
 
       const timeData: Record<string, MonthlyData> = {};
       const employeeData: Record<string, EmployeeData> = {};
