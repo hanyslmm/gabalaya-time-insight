@@ -133,11 +133,31 @@ Deno.serve(async (req) => {
     // Generate token
     const token = generateToken(user);
 
+    // Get full name from employees table if not available in admin_users
+    let fullName = user.full_name;
+    if (!fullName && user.role === 'admin') {
+      const { data: employeeData } = await supabaseAdmin
+        .from('employees')
+        .select('full_name')
+        .eq('staff_id', user.username)
+        .maybeSingle();
+      
+      if (employeeData?.full_name) {
+        fullName = employeeData.full_name;
+        
+        // Update admin_users table with the full name for future use
+        await supabaseAdmin
+          .from('admin_users')
+          .update({ full_name: fullName })
+          .eq('username', user.username);
+      }
+    }
+
     // Return user data (excluding password hash) with token
     const userData = {
       id: user.id,
       username: user.username,
-      full_name: user.full_name,
+      full_name: fullName,
       role: user.role
     }
 

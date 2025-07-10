@@ -43,25 +43,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.removeItem('auth_token');
         setUser(null);
       } else {
+        let userData = data.user;
+        
+        // If admin user doesn't have full_name, try to get it from employees table
+        if (userData.role === 'admin' && !userData.full_name) {
+          const { data: employeeData } = await supabase
+            .from('employees')
+            .select('full_name')
+            .eq('staff_id', userData.username)
+            .maybeSingle();
+          
+          if (employeeData?.full_name) {
+            userData = {
+              ...userData,
+              full_name: employeeData.full_name
+            };
+          }
+        }
+        
         // Check if user is an employee with admin role
-        if (data.user.role === 'employee') {
+        if (userData.role === 'employee') {
           const { data: employeeData } = await supabase
             .from('employees')
             .select('role, staff_id')
-            .eq('staff_id', data.user.username)
+            .eq('staff_id', userData.username)
             .maybeSingle();
           
           if (employeeData?.role === 'admin') {
             // Elevate employee to admin privileges
             setUser({
-              ...data.user,
+              ...userData,
               role: 'admin'
             });
           } else {
-            setUser(data.user);
+            setUser(userData);
           }
         } else {
-          setUser(data.user);
+          setUser(userData);
         }
       }
     } catch (error) {
@@ -88,25 +106,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (data?.success && data?.user && data?.token) {
         localStorage.setItem('auth_token', data.token);
         
+        let userData = data.user;
+        
+        // If admin user doesn't have full_name, try to get it from employees table
+        if (userData.role === 'admin' && !userData.full_name) {
+          const { data: employeeData } = await supabase
+            .from('employees')
+            .select('full_name')
+            .eq('staff_id', userData.username)
+            .maybeSingle();
+          
+          if (employeeData?.full_name) {
+            userData = {
+              ...userData,
+              full_name: employeeData.full_name
+            };
+          }
+        }
+        
         // Check if user is an employee with admin role
-        if (data.user.role === 'employee') {
+        if (userData.role === 'employee') {
           const { data: employeeData } = await supabase
             .from('employees')
             .select('role, staff_id')
-            .eq('staff_id', data.user.username)
+            .eq('staff_id', userData.username)
             .maybeSingle();
           
           if (employeeData?.role === 'admin') {
             // Elevate employee to admin privileges
             setUser({
-              ...data.user,
+              ...userData,
               role: 'admin'
             });
           } else {
-            setUser(data.user);
+            setUser(userData);
           }
         } else {
-          setUser(data.user);
+          setUser(userData);
         }
         
         return {};
