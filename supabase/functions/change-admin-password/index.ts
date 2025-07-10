@@ -1,7 +1,6 @@
-// Ensure proper imports and declarations
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2';
-import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts';
-import { corsHeaders } from '../_shared/cors.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2'
+import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts'
+import { corsHeaders } from '../_shared/cors.ts'
 
 interface PasswordChangeRequest {
   username: string;
@@ -24,20 +23,24 @@ function verifyToken(token: string): any {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const { username, currentPassword, newPassword, token }: PasswordChangeRequest = await req.json();
+    const body = await req.json()
+    console.log('Request body:', body)
+    
+    const { username, currentPassword, newPassword, token }: PasswordChangeRequest = body
 
-    if (!username || !currentPassword || !newPassword || !token) {
+    if (!username || !newPassword || !token) {
+      console.log('Missing required fields:', { username: !!username, newPassword: !!newPassword, token: !!token })
       return new Response(
-        JSON.stringify({ success: false, error: 'All fields are required' }),
+        JSON.stringify({ success: false, error: 'Username, new password, and token are required' }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400 
         }
-      );
+      )
     }
 
     const supabaseAdmin = createClient(
@@ -62,26 +65,31 @@ Deno.serve(async (req) => {
     }
 
     // Verify token
-    const payload = verifyToken(token);
+    console.log('Verifying token:', token)
+    const payload = verifyToken(token)
+    console.log('Token payload:', payload)
     if (!payload) {
+      console.log('Token verification failed')
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid or expired token' }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 401 
         }
-      );
+      )
     }
 
     // Check if user is admin or changing their own password
+    console.log('Authorization check:', { payloadRole: payload.role, payloadUsername: payload.username, targetUsername: username })
     if (payload.role !== 'admin' && payload.username !== username) {
+      console.log('Authorization failed: not admin and not changing own password')
       return new Response(
         JSON.stringify({ success: false, error: 'Unauthorized' }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 403 
         }
-      );
+      )
     }
 
     // Allow admin users to change passwords for other admin users

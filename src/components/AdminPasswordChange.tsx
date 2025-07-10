@@ -43,7 +43,7 @@ const AdminPasswordChange: React.FC<AdminPasswordChangeProps> = ({ employee, onC
       const { data: result, error } = await supabase.functions.invoke('change-admin-password', {
         body: {
           username: employee.staff_id,
-          currentPassword: data.currentPassword,
+          currentPassword: data.currentPassword || 'dummy_password', // Use dummy password for admin actions
           newPassword: data.newPassword,
           token: token
         }

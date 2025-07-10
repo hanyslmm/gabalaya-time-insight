@@ -53,6 +53,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         setUser(authUser);
         localStorage.setItem('auth_user', JSON.stringify(authUser));
+        
+        // Store the token if provided
+        if (data.token) {
+          localStorage.setItem('auth_token', data.token);
+        }
+        
         return true;
       }
 
@@ -66,6 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     setUser(null);
     localStorage.removeItem('auth_user');
+    localStorage.removeItem('auth_token');
   };
 
   return (
