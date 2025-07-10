@@ -1,6 +1,7 @@
-qimport { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2'
-import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts'
-import { corsHeaders } from '../_shared/cors.ts'
+// Ensure proper imports and declarations
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2';
+import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts';
+import { corsHeaders } from '../_shared/cors.ts';
 
 interface PasswordChangeRequest {
   username: string;
@@ -23,11 +24,11 @@ function verifyToken(token: string): any {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const { username, currentPassword, newPassword, token }: PasswordChangeRequest = await req.json()
+    const { username, currentPassword, newPassword, token }: PasswordChangeRequest = await req.json();
 
     if (!username || !currentPassword || !newPassword || !token) {
       return new Response(
@@ -36,7 +37,28 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400 
         }
-      )
+      );
+    }
+
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const { data: user, error: fetchError } = await supabaseAdmin
+      .from('admin_users')
+      .select('*')
+      .eq('username', username)
+      .single();
+
+    if (fetchError || !user) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'User not found' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 404 
+        }
+      );
     }
 
     // Verify token
@@ -48,7 +70,7 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 401 
         }
-      )
+      );
     }
 
     // Check if user is admin or changing their own password
@@ -59,34 +81,42 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 403 
         }
-      )
+      );
     }
 
-    // Create Supabase client with service role key for admin operations
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    // Allow admin users to change passwords for other admin users
+    if (payload.role === 'admin' && payload.username !== username) {
+      // Skip current password validation for admin changing another admin's password
+      const hashedNewPassword = await bcrypt.hash(newPassword, 10);
 
-    // Get user from admin_users table
-    const { data: user, error: fetchError } = await supabaseAdmin
-      .from('admin_users')
-      .select('*')
-      .eq('username', username)
-      .single()
+      const { error: updateError } = await supabaseAdmin
+        .from('admin_users')
+        .update({ 
+          password_hash: hashedNewPassword,
+          updated_at: new Date().toISOString()
+        })
+        .eq('username', username);
 
-    if (fetchError || !user) {
+      if (updateError) {
+        console.error('Error updating password:', updateError);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Failed to update password' }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500 
+          }
+        );
+      }
+
       return new Response(
-        JSON.stringify({ success: false, error: 'User not found' }),
+        JSON.stringify({ success: true, message: 'Password updated successfully' }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 404 
+          status: 200 
         }
-      )
-    }
-
-    // If not admin changing someone else's password, verify current password
-    if (payload.username === username) {
+      );
+    } else {
+      // If not admin changing someone else's password, verify current password
       const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password_hash);
       if (!isCurrentPasswordValid) {
         return new Response(
@@ -95,50 +125,47 @@ Deno.serve(async (req) => {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 401 
           }
-        )
+        );
       }
-    }
 
-    // Hash the new password
-    const saltRounds = 10;
-    const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+      // Hash the new password
+      const hashedNewPassword = await bcrypt.hash(newPassword, 10);
 
-    // Update password in admin_users table
-    const { error: updateError } = await supabaseAdmin
-      .from('admin_users')
-      .update({ 
-        password_hash: hashedNewPassword,
-        updated_at: new Date().toISOString()
-      })
-      .eq('username', username);
+      const { error: updateError } = await supabaseAdmin
+        .from('admin_users')
+        .update({ 
+          password_hash: hashedNewPassword,
+          updated_at: new Date().toISOString()
+        })
+        .eq('username', username);
 
-    if (updateError) {
-      console.error('Error updating password:', updateError);
+      if (updateError) {
+        console.error('Error updating password:', updateError);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Failed to update password' }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500 
+          }
+        );
+      }
+
       return new Response(
-        JSON.stringify({ success: false, error: 'Failed to update password' }),
+        JSON.stringify({ success: true, message: 'Password updated successfully' }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500 
+          status: 200 
         }
-      )
+      );
     }
-
-    return new Response(
-      JSON.stringify({ success: true, message: 'Password updated successfully' }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200 
-      }
-    )
-
   } catch (error) {
-    console.error('Password change error:', error)
+    console.error('Password change error:', error);
     return new Response(
       JSON.stringify({ success: false, error: 'Internal server error' }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500 
       }
-    )
+    );
   }
-})
+});
