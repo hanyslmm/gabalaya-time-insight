@@ -32,11 +32,13 @@ const LoginPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const success = await login(username, password);
-      if (success) {
+      const result = await login(username, password);
+      
+      if (!result.error) {
         toast.success(t('loginSuccess'));
+        // Navigation will be handled by the Navigate component after user state updates
       } else {
-        toast.error(t('loginError'));
+        toast.error(result.error || t('loginError'));
       }
     } catch (error) {
       toast.error(t('loginError'));

@@ -1,10 +1,35 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2'
+import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 
 interface AuthRequest {
   username: string;
   password: string;
+  token?: string; // For token validation
+}
+
+// Simple JWT-like token generation (for demo purposes)
+function generateToken(user: any): string {
+  const payload = {
+    id: user.id,
+    username: user.username,
+    role: user.role,
+    exp: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
+  };
+  return btoa(JSON.stringify(payload));
+}
+
+function verifyToken(token: string): any {
+  try {
+    const payload = JSON.parse(atob(token));
+    if (payload.exp < Date.now()) {
+      return null; // Token expired
+    }
+    return payload;
+  } catch {
+    return null;
+  }
 }
 
 Deno.serve(async (req) => {
@@ -13,7 +38,40 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { username, password }: AuthRequest = await req.json()
+    const body = await req.json()
+    
+    // Handle token validation
+    if (body.token) {
+      const payload = verifyToken(body.token);
+      if (!payload) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Invalid or expired token' }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 401 
+          }
+        )
+      }
+      
+      // Return user data from token
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          user: { 
+            id: payload.id, 
+            username: payload.username, 
+            role: payload.role 
+          } 
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200 
+        }
+      )
+    }
+
+    // Handle login
+    const { username, password }: AuthRequest = body
 
     if (!username || !password) {
       return new Response(
@@ -51,8 +109,9 @@ Deno.serve(async (req) => {
     // Verify password based on role
     let isValidPassword = false;
     
-    if (user.role === 'admin' && username === 'admin' && password === 'admin123') {
-      isValidPassword = true;
+    if (user.role === 'admin') {
+      // For admin, verify against bcrypt hash
+      isValidPassword = await bcrypt.compare(password, user.password_hash);
     } else if (user.role === 'employee') {
       // For employees, password should be username + "123" 
       // e.g., if username is "EMP051994", password should be "EMP051994123"
@@ -71,7 +130,10 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Return user data (excluding password hash)
+    // Generate token
+    const token = generateToken(user);
+
+    // Return user data (excluding password hash) with token
     const userData = {
       id: user.id,
       username: user.username,
@@ -80,7 +142,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, user: userData }),
+      JSON.stringify({ success: true, user: userData, token }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200 

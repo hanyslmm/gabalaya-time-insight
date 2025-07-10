@@ -39,7 +39,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         body: { token }
       });
 
-      if (error || !data?.user) {
+      if (error || !data?.success || !data?.user) {
         localStorage.removeItem('auth_token');
         setUser(null);
       } else {
@@ -85,7 +85,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error: error.message || 'Login failed' };
       }
 
-      if (data?.user && data?.token) {
+      if (data?.success && data?.user && data?.token) {
         localStorage.setItem('auth_token', data.token);
         
         // Check if user is an employee with admin role
@@ -98,10 +98,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           
           if (employeeData?.role === 'admin') {
             // Elevate employee to admin privileges
-            setUser({
+            const adminUser = {
               ...data.user,
               role: 'admin'
-            });
+            };
+            setUser(adminUser);
           } else {
             setUser(data.user);
           }
@@ -111,7 +112,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         return {};
       } else {
-        return { error: 'Invalid credentials' };
+        return { error: data?.error || 'Invalid credentials' };
       }
     } catch (error: any) {
       console.error('Login error:', error);
