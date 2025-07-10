@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
-import { isWithinInterval, parseISO } from 'date-fns';
+import { isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-fns';
 
 interface TimesheetEntry {
   id: string;
@@ -70,10 +70,20 @@ export const useTimesheetTable = (
 
   const filteredData = useMemo(() => {
     return data.filter(entry => {
-      // Date range filter
+      // Date range filter with proper inclusive boundaries
       if (dateRange) {
         const entryDate = parseISO(entry.clock_in_date);
-        if (!isWithinInterval(entryDate, { start: dateRange.from, end: dateRange.to })) {
+        const fromDate = startOfDay(dateRange.from);
+        const toDate = endOfDay(dateRange.to);
+        
+        console.log('Filtering entry:', {
+          entryDate: entryDate.toISOString(),
+          fromDate: fromDate.toISOString(),
+          toDate: toDate.toISOString(),
+          isWithinRange: isWithinInterval(entryDate, { start: fromDate, end: toDate })
+        });
+        
+        if (!isWithinInterval(entryDate, { start: fromDate, end: toDate })) {
           return false;
         }
       }

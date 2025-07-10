@@ -1,15 +1,13 @@
 
-import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Calendar } from '@/components/ui/calendar';
+import React from 'react';
 import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon, Settings } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CalendarIcon, Clock, Settings } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns';
-import { cn } from '@/lib/utils';
 
 interface DateRange {
   from: Date;
@@ -18,7 +16,7 @@ interface DateRange {
 
 interface TimesheetDateFilterProps {
   dateRange: DateRange;
-  onDateRangeChange: (range: DateRange) => void;
+  onDateRangeChange: (dateRange: DateRange) => void;
   payPeriodEndDay: number;
   onPayPeriodEndDayChange: (day: number) => void;
 }
@@ -29,150 +27,158 @@ const TimesheetDateFilter: React.FC<TimesheetDateFilterProps> = ({
   payPeriodEndDay,
   onPayPeriodEndDayChange
 }) => {
-  const { t } = useTranslation();
-  const [showSettings, setShowSettings] = useState(false);
-
-  const getCurrentPayPeriod = (endDay: number = 28) => {
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
+  const calculatePayPeriod = (baseDate: Date, endDay: number, isPrevious: boolean = false) => {
+    const currentDate = isPrevious ? subMonths(baseDate, 1) : baseDate;
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
     
-    // If today is after the end day, we're in the next pay period
-    if (today.getDate() > endDay) {
-      const from = new Date(currentYear, currentMonth, endDay + 1);
-      const to = new Date(currentYear, currentMonth + 1, endDay);
-      return { from, to };
-    } else {
-      const from = new Date(currentYear, currentMonth - 1, endDay + 1);
-      const to = new Date(currentYear, currentMonth, endDay);
-      return { from, to };
+    // Calculate the end date of the pay period
+    const endDate = new Date(year, month, endDay);
+    if (endDate > currentDate && !isPrevious) {
+      // If end day hasn't passed this month, use previous month's period
+      endDate.setMonth(month - 1);
+    }
+    
+    // Start date is the day after the previous period's end
+    const startDate = new Date(endDate);
+    startDate.setMonth(startDate.getMonth() - 1);
+    startDate.setDate(endDay + 1);
+    
+    return { from: startDate, to: endDate };
+  };
+
+  const handlePreviousPeriod = () => {
+    const previousPeriod = calculatePayPeriod(new Date(), payPeriodEndDay, true);
+    onDateRangeChange(previousPeriod);
+  };
+
+  const handleCurrentPeriod = () => {
+    const currentPeriod = calculatePayPeriod(new Date(), payPeriodEndDay, false);
+    onDateRangeChange(currentPeriod);
+  };
+
+  const handleCustomDateChange = (field: 'from' | 'to', date: Date | undefined) => {
+    if (date) {
+      onDateRangeChange({
+        ...dateRange,
+        [field]: date
+      });
     }
   };
 
-  const setCurrentPayPeriod = () => {
-    const payPeriod = getCurrentPayPeriod(payPeriodEndDay);
-    onDateRangeChange(payPeriod);
-  };
-
-  const setPreviousPayPeriod = () => {
-    const currentPayPeriod = getCurrentPayPeriod(payPeriodEndDay);
-    const previousMonth = subMonths(currentPayPeriod.from, 1);
-    const from = new Date(previousMonth.getFullYear(), previousMonth.getMonth(), payPeriodEndDay + 1);
-    const to = new Date(currentPayPeriod.from.getFullYear(), currentPayPeriod.from.getMonth(), payPeriodEndDay);
-    onDateRangeChange({ from, to });
-  };
-
-  const setNextPayPeriod = () => {
-    const currentPayPeriod = getCurrentPayPeriod(payPeriodEndDay);
-    const nextMonth = addMonths(currentPayPeriod.to, 1);
-    const from = new Date(currentPayPeriod.to.getFullYear(), currentPayPeriod.to.getMonth() + 1, payPeriodEndDay + 1);
-    const to = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), payPeriodEndDay);
-    onDateRangeChange({ from, to });
-  };
-
-  // Set current pay period on mount
-  useEffect(() => {
-    setCurrentPayPeriod();
-  }, [payPeriodEndDay]);
-
   return (
-    <Card className="mb-6">
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Clock className="h-5 w-5" />
-            <span>Pay Period Filter</span>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowSettings(!showSettings)}
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {/* Quick Period Buttons */}
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={setPreviousPayPeriod}>
-              Previous Period
+    <div className="bg-card rounded-lg border p-6 mb-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <CalendarIcon className="h-5 w-5" />
+          Pay Period Filter
+        </h3>
+        
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm">
+              <Settings className="h-4 w-4 mr-2" />
+              Settings
             </Button>
-            <Button variant="default" size="sm" onClick={setCurrentPayPeriod}>
-              Current Period
-            </Button>
-            <Button variant="outline" size="sm" onClick={setNextPayPeriod}>
-              Next Period
-            </Button>
-          </div>
-
-          {/* Date Range Display */}
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <Label>From:</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="justify-start text-left font-normal">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {format(dateRange.from, "MMM dd, yyyy")}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={dateRange.from}
-                    onSelect={(date) => date && onDateRangeChange({ ...dateRange, from: date })}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Label>To:</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="justify-start text-left font-normal">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {format(dateRange.to, "MMM dd, yyyy")}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={dateRange.to}
-                    onSelect={(date) => date && onDateRangeChange({ ...dateRange, to: date })}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
-
-          {/* Pay Period Settings */}
-          {showSettings && (
-            <div className="border-t pt-4">
-              <div className="flex items-center space-x-2">
-                <Label htmlFor="payPeriodEnd">Pay Period Ends on Day:</Label>
+          </PopoverTrigger>
+          <PopoverContent className="w-80">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="payPeriodEndDay">Pay Period End Day</Label>
                 <Input
-                  id="payPeriodEnd"
+                  id="payPeriodEndDay"
                   type="number"
                   min="1"
                   max="31"
                   value={payPeriodEndDay}
                   onChange={(e) => onPayPeriodEndDayChange(parseInt(e.target.value) || 28)}
-                  className="w-20"
                 />
-                <span className="text-sm text-gray-500">of each month</span>
+                <p className="text-xs text-muted-foreground">
+                  The day of the month when the pay period ends (default: 28)
+                </p>
               </div>
             </div>
-          )}
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          onClick={handlePreviousPeriod}
+          className="flex-1 sm:flex-none"
+        >
+          Previous Period
+        </Button>
+        <Button
+          variant="default"
+          onClick={handleCurrentPeriod}
+          className="flex-1 sm:flex-none"
+        >
+          Current Period
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>From Date</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-full justify-start text-left font-normal",
+                  !dateRange.from && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateRange.from ? format(dateRange.from, "PPP") : "Pick a date"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0">
+              <Calendar
+                mode="single"
+                selected={dateRange.from}
+                onSelect={(date) => handleCustomDateChange('from', date)}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
         </div>
-      </CardContent>
-    </Card>
+
+        <div className="space-y-2">
+          <Label>To Date</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-full justify-start text-left font-normal",
+                  !dateRange.to && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateRange.to ? format(dateRange.to, "PPP") : "Pick a date"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0">
+              <Calendar
+                mode="single"
+                selected={dateRange.to}
+                onSelect={(date) => handleCustomDateChange('to', date)}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
+
+      <div className="text-sm text-muted-foreground">
+        <p>
+          <strong>Selected Period:</strong> {format(dateRange.from, "MMM dd, yyyy")} - {format(dateRange.to, "MMM dd, yyyy")}
+        </p>
+      </div>
+    </div>
   );
 };
 

@@ -32,9 +32,9 @@ const employeeSchema = z.object({
   full_name: z.string().min(2, 'Full name must be at least 2 characters').max(100, 'Full name must be less than 100 characters'),
   role: z.string().min(1, 'Role is required'),
   hiring_date: z.string().min(1, 'Hiring date is required'),
-  // Email and phone are now optional
-  email: z.string().email('Invalid email format').optional().or(z.literal('')),
-  phone_number: z.string().max(20, 'Phone number must be less than 20 characters').optional().or(z.literal('')),
+  // Make email and phone completely optional - empty strings are valid
+  email: z.string().optional().or(z.literal('')),
+  phone_number: z.string().optional().or(z.literal('')),
 });
 
 const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
@@ -69,13 +69,38 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
 
   useEffect(() => {
     if (employee) {
-      setFormData(employee);
+      setFormData({
+        ...employee,
+        email: employee.email || '',
+        phone_number: employee.phone_number || ''
+      });
     }
   }, [employee]);
 
   const validateForm = () => {
     try {
-      employeeSchema.parse(formData);
+      // Create a clean version of form data for validation
+      const cleanFormData = {
+        ...formData,
+        email: formData.email?.trim() || '',
+        phone_number: formData.phone_number?.trim() || ''
+      };
+
+      // Only validate email format if it's not empty
+      if (cleanFormData.email && cleanFormData.email.length > 0) {
+        const emailSchema = z.string().email('Invalid email format');
+        emailSchema.parse(cleanFormData.email);
+      }
+
+      // Validate other required fields
+      const requiredFieldsSchema = z.object({
+        staff_id: employeeSchema.shape.staff_id,
+        full_name: employeeSchema.shape.full_name,
+        role: employeeSchema.shape.role,
+        hiring_date: employeeSchema.shape.hiring_date,
+      });
+
+      requiredFieldsSchema.parse(cleanFormData);
       setErrors({});
       return true;
     } catch (error) {
@@ -94,11 +119,18 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
 
   const mutation = useMutation({
     mutationFn: async (data: Employee) => {
+      // Clean the data before sending
+      const cleanData = {
+        ...data,
+        email: data.email?.trim() || null,
+        phone_number: data.phone_number?.trim() || null
+      };
+
       if (employee?.id) {
         // Update existing employee
         const { error } = await supabase
           .from('employees')
-          .update(data)
+          .update(cleanData)
           .eq('id', employee.id);
         
         if (error) throw error;
@@ -106,7 +138,7 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
         // Create new employee
         const { error } = await supabase
           .from('employees')
-          .insert(data);
+          .insert(cleanData);
         
         if (error) throw error;
       }
@@ -226,6 +258,7 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
               placeholder="Optional - enter email if available"
             />
             {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
+            <p className="text-xs text-muted-foreground">Leave empty if not available</p>
           </div>
 
           <div className="space-y-2">
@@ -238,14 +271,15 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
               placeholder="Optional - enter phone if available"
             />
             {errors.phone_number && <p className="text-sm text-red-500">{errors.phone_number}</p>}
+            <p className="text-xs text-muted-foreground">Leave empty if not available</p>
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
               {t('cancel')}
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? t('loading') : t('save')}
+            <Button type="submit" disabled={loading || mutation.isPending}>
+              {loading || mutation.isPending ? t('loading') : t('save')}
             </Button>
           </div>
         </form>
