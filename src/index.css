@@ -306,4 +306,33 @@ All colors MUST be HSL.
     transform: translateY(-4px) scale(1.02);
     box-shadow: var(--shadow-hover);
   }
+
+  /* Mobile navigation utilities */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* Mobile viewport fixes */
+  @media (max-width: 768px) {
+    .mobile-scroll {
+      -webkit-overflow-scrolling: touch;
+      scroll-behavior: smooth;
+    }
+    
+    /* Prevent zoom on input focus on iOS */
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+  }
+
+  /* Landscape mode adjustments for mobile */
+  @media (max-width: 768px) and (orientation: landscape) {
+    .mobile-landscape-adjust {
+      height: calc(100vh - 3rem);
+    }
+  }
 }

@@ -1,10 +1,11 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import NotificationSystem from '@/components/NotificationSystem';
 import { 
@@ -18,7 +19,8 @@ import {
   Building, 
   LogOut,
   User,
-  Shield
+  Shield,
+  Menu
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -27,6 +29,7 @@ const Layout = () => {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -115,6 +118,54 @@ const Layout = () => {
           <header className="bg-card/95 backdrop-blur-sm border-b border-border/50 px-4 py-3 sm:px-6 sticky top-0 z-40">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
+                {/* Mobile menu trigger */}
+                <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                  <SheetTrigger asChild>
+                    <Button variant="ghost" size="sm" className="md:hidden">
+                      <Menu className="h-5 w-5" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="left" className="w-64 p-0">
+                    <SheetHeader className="p-4 border-b">
+                      <SheetTitle className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center shadow-lg">
+                          <span className="text-primary-foreground font-bold text-sm">G</span>
+                        </div>
+                        <div>
+                          <h1 className="text-lg font-semibold text-foreground tracking-tight">Gabalaya Finance</h1>
+                          <p className="text-xs text-muted-foreground font-medium">HRM System</p>
+                        </div>
+                      </SheetTitle>
+                    </SheetHeader>
+                    <nav className="flex-1 px-2 py-4 space-y-1">
+                      {visibleNavigation.map((item) => {
+                        const isActive = location.pathname === item.href;
+                        return (
+                          <Link
+                            key={item.name}
+                            to={item.href}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className={cn(
+                              "group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ease-in-out",
+                              isActive
+                                ? "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-md"
+                                : "text-muted-foreground hover:text-foreground hover:bg-accent/80"
+                            )}
+                          >
+                            <item.icon
+                              className={cn(
+                                "mr-3 flex-shrink-0 h-5 w-5",
+                                isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
+                              )}
+                            />
+                            {item.name}
+                          </Link>
+                        );
+                      })}
+                    </nav>
+                  </SheetContent>
+                </Sheet>
+
                 <h2 className="text-lg font-semibold text-foreground capitalize tracking-tight">
                   {location.pathname.split('/').pop()?.replace('-', ' ') || 'Dashboard'}
                 </h2>
@@ -174,10 +225,74 @@ const Layout = () => {
 
           {/* Page content */}
           <main className="flex-1 overflow-y-auto bg-gradient-to-br from-background to-background/95">
-            <div className="py-6 px-4 sm:px-6 lg:px-8 min-h-full">
+            <div className="py-6 px-4 sm:px-6 lg:px-8 min-h-full pb-20 md:pb-6">
               <Outlet />
             </div>
           </main>
+
+          {/* Mobile bottom navigation */}
+          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border/50 z-50 safe-area-bottom">
+            <div className="flex justify-around items-center py-2 px-1">
+              {visibleNavigation.slice(0, 5).map((item) => {
+                const isActive = location.pathname === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className={cn(
+                      "flex flex-col items-center justify-center p-1.5 min-w-0 flex-1 text-[10px] font-medium transition-all duration-200",
+                      isActive
+                        ? "text-primary"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <item.icon
+                      className={cn(
+                        "h-4 w-4 mb-0.5",
+                        isActive ? "text-primary" : "text-muted-foreground"
+                      )}
+                    />
+                    <span className="truncate max-w-full leading-tight">{item.name}</span>
+                  </Link>
+                );
+              })}
+              {visibleNavigation.length > 5 && (
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <button className="flex flex-col items-center justify-center p-1.5 min-w-0 flex-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-all duration-200">
+                      <Menu className="h-4 w-4 mb-0.5" />
+                      <span className="leading-tight">More</span>
+                    </button>
+                  </SheetTrigger>
+                  <SheetContent side="bottom" className="h-auto max-h-96">
+                    <SheetHeader>
+                      <SheetTitle>More Options</SheetTitle>
+                    </SheetHeader>
+                    <div className="grid grid-cols-2 gap-2 mt-4">
+                      {visibleNavigation.slice(5).map((item) => {
+                        const isActive = location.pathname === item.href;
+                        return (
+                          <Link
+                            key={item.name}
+                            to={item.href}
+                            className={cn(
+                              "flex items-center p-3 rounded-lg transition-all duration-200",
+                              isActive
+                                ? "bg-primary text-primary-foreground"
+                                : "hover:bg-accent/80"
+                            )}
+                          >
+                            <item.icon className="h-5 w-5 mr-3" />
+                            {item.name}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </SheetContent>
+                </Sheet>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
