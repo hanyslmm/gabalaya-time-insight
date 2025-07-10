@@ -109,24 +109,29 @@ const ProfilePage: React.FC = () => {
 
     setChangingPassword(true);
     try {
-      // First verify current password by attempting to sign in
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user.username,
-        password: passwordData.currentPassword
-      });
+      // Check if user is admin (from admin_users table)
+      if (user.role === 'admin') {
+        // Use the admin password change function
+        const token = localStorage.getItem('auth_token');
+        if (!token) throw new Error('No authentication token found');
 
-      if (signInError) {
-        toast.error('Current password is incorrect');
+        const { data: result, error } = await supabase.functions.invoke('change-admin-password', {
+          body: {
+            username: user.username,
+            currentPassword: passwordData.currentPassword,
+            newPassword: passwordData.newPassword,
+            token: token
+          }
+        });
+
+        if (error) throw error;
+        if (!result.success) throw new Error(result.error);
+      } else {
+        // For regular employees, use the legacy method
+        // Note: This needs to be implemented properly for employee password changes
+        toast.error('Password change for employees is not yet implemented');
         return;
       }
-
-      // Update password in users table
-      const { error } = await supabase
-        .from('users')
-        .update({ password: passwordData.newPassword })
-        .eq('username', user.username);
-
-      if (error) throw error;
 
       toast.success('Password changed successfully!');
       setPasswordData({
@@ -136,7 +141,7 @@ const ProfilePage: React.FC = () => {
       });
     } catch (error) {
       console.error('Error changing password:', error);
-      toast.error('Failed to change password');
+      toast.error(error.message || 'Failed to change password');
     } finally {
       setChangingPassword(false);
     }
