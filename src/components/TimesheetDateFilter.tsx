@@ -27,15 +27,18 @@ const TimesheetDateFilter: React.FC<TimesheetDateFilterProps> = ({
   payPeriodEndDay,
   onPayPeriodEndDayChange
 }) => {
-  const calculatePayPeriod = (baseDate: Date, endDay: number, isPrevious: boolean = false) => {
-    const currentDate = isPrevious ? subMonths(baseDate, 1) : baseDate;
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
+  const calculatePayPeriod = (baseDate: Date, endDay: number, offsetMonths: number = 0) => {
+    const targetDate = new Date(baseDate);
+    targetDate.setMonth(targetDate.getMonth() + offsetMonths);
+    
+    const year = targetDate.getFullYear();
+    const month = targetDate.getMonth();
     
     // Calculate the end date of the pay period
-    const endDate = new Date(year, month, endDay);
-    if (endDate > currentDate && !isPrevious) {
-      // If end day hasn't passed this month, use previous month's period
+    let endDate = new Date(year, month, endDay);
+    
+    // For current period, if end day hasn't passed this month, use previous month's period
+    if (offsetMonths === 0 && endDate > baseDate) {
       endDate.setMonth(month - 1);
     }
     
@@ -48,12 +51,12 @@ const TimesheetDateFilter: React.FC<TimesheetDateFilterProps> = ({
   };
 
   const handlePreviousPeriod = () => {
-    const previousPeriod = calculatePayPeriod(new Date(), payPeriodEndDay, true);
+    const previousPeriod = calculatePayPeriod(new Date(), payPeriodEndDay, -1);
     onDateRangeChange(previousPeriod);
   };
 
   const handleCurrentPeriod = () => {
-    const currentPeriod = calculatePayPeriod(new Date(), payPeriodEndDay, false);
+    const currentPeriod = calculatePayPeriod(new Date(), payPeriodEndDay, 0);
     onDateRangeChange(currentPeriod);
   };
 

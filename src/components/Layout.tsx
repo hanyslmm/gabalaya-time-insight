@@ -69,13 +69,13 @@ const Layout = () => {
         <div className="hidden md:flex md:w-64 md:flex-col">
           <div className="flex flex-col flex-grow pt-5 bg-card border-r overflow-y-auto">
             <div className="flex items-center flex-shrink-0 px-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                  <span className="text-primary-foreground font-bold">G</span>
+            <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center shadow-lg">
+                  <span className="text-primary-foreground font-bold text-sm">G</span>
                 </div>
                 <div>
-                  <h1 className="text-lg font-semibold text-foreground">Gabalaya Finance</h1>
-                  <p className="text-xs text-muted-foreground">HRM System</p>
+                  <h1 className="text-lg font-semibold text-foreground tracking-tight">Gabalaya Finance</h1>
+                  <p className="text-xs text-muted-foreground font-medium">HRM System</p>
                 </div>
               </div>
             </div>
@@ -88,10 +88,10 @@ const Layout = () => {
                       key={item.name}
                       to={item.href}
                       className={cn(
-                        "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                        "group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ease-in-out",
                         isActive
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                          ? "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-md transform scale-[1.02]"
+                          : "text-muted-foreground hover:text-foreground hover:bg-accent/80 hover:scale-[1.01] hover:shadow-sm"
                       )}
                     >
                       <item.icon
@@ -112,12 +112,18 @@ const Layout = () => {
         {/* Main content */}
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Top navigation */}
-          <header className="bg-card border-b px-4 py-3 sm:px-6">
+          <header className="bg-card/95 backdrop-blur-sm border-b border-border/50 px-4 py-3 sm:px-6 sticky top-0 z-40">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <h2 className="text-lg font-semibold text-foreground capitalize">
+                <h2 className="text-lg font-semibold text-foreground capitalize tracking-tight">
                   {location.pathname.split('/').pop()?.replace('-', ' ') || 'Dashboard'}
                 </h2>
+                <div className="hidden sm:block">
+                  <div className="h-4 w-px bg-border/50"></div>
+                </div>
+                <p className="hidden sm:block text-sm text-muted-foreground">
+                  Welcome back, {user?.full_name || user?.username}
+                </p>
               </div>
               
               <div className="flex items-center space-x-4">
@@ -126,9 +132,9 @@ const Layout = () => {
                 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback className="bg-primary text-primary-foreground">
+                    <Button variant="ghost" className="relative h-8 w-8 rounded-full hover:scale-105 transition-transform">
+                      <Avatar className="h-8 w-8 ring-2 ring-border/20 hover:ring-primary/30 transition-all">
+                        <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground font-semibold text-xs">
                           {user ? getInitials(user.full_name || user.username) : 'U'}
                         </AvatarFallback>
                       </Avatar>
@@ -167,8 +173,8 @@ const Layout = () => {
           </header>
 
           {/* Page content */}
-          <main className="flex-1 overflow-y-auto bg-background">
-            <div className="py-6 px-4 sm:px-6 lg:px-8">
+          <main className="flex-1 overflow-y-auto bg-gradient-to-br from-background to-background/95">
+            <div className="py-6 px-4 sm:px-6 lg:px-8 min-h-full">
               <Outlet />
             </div>
           </main>

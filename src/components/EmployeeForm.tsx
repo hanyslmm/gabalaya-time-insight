@@ -32,9 +32,9 @@ const employeeSchema = z.object({
   full_name: z.string().min(2, 'Full name must be at least 2 characters').max(100, 'Full name must be less than 100 characters'),
   role: z.string().min(1, 'Role is required'),
   hiring_date: z.string().min(1, 'Hiring date is required'),
-  // Make email and phone completely optional - empty strings are valid
-  email: z.string().optional().or(z.literal('')),
-  phone_number: z.string().optional().or(z.literal('')),
+  // Make email and phone truly optional - allow empty strings and undefined
+  email: z.union([z.string().email('Invalid email format'), z.literal(''), z.undefined()]).optional(),
+  phone_number: z.union([z.string(), z.literal(''), z.undefined()]).optional(),
 });
 
 const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
@@ -82,25 +82,20 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
       // Create a clean version of form data for validation
       const cleanFormData = {
         ...formData,
-        email: formData.email?.trim() || '',
-        phone_number: formData.phone_number?.trim() || ''
+        email: formData.email?.trim() || undefined,
+        phone_number: formData.phone_number?.trim() || undefined
       };
 
-      // Only validate email format if it's not empty
+      // If email is provided and not empty, validate it
       if (cleanFormData.email && cleanFormData.email.length > 0) {
+        // Remove from cleanFormData and validate separately
+        const emailToValidate = cleanFormData.email;
         const emailSchema = z.string().email('Invalid email format');
-        emailSchema.parse(cleanFormData.email);
+        emailSchema.parse(emailToValidate);
       }
 
-      // Validate other required fields
-      const requiredFieldsSchema = z.object({
-        staff_id: employeeSchema.shape.staff_id,
-        full_name: employeeSchema.shape.full_name,
-        role: employeeSchema.shape.role,
-        hiring_date: employeeSchema.shape.hiring_date,
-      });
-
-      requiredFieldsSchema.parse(cleanFormData);
+      // Validate the complete schema
+      employeeSchema.parse(cleanFormData);
       setErrors({});
       return true;
     } catch (error) {

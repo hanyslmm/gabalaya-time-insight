@@ -47,9 +47,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (data.user.role === 'employee') {
           const { data: employeeData } = await supabase
             .from('employees')
-            .select('role')
-            .eq('full_name', data.user.full_name || data.user.username)
-            .single();
+            .select('role, staff_id')
+            .or(`full_name.eq.${data.user.full_name || data.user.username},staff_id.eq.${data.user.username}`)
+            .maybeSingle();
           
           if (employeeData?.role === 'admin') {
             // Elevate employee to admin privileges
@@ -92,9 +92,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (data.user.role === 'employee') {
           const { data: employeeData } = await supabase
             .from('employees')
-            .select('role')
-            .eq('full_name', data.user.full_name || data.user.username)
-            .single();
+            .select('role, staff_id')
+            .or(`full_name.eq.${data.user.full_name || data.user.username},staff_id.eq.${data.user.username}`)
+            .maybeSingle();
           
           if (employeeData?.role === 'admin') {
             // Elevate employee to admin privileges

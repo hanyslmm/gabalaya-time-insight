@@ -76,14 +76,16 @@ export const useTimesheetTable = (
         const fromDate = startOfDay(dateRange.from);
         const toDate = endOfDay(dateRange.to);
         
+        const isWithinRange = isWithinInterval(entryDate, { start: fromDate, end: toDate });
         console.log('Filtering entry:', {
+          employee: entry.employee_name,
           entryDate: entryDate.toISOString(),
           fromDate: fromDate.toISOString(),
           toDate: toDate.toISOString(),
-          isWithinRange: isWithinInterval(entryDate, { start: fromDate, end: toDate })
+          isWithinRange: isWithinRange
         });
         
-        if (!isWithinInterval(entryDate, { start: fromDate, end: toDate })) {
+        if (!isWithinRange) {
           return false;
         }
       }

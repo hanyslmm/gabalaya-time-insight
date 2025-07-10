@@ -1,12 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Bell, Clock, AlertTriangle, CheckCircle, X } from 'lucide-react';
-import { toast } from 'sonner';
+import { Bell, Clock, AlertTriangle, X } from 'lucide-react';
 import { format, differenceInHours } from 'date-fns';
 
 interface Notification {
@@ -167,18 +165,18 @@ const NotificationSystem: React.FC = () => {
         variant="ghost"
         size="sm"
         onClick={() => setShowNotifications(!showNotifications)}
-        className="relative"
+        className="relative hover:scale-105 transition-transform"
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
-          <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 text-xs bg-red-500 hover:bg-red-600">
+          <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 text-xs bg-red-500 hover:bg-red-600 animate-pulse">
             {unreadCount}
           </Badge>
         )}
       </Button>
 
       {showNotifications && (
-        <Card className="absolute right-0 top-12 w-80 max-h-96 overflow-y-auto z-50 shadow-lg">
+        <Card className="absolute right-0 top-12 w-80 max-h-96 overflow-y-auto z-50 shadow-xl border-border/50 bg-card/95 backdrop-blur-sm">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center justify-between">
               <span>Notifications</span>
@@ -186,6 +184,7 @@ const NotificationSystem: React.FC = () => {
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowNotifications(false)}
+                className="hover:scale-105 transition-transform"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -202,8 +201,8 @@ const NotificationSystem: React.FC = () => {
                   <div
                     key={notification.id}
                     className={`p-3 border-l-4 ${getNotificationColor(notification.type)} ${
-                      notification.read ? 'bg-muted/50' : 'bg-background'
-                    } rounded-r-lg cursor-pointer hover:bg-muted/30 transition-colors`}
+                      notification.read ? 'bg-muted/30' : 'bg-background'
+                    } rounded-r-lg cursor-pointer hover:bg-accent/30 transition-all duration-200 transform hover:scale-[1.01]`}
                     onClick={() => markAsRead(notification.id)}
                   >
                     <div className="flex items-start justify-between">
@@ -226,7 +225,7 @@ const NotificationSystem: React.FC = () => {
                           e.stopPropagation();
                           clearNotification(notification.id);
                         }}
-                        className="h-6 w-6 p-0"
+                        className="h-6 w-6 p-0 hover:scale-105 transition-transform"
                       >
                         <X className="h-3 w-3" />
                       </Button>
