@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2'
+qimport { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2'
 import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 
