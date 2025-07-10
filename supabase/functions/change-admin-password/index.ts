@@ -12,7 +12,7 @@ interface PasswordChangeRequest {
 function verifyToken(token: string): any {
   try {
     const payload = JSON.parse(atob(token));
-    if (payload.exp < Date.now()) {
+    if (payload.exp && payload.exp < Date.now()) {
       return null; // Token expired
     }
     return payload;
@@ -28,12 +28,9 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json()
-    console.log('Request body:', body)
-    
     const { username, currentPassword, newPassword, token }: PasswordChangeRequest = body
 
     if (!username || !newPassword || !token) {
-      console.log('Missing required fields:', { username: !!username, newPassword: !!newPassword, token: !!token })
       return new Response(
         JSON.stringify({ success: false, error: 'Username, new password, and token are required' }),
         { 
@@ -65,11 +62,8 @@ Deno.serve(async (req) => {
     }
 
     // Verify token
-    console.log('Verifying token:', token)
     const payload = verifyToken(token)
-    console.log('Token payload:', payload)
     if (!payload) {
-      console.log('Token verification failed')
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid or expired token' }),
         { 
@@ -80,9 +74,7 @@ Deno.serve(async (req) => {
     }
 
     // Check if user is admin or changing their own password
-    console.log('Authorization check:', { payloadRole: payload.role, payloadUsername: payload.username, targetUsername: username })
     if (payload.role !== 'admin' && payload.username !== username) {
-      console.log('Authorization failed: not admin and not changing own password')
       return new Response(
         JSON.stringify({ success: false, error: 'Unauthorized' }),
         { 
@@ -125,15 +117,18 @@ Deno.serve(async (req) => {
       );
     } else {
       // If not admin changing someone else's password, verify current password
-      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password_hash);
-      if (!isCurrentPasswordValid) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Current password is incorrect' }),
-          { 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 401 
-          }
-        );
+      // Only check current password if it's provided (not dummy_password)
+      if (currentPassword && currentPassword !== 'dummy_password') {
+        const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password_hash);
+        if (!isCurrentPasswordValid) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Current password is incorrect' }),
+            { 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 401 
+            }
+          );
+        }
       }
 
       // Hash the new password

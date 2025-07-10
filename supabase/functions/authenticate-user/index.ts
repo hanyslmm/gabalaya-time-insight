@@ -23,7 +23,7 @@ function generateToken(user: any): string {
 function verifyToken(token: string): any {
   try {
     const payload = JSON.parse(atob(token));
-    if (payload.exp < Date.now()) {
+    if (payload.exp && payload.exp < Date.now()) {
       return null; // Token expired
     }
     return payload;

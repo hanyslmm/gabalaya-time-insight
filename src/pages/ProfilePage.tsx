@@ -127,10 +127,21 @@ const ProfilePage: React.FC = () => {
         if (error) throw error;
         if (!result.success) throw new Error(result.error);
       } else {
-        // For regular employees, use the legacy method
-        // Note: This needs to be implemented properly for employee password changes
-        toast.error('Password change for employees is not yet implemented');
-        return;
+        // For regular employees, use the employee password change function
+        const token = localStorage.getItem('auth_token');
+        if (!token) throw new Error('No authentication token found');
+
+        const { data: result, error } = await supabase.functions.invoke('change-employee-password', {
+          body: {
+            username: user.username,
+            currentPassword: passwordData.currentPassword,
+            newPassword: passwordData.newPassword,
+            token: token
+          }
+        });
+
+        if (error) throw error;
+        if (!result.success) throw new Error(result.error);
       }
 
       toast.success('Password changed successfully!');
