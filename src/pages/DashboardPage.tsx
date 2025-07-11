@@ -19,17 +19,39 @@ const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   // Default to current period for data loading
 
-  // Get current date range for default data loading
+  // Pay period calculation (28th-based)
+  const calculatePayPeriod = (baseDate: Date, endDay: number = 28, offsetMonths: number = 0) => {
+    const targetDate = new Date(baseDate);
+    targetDate.setMonth(targetDate.getMonth() + offsetMonths);
+    
+    const year = targetDate.getFullYear();
+    const month = targetDate.getMonth();
+    
+    // Calculate the end date of the pay period
+    let endDate = new Date(year, month, endDay);
+    
+    // For current period, if end day hasn't passed this month, use previous month's period
+    if (offsetMonths === 0 && endDate > baseDate) {
+      endDate.setMonth(month - 1);
+    }
+    
+    // Start date is the day after the previous period's end
+    const startDate = new Date(endDate);
+    startDate.setMonth(startDate.getMonth() - 1);
+    startDate.setDate(endDay + 1);
+    
+    return { from: startDate, to: endDate };
+  };
+
+  // Get current date range for default data loading using proper pay period calculation
   const now = new Date();
   const currentDateRange = {
-    from: startOfMonth(now),
-    to: endOfMonth(now),
+    ...calculatePayPeriod(now, 28, 0),
     label: 'Current Pay Period'
   };
 
   const previousDateRange = {
-    from: startOfMonth(subMonths(now, 1)),
-    to: endOfMonth(subMonths(now, 1)),
+    ...calculatePayPeriod(now, 28, -1),
     label: 'Previous Pay Period'
   };
 
