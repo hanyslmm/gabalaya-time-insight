@@ -428,6 +428,39 @@ const ReportsPage: React.FC = () => {
               </div>
             </CardHeader>
             <CardContent className="p-0">
+              {/* Summary Section */}
+              {payrollSummary && payrollSummary.length > 0 && (
+                <div className="p-6 border-b border-border/50 bg-muted/20">
+                  <h3 className="text-lg font-semibold mb-4 text-primary">Period Summary</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-card rounded-lg p-4 border border-border/50 shadow-sm">
+                      <div className="text-sm text-muted-foreground">Total Employees</div>
+                      <div className="text-2xl font-bold text-primary">
+                        {payrollSummary.length}
+                      </div>
+                    </div>
+                    <div className="bg-card rounded-lg p-4 border border-border/50 shadow-sm">
+                      <div className="text-sm text-muted-foreground">Total Morning Hours</div>
+                      <div className="text-2xl font-bold text-blue-600">
+                        {Number(payrollSummary.reduce((sum: number, emp: any) => sum + (emp.morning_hours || 0), 0)).toFixed(1)}h
+                      </div>
+                    </div>
+                    <div className="bg-card rounded-lg p-4 border border-border/50 shadow-sm">
+                      <div className="text-sm text-muted-foreground">Total Night Hours</div>
+                      <div className="text-2xl font-bold text-purple-600">
+                        {Number(payrollSummary.reduce((sum: number, emp: any) => sum + (emp.night_hours || 0), 0)).toFixed(1)}h
+                      </div>
+                    </div>
+                    <div className="bg-card rounded-lg p-4 border border-border/50 shadow-sm">
+                      <div className="text-sm text-muted-foreground">Total Pay Amount</div>
+                      <div className="text-2xl font-bold text-green-600">
+                        LE {payrollSummary.reduce((sum: number, emp: any) => sum + (emp.total_split_amount || 0), 0).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
