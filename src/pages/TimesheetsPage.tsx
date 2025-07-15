@@ -20,9 +20,12 @@ const TimesheetsPage: React.FC = () => {
   const { t } = useTranslation();
   const [showUpload, setShowUpload] = useState(false);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
-  const [dateRange, setDateRange] = useState<DateRange>({ 
-    from: new Date(), 
-    to: new Date() 
+  // Initialize with a proper date range - last 30 days by default
+  const [dateRange, setDateRange] = useState<DateRange>(() => {
+    const today = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    return { from: thirtyDaysAgo, to: today };
   });
   const [payPeriodEndDay, setPayPeriodEndDay] = useState(28);
 

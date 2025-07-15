@@ -10,7 +10,7 @@ import { Users, Clock, DollarSign, TrendingUp, Upload, Download, Settings } from
 import DashboardCharts from '@/components/DashboardCharts';
 import DailyPaymentChart from '@/components/DailyPaymentChart';
 import TopPerformersLeaderboard from '@/components/TopPerformersLeaderboard';
-import MonthlyHoursTrend from '@/components/MonthlyHoursTrend';
+import WeeklyHoursTrend from '@/components/WeeklyHoursTrend';
 import MonthlyShiftsActivity from '@/components/MonthlyShiftsActivity';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 
@@ -236,7 +236,7 @@ const DashboardPage: React.FC = () => {
 
                 {/* Additional Charts Section */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                   <MonthlyHoursTrend timePeriod="current" dateRange={currentDateRange} />
+                   <WeeklyHoursTrend timePeriod="current" dateRange={currentDateRange} />
                    <MonthlyShiftsActivity timePeriod="current" dateRange={currentDateRange} />
                 </div>
 
@@ -322,7 +322,7 @@ const DashboardPage: React.FC = () => {
 
                 {/* Additional Charts Section */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                   <MonthlyHoursTrend timePeriod="previous" dateRange={previousDateRange} />
+                   <WeeklyHoursTrend timePeriod="previous" dateRange={previousDateRange} />
                    <MonthlyShiftsActivity timePeriod="previous" dateRange={previousDateRange} />
                 </div>
 

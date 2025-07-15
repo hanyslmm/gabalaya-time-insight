@@ -208,9 +208,9 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
                   <div className="p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
                     <LineChartIcon className="h-5 w-5 text-primary" />
                   </div>
-                  <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                    Hours Trend - {effectiveDateRange.label}
-                  </span>
+                   <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                     Weekly Hours Trend
+                   </span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
@@ -266,9 +266,9 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
                   <div className="p-2 bg-secondary/10 rounded-lg group-hover:bg-secondary/20 transition-colors">
                     <BarChart3 className="h-5 w-5 text-secondary" />
                   </div>
-                  <span className="bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent">
-                    Revenue Analysis - {effectiveDateRange.label}
-                  </span>
+                   <span className="bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent">
+                     Daily Cost Analysis
+                   </span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">

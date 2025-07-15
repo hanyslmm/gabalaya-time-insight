@@ -71,19 +71,12 @@ export const useTimesheetTable = (
   const filteredData = useMemo(() => {
     return data.filter(entry => {
       // Date range filter with proper inclusive boundaries
-      if (dateRange) {
+      if (dateRange && dateRange.from && dateRange.to) {
         const entryDate = parseISO(entry.clock_in_date);
         const fromDate = startOfDay(dateRange.from);
         const toDate = endOfDay(dateRange.to);
         
         const isWithinRange = isWithinInterval(entryDate, { start: fromDate, end: toDate });
-        console.log('Filtering entry:', {
-          employee: entry.employee_name,
-          entryDate: entryDate.toISOString(),
-          fromDate: fromDate.toISOString(),
-          toDate: toDate.toISOString(),
-          isWithinRange: isWithinRange
-        });
         
         if (!isWithinRange) {
           return false;

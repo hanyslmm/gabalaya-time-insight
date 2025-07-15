@@ -1,11 +1,11 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, addDays } from 'date-fns';
+import { Button } from '@/components/ui/button';
 import { Clock, TrendingUp } from 'lucide-react';
 
 interface WeeklyData {
@@ -14,7 +14,7 @@ interface WeeklyData {
   displayDay: string;
 }
 
-interface MonthlyHoursTrendProps {
+interface WeeklyHoursTrendProps {
   timePeriod?: string;
   dateRange?: {
     from: Date;
@@ -23,17 +23,20 @@ interface MonthlyHoursTrendProps {
   };
 }
 
-const MonthlyHoursTrend: React.FC<MonthlyHoursTrendProps> = ({ 
+const WeeklyHoursTrend: React.FC<WeeklyHoursTrendProps> = ({ 
   timePeriod = 'current',
   dateRange 
 }) => {
+  const [currentWeekOffset, setCurrentWeekOffset] = useState(0);
+  
   const { data: weeklyData, isLoading } = useQuery({
-    queryKey: ['weekly-hours-trend', timePeriod, dateRange],
+    queryKey: ['weekly-hours-trend', timePeriod, dateRange, currentWeekOffset],
     queryFn: async () => {
-      // Get current week starting from Saturday
+      // Get target week starting from Saturday with offset
       const today = new Date();
-      const currentWeekStart = startOfWeek(today, { weekStartsOn: 6 }); // Saturday = 6
-      const currentWeekEnd = endOfWeek(today, { weekStartsOn: 6 }); // Friday = 5
+      const baseDate = addDays(today, currentWeekOffset * 7);
+      const currentWeekStart = startOfWeek(baseDate, { weekStartsOn: 6 }); // Saturday = 6
+      const currentWeekEnd = endOfWeek(baseDate, { weekStartsOn: 6 }); // Friday = 5
       
       // Get all days in the current week (Saturday to Friday)
       const weekDays = eachDayOfInterval({
@@ -92,7 +95,7 @@ const MonthlyHoursTrend: React.FC<MonthlyHoursTrendProps> = ({
         <CardHeader className="border-b border-border/20">
           <CardTitle className="flex items-center gap-3">
             <Clock className="h-5 w-5 text-primary" />
-            Hours Trend - Current Week
+            Weekly Hours Trend
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
@@ -115,15 +118,39 @@ const MonthlyHoursTrend: React.FC<MonthlyHoursTrendProps> = ({
               <Clock className="h-5 w-5 text-primary" />
             </div>
             <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Hours Trend - Current Week
+              Weekly Hours Trend
             </span>
           </CardTitle>
-          <div className="text-right">
-            <div className="text-lg font-bold text-primary">
-              {Math.round(totalHours)}h
-            </div>
-            <p className="text-xs text-muted-foreground">Total (Sat-Fri)</p>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setCurrentWeekOffset(prev => prev - 1)}
+              className="h-8 w-8 p-0"
+            >
+              ←
+            </Button>
+            <span className="text-sm text-muted-foreground min-w-[100px] text-center">
+              {currentWeekOffset === 0 ? 'Current Week' : 
+               currentWeekOffset === -1 ? 'Last Week' : 
+               `${Math.abs(currentWeekOffset)} weeks ago`}
+            </span>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setCurrentWeekOffset(prev => prev + 1)}
+              disabled={currentWeekOffset >= 0}
+              className="h-8 w-8 p-0"
+            >
+              →
+            </Button>
           </div>
+        </div>
+        <div className="text-right">
+          <div className="text-lg font-bold text-primary">
+            {Math.round(totalHours)}h
+          </div>
+          <p className="text-xs text-muted-foreground">Total (Sat-Fri)</p>
         </div>
       </CardHeader>
       <CardContent className="p-6">
@@ -172,4 +199,4 @@ const MonthlyHoursTrend: React.FC<MonthlyHoursTrendProps> = ({
   );
 };
 
-export default MonthlyHoursTrend;
+export default WeeklyHoursTrend;

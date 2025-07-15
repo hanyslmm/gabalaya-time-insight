@@ -92,7 +92,7 @@ const DailyPaymentChart: React.FC<DailyPaymentChartProps> = ({
         <CardHeader className="border-b border-border/20">
           <CardTitle className="flex items-center gap-3">
             <DollarSign className="h-5 w-5 text-warning" />
-            Revenue Analysis - Current Week
+            Daily Cost Analysis
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
@@ -116,7 +116,7 @@ const DailyPaymentChart: React.FC<DailyPaymentChartProps> = ({
               <DollarSign className="h-5 w-5 text-warning" />
             </div>
             <span className="bg-gradient-to-r from-warning to-accent bg-clip-text text-transparent">
-              Revenue Analysis - Current Week
+              Daily Cost Analysis
             </span>
           </CardTitle>
           <div className="text-right">
