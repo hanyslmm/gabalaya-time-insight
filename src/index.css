@@ -288,6 +288,9 @@ All colors MUST be HSL.
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    text-overflow: ellipsis;
+    word-wrap: break-word;
+    hyphens: auto;
   }
 
   .line-clamp-2 {
@@ -295,6 +298,63 @@ All colors MUST be HSL.
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    text-overflow: ellipsis;
+    word-wrap: break-word;
+    hyphens: auto;
+  }
+
+  .line-clamp-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-wrap: break-word;
+  }
+
+  /* Fluid text scaling utilities */
+  .text-fluid-sm {
+    font-size: clamp(0.75rem, 2vw, 0.875rem);
+  }
+
+  .text-fluid-base {
+    font-size: clamp(0.875rem, 2.5vw, 1rem);
+  }
+
+  .text-fluid-lg {
+    font-size: clamp(1rem, 3vw, 1.125rem);
+  }
+
+  .text-fluid-xl {
+    font-size: clamp(1.125rem, 3.5vw, 1.25rem);
+  }
+
+  .text-fluid-2xl {
+    font-size: clamp(1.25rem, 4vw, 1.5rem);
+  }
+
+  .text-fluid-3xl {
+    font-size: clamp(1.5rem, 5vw, 1.875rem);
+  }
+
+  /* Improved spacing utilities */
+  .space-fluid-x > * + * {
+    margin-left: clamp(0.5rem, 2vw, 1rem);
+  }
+
+  .space-fluid-y > * + * {
+    margin-top: clamp(0.5rem, 2vh, 1rem);
+  }
+
+  /* Better overflow handling */
+  .overflow-wrap-anywhere {
+    overflow-wrap: anywhere;
+  }
+
+  .break-words-enhanced {
+    word-break: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
   }
 
   /* Enhanced card interactions */

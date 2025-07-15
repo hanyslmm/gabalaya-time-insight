@@ -137,42 +137,42 @@ const ClickableChart: React.FC<ClickableChartProps> = ({
   };
 
   return (
-    <Card className="bg-gradient-to-br from-card via-card to-primary/5 border-border/30 shadow-card hover:shadow-elegant transition-all duration-300 rounded-xl overflow-hidden">
+    <Card className="bg-gradient-to-br from-card via-card to-primary/5 border-border/30 shadow-card hover:shadow-elegant transition-all duration-300 rounded-xl overflow-hidden card-interactive">
       <CardHeader className="bg-gradient-to-r from-primary/5 to-secondary/5 border-b border-border/20">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="p-2 bg-primary/10 rounded-lg flex-shrink-0">
               {type === 'bar' ? <BarChart3 className="h-5 w-5 text-primary" /> : <PieChartIcon className="h-5 w-5 text-primary" />}
             </div>
-            <div>
-              <CardTitle className="text-lg font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            <div className="min-w-0 flex-1">
+              <CardTitle className="text-fluid-lg font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent break-words-enhanced line-clamp-2">
                 {title}
               </CardTitle>
               {description && (
-                <CardDescription className="text-muted-foreground font-medium">
+                <CardDescription className="text-fluid-sm text-muted-foreground font-medium break-words-enhanced line-clamp-2 mt-1">
                   {description}
                 </CardDescription>
               )}
             </div>
           </div>
           {allowEdit && (
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-shrink-0">
               {isEditMode ? (
                 <>
-                  <Button size="sm" onClick={handleSave} className="bg-success text-success-foreground">
+                  <Button size="sm" onClick={handleSave} className="bg-success text-success-foreground hover:bg-success/90">
                     Save
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => {
                     setEditingData(data);
                     setIsEditMode(false);
-                  }}>
+                  }} className="hover:bg-muted/50">
                     Cancel
                   </Button>
                 </>
               ) : (
-                <Button size="sm" variant="outline" onClick={() => setIsEditMode(true)}>
+                <Button size="sm" variant="outline" onClick={() => setIsEditMode(true)} className="hover:bg-primary/10 hover:border-primary/50">
                   <Edit className="h-4 w-4 mr-2" />
-                  Edit
+                  <span className="hidden sm:inline">Edit</span>
                 </Button>
               )}
             </div>
@@ -183,36 +183,38 @@ const ClickableChart: React.FC<ClickableChartProps> = ({
         {renderChart()}
         
         {isEditMode && (
-          <div className="mt-6 space-y-4">
-            <div className="flex justify-between items-center">
-              <h4 className="font-semibold text-foreground">Edit Data Points</h4>
-              <Button size="sm" onClick={handleAddItem} className="bg-primary text-primary-foreground">
+          <div className="mt-6 space-y-4 border-t border-border/30 pt-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <h4 className="font-semibold text-foreground text-fluid-base">Edit Data Points</h4>
+              <Button size="sm" onClick={handleAddItem} className="bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Item
               </Button>
             </div>
-            <div className="space-y-3 max-h-60 overflow-y-auto">
+            <div className="space-y-3 max-h-60 overflow-y-auto mobile-scroll">
               {editingData.map((item) => (
-                <div key={item.id} className="flex items-center gap-3 p-3 bg-background/50 rounded-lg border border-border/30">
+                <div key={item.id} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-3 bg-background/50 rounded-lg border border-border/30 hover:bg-background/70 transition-colors">
                   <Input
                     value={item.name}
                     onChange={(e) => handleUpdateItem(item.id, { name: e.target.value })}
                     placeholder="Name"
-                    className="flex-1"
+                    className="flex-1 min-w-0"
                   />
                   <Input
                     type="number"
                     value={item.value}
                     onChange={(e) => handleUpdateItem(item.id, { value: Number(e.target.value) })}
                     placeholder="Value"
-                    className="w-24"
+                    className="w-full sm:w-24"
                   />
                   <Button
                     size="sm"
                     variant="destructive"
                     onClick={() => handleDeleteItem(item.id)}
+                    className="hover:bg-destructive/90 w-full sm:w-auto"
                   >
                     <Trash2 className="h-4 w-4" />
+                    <span className="ml-2 sm:hidden">Delete</span>
                   </Button>
                 </div>
               ))}

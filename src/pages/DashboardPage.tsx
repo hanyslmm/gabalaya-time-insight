@@ -168,16 +168,16 @@ const DashboardPage: React.FC = () => {
               <div className="space-y-6">
                 {/* Stats Cards */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                  <Card className="group bg-gradient-to-br from-card via-card to-primary/5 border-primary/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 p-4 sm:p-6">
-                      <CardTitle className="text-xs sm:text-sm font-semibold text-card-foreground/80 leading-relaxed">Total Employees</CardTitle>
-                      <div className="p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
+                  <Card className="group bg-gradient-to-br from-card via-card to-primary/5 border-primary/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden card-interactive">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 p-3 sm:p-4 lg:p-6">
+                      <CardTitle className="text-fluid-sm font-semibold text-card-foreground/80 leading-snug line-clamp-2 min-w-0 flex-1 pr-2">Total Employees</CardTitle>
+                      <div className="p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors flex-shrink-0">
                         <Users className="h-4 w-4 text-primary" />
                       </div>
                     </CardHeader>
-                    <CardContent className="p-4 sm:p-6 pt-0">
-                      <div className="text-2xl sm:text-3xl font-bold text-primary mb-1">{Math.round(employeeCount || 0)}</div>
-                      <p className="text-xs text-muted-foreground">Active staff members</p>
+                    <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
+                      <div className="text-fluid-2xl font-bold text-primary mb-1 line-clamp-1">{Math.round(employeeCount || 0)}</div>
+                      <p className="text-fluid-sm text-muted-foreground line-clamp-1">Active staff members</p>
                     </CardContent>
                   </Card>
 
@@ -351,17 +351,17 @@ const DashboardPage: React.FC = () => {
                 <Button
                   key={index}
                   variant="outline"
-                  className="h-auto min-h-[140px] p-4 sm:p-6 flex flex-col items-center justify-center space-y-4 hover:bg-accent/10 hover:border-accent/50 border-border/30 transition-all duration-300 hover:shadow-lg hover:scale-105 text-center group rounded-xl bg-gradient-to-br from-background/80 to-primary/5"
+                  className="h-auto min-h-[140px] sm:min-h-[160px] p-4 sm:p-6 flex flex-col items-center justify-center space-y-3 sm:space-y-4 hover:bg-accent/10 hover:border-accent/50 border-border/30 transition-all duration-300 hover:shadow-elegant hover:scale-105 text-center group rounded-xl bg-gradient-to-br from-background/80 to-primary/5 card-interactive"
                   onClick={action.action}
                 >
-                  <div className={`p-3 sm:p-4 rounded-xl ${action.color} text-white shadow-lg group-hover:scale-110 group-hover:shadow-xl transition-all duration-300`}>
+                  <div className={`p-3 sm:p-4 rounded-xl ${action.color} text-white shadow-lg group-hover:scale-110 group-hover:shadow-xl transition-all duration-300 flex-shrink-0`}>
                     <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
                   </div>
-                  <div className="space-y-2 text-center w-full max-w-[120px]">
-                    <div className="font-semibold text-sm sm:text-base leading-snug text-card-foreground group-hover:text-primary transition-colors break-words">
+                  <div className="space-y-2 text-center w-full min-w-0 flex-1">
+                    <div className="font-semibold text-fluid-sm leading-snug text-card-foreground group-hover:text-primary transition-colors break-words-enhanced line-clamp-2">
                       {action.title}
                     </div>
-                    <div className="text-xs sm:text-sm text-muted-foreground leading-relaxed break-words hyphens-auto line-clamp-3">
+                    <div className="text-fluid-sm text-muted-foreground leading-relaxed break-words-enhanced line-clamp-3">
                       {action.description}
                     </div>
                   </div>
