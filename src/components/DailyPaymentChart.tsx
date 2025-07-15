@@ -4,14 +4,14 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
-import { format, subDays, eachDayOfInterval, startOfWeek, endOfWeek } from 'date-fns';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
+import { format, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 import { DollarSign, TrendingUp } from 'lucide-react';
 
-interface DailyData {
+interface WeeklyData {
   date: string;
   amount: number;
-  displayDate: string;
+  displayDay: string;
 }
 
 interface DailyPaymentChartProps {
@@ -27,43 +27,41 @@ const DailyPaymentChart: React.FC<DailyPaymentChartProps> = ({
   timePeriod = 'current',
   dateRange 
 }) => {
-  const { data: dailyData, isLoading } = useQuery({
-    queryKey: ['daily-payment-chart', timePeriod, dateRange],
+  const { data: weeklyData, isLoading } = useQuery({
+    queryKey: ['weekly-payment-chart', timePeriod, dateRange],
     queryFn: async () => {
-      // Default to current week (last 7 days) if no date range provided
+      // Get current week starting from Saturday
       const today = new Date();
-      const defaultRange = {
-        from: subDays(today, 6), // Last 7 days including today
-        to: today
-      };
+      const currentWeekStart = startOfWeek(today, { weekStartsOn: 6 }); // Saturday = 6
+      const currentWeekEnd = endOfWeek(today, { weekStartsOn: 6 }); // Friday = 5
       
-      const effectiveRange = dateRange || defaultRange;
+      // Get all days in the current week (Saturday to Friday)
+      const weekDays = eachDayOfInterval({
+        start: currentWeekStart,
+        end: currentWeekEnd
+      });
       
       let query = supabase
         .from('timesheet_entries')
         .select('clock_in_date, total_card_amount_flat');
       
+      // Query for current week data
       query = query
-        .gte('clock_in_date', format(effectiveRange.from, 'yyyy-MM-dd'))
-        .lte('clock_in_date', format(effectiveRange.to, 'yyyy-MM-dd'));
+        .gte('clock_in_date', format(currentWeekStart, 'yyyy-MM-dd'))
+        .lte('clock_in_date', format(currentWeekEnd, 'yyyy-MM-dd'));
 
       const { data: timesheets, error } = await query;
 
       if (error) throw error;
 
-      // Get all dates in range - fix the interval type issue
-      const dates = eachDayOfInterval({
-        start: effectiveRange.from,
-        end: effectiveRange.to
-      });
-      const dailyStats: Record<string, DailyData> = {};
+      // Initialize all days with 0 amount
+      const dailyStats: Record<string, WeeklyData> = {};
       
-      // Initialize all dates with 0 and show weekday names
-      dates.forEach(date => {
+      weekDays.forEach(date => {
         const dateKey = format(date, 'yyyy-MM-dd');
         dailyStats[dateKey] = {
           date: dateKey,
-          displayDate: format(date, 'EEE'), // Show weekday (Sat, Sun, Mon, etc.)
+          displayDay: format(date, 'EEE'), // Sat, Sun, Mon, etc.
           amount: 0
         };
       });
@@ -76,7 +74,11 @@ const DailyPaymentChart: React.FC<DailyPaymentChartProps> = ({
         }
       });
 
-      return Object.values(dailyStats).sort((a, b) => a.date.localeCompare(b.date));
+      // Return days in order: Saturday to Friday
+      return weekDays.map(date => {
+        const dateKey = format(date, 'yyyy-MM-dd');
+        return dailyStats[dateKey];
+      });
     }
   });
 
@@ -90,7 +92,7 @@ const DailyPaymentChart: React.FC<DailyPaymentChartProps> = ({
         <CardHeader className="border-b border-border/20">
           <CardTitle className="flex items-center gap-3">
             <DollarSign className="h-5 w-5 text-warning" />
-            Daily Payment Analysis
+            Revenue Analysis - Current Week
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
@@ -102,8 +104,8 @@ const DailyPaymentChart: React.FC<DailyPaymentChartProps> = ({
     );
   }
 
-  const totalAmount = dailyData?.reduce((sum, day) => sum + day.amount, 0) || 0;
-  const avgDaily = dailyData?.length ? totalAmount / dailyData.length : 0;
+  const totalAmount = weeklyData?.reduce((sum, day) => sum + day.amount, 0) || 0;
+  const avgDaily = weeklyData?.length ? totalAmount / weeklyData.length : 0;
 
   return (
     <Card className="bg-gradient-to-br from-card via-card to-warning/5 border-border/50 shadow-lg hover:shadow-xl transition-all duration-300">
@@ -114,7 +116,7 @@ const DailyPaymentChart: React.FC<DailyPaymentChartProps> = ({
               <DollarSign className="h-5 w-5 text-warning" />
             </div>
             <span className="bg-gradient-to-r from-warning to-accent bg-clip-text text-transparent">
-              Daily Payment Analysis
+              Revenue Analysis - Current Week
             </span>
           </CardTitle>
           <div className="text-right">
@@ -130,16 +132,20 @@ const DailyPaymentChart: React.FC<DailyPaymentChartProps> = ({
       <CardContent className="p-6">
         <ChartContainer config={chartConfig}>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={dailyData} margin={{ top: 10, right: 30, left: 0, bottom: 40 }}>
+            <BarChart data={weeklyData} margin={{ top: 10, right: 30, left: 0, bottom: 40 }}>
+              <defs>
+                <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--warning))" stopOpacity={0.8}/>
+                  <stop offset="50%" stopColor="hsl(var(--warning))" stopOpacity={0.6}/>
+                  <stop offset="95%" stopColor="hsl(var(--warning))" stopOpacity={0.2}/>
+                </linearGradient>
+              </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
               <XAxis 
-                dataKey="displayDate" 
+                dataKey="displayDay" 
                 stroke="hsl(var(--muted-foreground))" 
-                fontSize={11}
-                tick={{ fontSize: 11 }}
-                angle={-45}
-                textAnchor="end"
-                height={60}
+                fontSize={12}
+                tick={{ fontSize: 12 }}
                 interval={0}
               />
               <YAxis 
@@ -150,17 +156,16 @@ const DailyPaymentChart: React.FC<DailyPaymentChartProps> = ({
               />
               <ChartTooltip 
                 content={<ChartTooltipContent />}
-                cursor={{ stroke: 'hsl(var(--warning))', strokeWidth: 1, strokeDasharray: '3 3' }}
+                cursor={{ fill: 'hsl(var(--warning))', fillOpacity: 0.1 }}
               />
-              <Line 
-                type="monotone" 
+              <Bar 
                 dataKey="amount" 
-                stroke="hsl(var(--warning))" 
-                strokeWidth={3}
-                dot={{ r: 4, fill: 'hsl(var(--warning))', strokeWidth: 2, stroke: 'hsl(var(--background))' }}
-                activeDot={{ r: 6, fill: 'hsl(var(--warning))', strokeWidth: 2, stroke: 'hsl(var(--background))' }}
+                fill="url(#colorRevenue)"
+                stroke="hsl(var(--warning))"
+                strokeWidth={1}
+                radius={[4, 4, 0, 0]}
               />
-            </LineChart>
+            </BarChart>
           </ResponsiveContainer>
         </ChartContainer>
       </CardContent>
