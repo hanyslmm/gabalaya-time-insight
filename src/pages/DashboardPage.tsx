@@ -151,7 +151,7 @@ const DashboardPage: React.FC = () => {
   ];
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8">
+    <div className="w-full px-4 sm:px-6 lg:px-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">{t('dashboard') || 'Dashboard'}</h1>
         <p className="mt-2 text-muted-foreground">Overview of your HRM system</p>

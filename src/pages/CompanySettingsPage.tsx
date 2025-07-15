@@ -79,7 +79,7 @@ const CompanySettingsPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Company Settings</h1>
           <p className="mt-2 text-muted-foreground">Manage company-wide settings and messages</p>
@@ -95,7 +95,7 @@ const CompanySettingsPage: React.FC = () => {
   }
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8">
+    <div className="w-full px-4 sm:px-6 lg:px-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Company Settings</h1>
         <p className="mt-2 text-muted-foreground">Manage company-wide settings and messages</p>

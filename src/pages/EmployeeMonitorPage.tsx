@@ -136,7 +136,7 @@ const EmployeeMonitorPage: React.FC = () => {
   
   if (!user) {
     return (
-      <div className="px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
         <Card>
           <CardContent className="p-6 text-center">
             <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -157,7 +157,7 @@ const EmployeeMonitorPage: React.FC = () => {
   }
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8">
+    <div className="w-full px-4 sm:px-6 lg:px-8">
       <div className="mb-8 flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-foreground">

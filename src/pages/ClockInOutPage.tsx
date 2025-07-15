@@ -232,7 +232,7 @@ const ClockInOutPage: React.FC = () => {
 
   if (!user) {
     return (
-      <div className="px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
         <Card>
           <CardContent className="p-6 text-center">
             <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
@@ -245,7 +245,7 @@ const ClockInOutPage: React.FC = () => {
   }
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8">
+    <div className="w-full px-4 sm:px-6 lg:px-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Clock In/Out</h1>
         <p className="mt-2 text-sm text-gray-600">Track your work hours and location</p>
