@@ -71,11 +71,13 @@ export const useTimesheetTable = (
 
   const filteredData = useMemo(() => {
     return data.filter(entry => {
-      // Employee filter
+      // Employee filter - enhanced to work with both employee_id and employee_name
       if (selectedEmployee && selectedEmployee !== 'all') {
-        // Check if entry belongs to selected employee by comparing employee_id if available
         const entryEmployeeId = (entry as any).employee_id;
-        if (entryEmployeeId && entryEmployeeId !== selectedEmployee) {
+        const entryEmployeeName = entry.employee_name;
+        
+        // Check both employee_id and employee_name for match
+        if (entryEmployeeId !== selectedEmployee && entryEmployeeName !== selectedEmployee) {
           return false;
         }
       }

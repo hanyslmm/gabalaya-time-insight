@@ -213,73 +213,110 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
             </div>
           ) : (
             /* Desktop View */
-            <div className="rounded-md border overflow-x-auto">
+            <div className="table-wrapper mobile-scroll">
               <Table>
-                <TableHeader>
+                <TableHeader className="table-header">
                   <TableRow>
-                    <TableHead className="w-12">
+                    <TableHead className="w-12 sticky left-0 bg-background/95 backdrop-blur">
                       <Checkbox
                         checked={isAllPageSelected}
                         onCheckedChange={handleSelectAllPage}
                       />
                     </TableHead>
-                    <TableHead>
+                    <TableHead className="min-w-[150px] sticky left-12 bg-background/95 backdrop-blur">
                       <div className="space-y-1">
-                        <span>{t('name') || 'Name'}</span>
+                        <span className="font-semibold">{t('name') || 'Employee Name'}</span>
                         <Input
-                          placeholder="Filter..."
+                          placeholder="Filter by name..."
                           value={columnFilters.employee_name || ''}
                           onChange={(e) => updateColumnFilter('employee_name', e.target.value)}
                           className="h-6 text-xs"
                         />
                       </div>
                     </TableHead>
-                    <TableHead>{t('clockInDate') || 'Clock In Date'}</TableHead>
-                    <TableHead>{t('clockInTime') || 'Clock In Time'}</TableHead>
-                    <TableHead>{t('clockOutDate') || 'Clock Out Date'}</TableHead>
-                    <TableHead>{t('clockOutTime') || 'Clock Out Time'}</TableHead>
-                    <TableHead>{t('totalHours') || 'Total Hours'}</TableHead>
-                    <TableHead>{t('morningHours') || 'Morning Hours'}</TableHead>
-                    <TableHead>{t('nightHours') || 'Night Hours'}</TableHead>
-                     <TableHead>{t('totalAmount') || 'Total Amount'}</TableHead>
-                    {isAdmin && <TableHead>Actions</TableHead>}
+                    <TableHead className="min-w-[120px]">{t('clockInDate') || 'Clock In Date'}</TableHead>
+                    <TableHead className="min-w-[100px]">{t('clockInTime') || 'Clock In Time'}</TableHead>
+                    <TableHead className="min-w-[120px]">{t('clockOutDate') || 'Clock Out Date'}</TableHead>
+                    <TableHead className="min-w-[100px]">{t('clockOutTime') || 'Clock Out Time'}</TableHead>
+                    <TableHead className="min-w-[100px]">{t('totalHours') || 'Total Hours'}</TableHead>
+                    <TableHead className="min-w-[110px] hidden lg:table-cell">{t('morningHours') || 'Morning Hours'}</TableHead>
+                    <TableHead className="min-w-[100px] hidden lg:table-cell">{t('nightHours') || 'Night Hours'}</TableHead>
+                    <TableHead className="min-w-[120px]">{t('totalAmount') || 'Total Amount'}</TableHead>
+                    {isAdmin && <TableHead className="min-w-[100px]">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
-                <TableBody>
+                 <TableBody>
                    {paginatedData.length === 0 ? (
                      <TableRow>
-                       <TableCell colSpan={isAdmin ? 11 : 10} className="text-center py-8 text-gray-500">
-                         {t('noTimesheetData') || 'No timesheet data available'}
+                       <TableCell colSpan={isAdmin ? 11 : 10} className="text-center py-12">
+                         <div className="text-muted-foreground text-lg mb-2">No timesheet entries found</div>
+                         <div className="text-muted-foreground/70 text-sm">
+                           Try adjusting your filters or date range
+                         </div>
                        </TableCell>
                      </TableRow>
                   ) : (
                     paginatedData.map((entry) => (
-                      <TableRow key={entry.id} className="hover:bg-gray-50 transition-colors">
-                        <TableCell>
+                      <TableRow key={entry.id} className="table-row">
+                        <TableCell className="sticky left-0 bg-background/95 backdrop-blur">
                           <Checkbox
                             checked={selectedRows.includes(entry.id)}
                             onCheckedChange={(checked) => handleSelectRow(entry.id, !!checked)}
                           />
                         </TableCell>
-                        <TableCell className="font-medium">{entry.employee_name}</TableCell>
-                        <TableCell>{entry.clock_in_date}</TableCell>
-                        <TableCell>{formatTimeToAMPM(entry.clock_in_time)}</TableCell>
-                        <TableCell>{entry.clock_out_date}</TableCell>
-                        <TableCell>{formatTimeToAMPM(entry.clock_out_time)}</TableCell>
+                        <TableCell className="font-medium sticky left-12 bg-background/95 backdrop-blur min-w-0">
+                          <div className="truncate pr-2">{entry.employee_name}</div>
+                        </TableCell>
                         <TableCell>
-                          <span className="font-mono">
-                            {formatTotalHours(entry.total_hours)}
+                          <div className="font-medium text-fluid-sm">{entry.clock_in_date}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-muted-foreground text-fluid-sm">{formatTimeToAMPM(entry.clock_in_time)}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium text-fluid-sm">{entry.clock_out_date}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-muted-foreground text-fluid-sm">{formatTimeToAMPM(entry.clock_out_time)}</div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-mono font-bold text-primary">
+                            {formatTotalHours(entry.total_hours)}h
                           </span>
                         </TableCell>
-                         <TableCell>{entry.morning_hours?.toFixed(2) || '0.00'}</TableCell>
-                         <TableCell>{entry.night_hours?.toFixed(2) || '0.00'}</TableCell>
-                         <TableCell>LE {(entry.total_card_amount_split || entry.total_card_amount_flat).toFixed(2)}</TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          <div className="text-fluid-xs">
+                            <div className="flex items-center gap-1">
+                              <span className="text-muted-foreground">M:</span>
+                              <span className="font-medium">{entry.morning_hours?.toFixed(2) || '0.00'}h</span>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          <div className="text-fluid-xs">
+                            <div className="flex items-center gap-1">
+                              <span className="text-muted-foreground">N:</span>
+                              <span className="font-medium">{entry.night_hours?.toFixed(2) || '0.00'}h</span>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <div className="font-bold text-accent">
+                              {(entry.total_card_amount_split || entry.total_card_amount_flat)?.toFixed(2) || '0.00'} LE
+                            </div>
+                            <div className="text-fluid-xs text-muted-foreground">
+                              {entry.is_split_calculation ? 'Split Rate' : 'Flat Rate'}
+                            </div>
+                          </div>
+                        </TableCell>
                         {isAdmin && (
                           <TableCell>
                             <Button 
                               variant="outline" 
                               size="sm"
                               onClick={() => handleEdit(entry)}
+                              className="hover:bg-primary hover:text-primary-foreground transition-colors"
                             >
                               <Edit className="h-4 w-4" />
                             </Button>

@@ -68,44 +68,52 @@ const DashboardPage: React.FC = () => {
     }
   });
 
-  // Fetch timesheet summary for current period
+  // Fetch timesheet summary for current period - Fixed date filtering
   const { data: currentTimesheetSummary } = useQuery({
     queryKey: ['timesheet-summary-current', currentDateRange],
     queryFn: async () => {
-      const query = supabase
-        .from('timesheet_entries')
-        .select('total_hours, total_card_amount_flat')
-        .gte('clock_in_date', format(currentDateRange.from, 'yyyy-MM-dd'))
-        .lte('clock_in_date', format(currentDateRange.to, 'yyyy-MM-dd'));
+      const fromDate = format(currentDateRange.from, 'yyyy-MM-dd');
+      const toDate = format(currentDateRange.to, 'yyyy-MM-dd');
       
-      const { data, error } = await query;
+      const { data, error } = await supabase
+        .from('timesheet_entries')
+        .select('total_hours, total_card_amount_flat, total_card_amount_split')
+        .gte('clock_in_date', fromDate)
+        .lte('clock_in_date', toDate);
       
       if (error) throw error;
       
       const totalHours = data?.reduce((sum, entry) => sum + (entry.total_hours || 0), 0) || 0;
-      const totalPayroll = data?.reduce((sum, entry) => sum + (entry.total_card_amount_flat || 0), 0) || 0;
+      // Use split amount if available, otherwise flat amount
+      const totalPayroll = data?.reduce((sum, entry) => 
+        sum + (entry.total_card_amount_split || entry.total_card_amount_flat || 0), 0
+      ) || 0;
       const totalShifts = data?.length || 0;
       
       return { totalHours, totalPayroll, totalShifts };
     }
   });
 
-  // Fetch timesheet summary for previous period
+  // Fetch timesheet summary for previous period - Fixed date filtering
   const { data: previousTimesheetSummary } = useQuery({
     queryKey: ['timesheet-summary-previous', previousDateRange],
     queryFn: async () => {
-      const query = supabase
-        .from('timesheet_entries')
-        .select('total_hours, total_card_amount_flat')
-        .gte('clock_in_date', format(previousDateRange.from, 'yyyy-MM-dd'))
-        .lte('clock_in_date', format(previousDateRange.to, 'yyyy-MM-dd'));
+      const fromDate = format(previousDateRange.from, 'yyyy-MM-dd');
+      const toDate = format(previousDateRange.to, 'yyyy-MM-dd');
       
-      const { data, error } = await query;
+      const { data, error } = await supabase
+        .from('timesheet_entries')
+        .select('total_hours, total_card_amount_flat, total_card_amount_split')
+        .gte('clock_in_date', fromDate)
+        .lte('clock_in_date', toDate);
       
       if (error) throw error;
       
       const totalHours = data?.reduce((sum, entry) => sum + (entry.total_hours || 0), 0) || 0;
-      const totalPayroll = data?.reduce((sum, entry) => sum + (entry.total_card_amount_flat || 0), 0) || 0;
+      // Use split amount if available, otherwise flat amount
+      const totalPayroll = data?.reduce((sum, entry) => 
+        sum + (entry.total_card_amount_split || entry.total_card_amount_flat || 0), 0
+      ) || 0;
       const totalShifts = data?.length || 0;
       
       return { totalHours, totalPayroll, totalShifts };

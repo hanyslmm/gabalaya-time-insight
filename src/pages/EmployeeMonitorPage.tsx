@@ -57,11 +57,12 @@ const EmployeeMonitorPage: React.FC = () => {
 
       if (employeesError) throw employeesError;
 
-      // Create a map to convert employee IDs to names
+      // Create a comprehensive map to convert employee IDs/names to display names
       const employeeMap = new Map();
       (employeesData || []).forEach(emp => {
+        // Map staff_id to full_name (primary mapping)
         employeeMap.set(emp.staff_id, emp.full_name);
-        // Also map by employee name in case it's already the staff_id
+        // Map full_name to itself (for consistency)
         employeeMap.set(emp.full_name, emp.full_name);
       });
 
@@ -86,8 +87,27 @@ const EmployeeMonitorPage: React.FC = () => {
           ? differenceInMinutes(new Date(), new Date(`${entry.clock_in_date}T${entry.clock_in_time}`))
           : entry.total_hours ? entry.total_hours * 60 : 0;
 
-        // Map employee ID to name, fallback to original value if not found
-        const displayName = employeeMap.get(entry.employee_name) || entry.employee_name;
+        // Map employee ID/name to display name, check both employee_name and employee_id
+        let displayName = entry.employee_name;
+        
+        // First try to map employee_name (might be staff_id like EMP184446)
+        if (employeeMap.has(entry.employee_name)) {
+          displayName = employeeMap.get(entry.employee_name);
+        }
+        // Then try employee_id if available
+        else if (entry.employee_id && employeeMap.has(entry.employee_id)) {
+          displayName = employeeMap.get(entry.employee_id);
+        }
+        // If neither works, check if it's already a full name
+        else {
+          // Find by staff_id matching the employee_name pattern
+          const foundEmployee = (employeesData || []).find(emp => 
+            emp.staff_id === entry.employee_name || emp.full_name === entry.employee_name
+          );
+          if (foundEmployee) {
+            displayName = foundEmployee.full_name;
+          }
+        }
 
         if (!statusMap.has(displayName) || isActive) {
           statusMap.set(displayName, {

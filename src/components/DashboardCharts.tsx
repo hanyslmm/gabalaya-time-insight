@@ -87,7 +87,8 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
           timeData[timeKey] = { month: timeKey, hours: 0, amount: 0, shifts: 0 };
         }
         timeData[timeKey].hours += entry.total_hours || 0;
-        timeData[timeKey].amount += Math.round(entry.total_card_amount_flat || 0);
+        // Use split amount if available, otherwise flat amount
+        timeData[timeKey].amount += Math.round(entry.total_card_amount_split || entry.total_card_amount_flat || 0);
         timeData[timeKey].shifts += 1;
         
         // Employee performance data
@@ -101,7 +102,8 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
           };
         }
         employeeData[entry.employee_name].hours += entry.total_hours || 0;
-        employeeData[entry.employee_name].amount += Math.round(entry.total_card_amount_flat || 0);
+        // Use split amount if available, otherwise flat amount
+        employeeData[entry.employee_name].amount += Math.round(entry.total_card_amount_split || entry.total_card_amount_flat || 0);
         employeeData[entry.employee_name].shifts += 1;
 
         // Hourly activity tracking
