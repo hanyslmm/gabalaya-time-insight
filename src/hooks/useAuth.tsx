@@ -1,4 +1,3 @@
-
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -12,7 +11,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (username: string, password: string) => Promise<{ error?: string }>;
+  login: (username: string, password:string) => Promise<{ error?: string }>;
   logout: () => Promise<void>;
 }
 
@@ -21,6 +20,23 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem('auth_token'));
+
+  // ** START: THIS IS THE CRITICAL NEW CODE **
+  // This useEffect ensures that every request to Supabase is authenticated with the user's token.
+  useEffect(() => {
+    if (token) {
+      // Set the authentication token for all future requests
+      supabase.auth.setSession({
+        access_token: token,
+        refresh_token: '', // Not used in this custom auth, but required by the method
+      });
+    } else {
+      // If there's no token, ensure the session is cleared
+      supabase.auth.setSession(null);
+    }
+  }, [token]);
+  // ** END: THIS IS THE CRITICAL NEW CODE **
 
   useEffect(() => {
     checkAuthStatus();
@@ -28,23 +44,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const checkAuthStatus = async () => {
     try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
+      const storedToken = localStorage.getItem('auth_token');
+      if (!storedToken) {
         setLoading(false);
         return;
       }
+
+      setToken(storedToken);
 
       // Verify token with backend
       const { data, error } = await supabase.functions.invoke('unified-auth', {
         body: { 
           action: 'validate-token',
-          token 
+          token: storedToken 
         }
       });
 
       if (error || !data?.success || !data?.user) {
         localStorage.removeItem('auth_token');
         setUser(null);
+        setToken(null);
       } else {
         let userData = data.user;
         
@@ -57,10 +76,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             .maybeSingle();
           
           if (employeeData?.full_name) {
-            userData = {
-              ...userData,
-              full_name: employeeData.full_name
-            };
+            userData.full_name = employeeData.full_name;
           }
         }
         
@@ -74,10 +90,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           
           if (employeeData?.role === 'admin') {
             // Elevate employee to admin privileges
-            setUser({
-              ...userData,
-              role: 'admin'
-            });
+            setUser({ ...userData, role: 'admin' });
           } else {
             setUser(userData);
           }
@@ -89,6 +102,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error('Auth check failed:', error);
       localStorage.removeItem('auth_token');
       setUser(null);
+      setToken(null);
     } finally {
       setLoading(false);
     }
@@ -112,6 +126,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (data?.success && data?.user && data?.token) {
         localStorage.setItem('auth_token', data.token);
+        setToken(data.token); // Update the token in our state
         
         let userData = data.user;
         
@@ -124,10 +139,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             .maybeSingle();
           
           if (employeeData?.full_name) {
-            userData = {
-              ...userData,
-              full_name: employeeData.full_name
-            };
+            userData.full_name = employeeData.full_name;
           }
         }
         
@@ -141,10 +153,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           
           if (employeeData?.role === 'admin') {
             // Elevate employee to admin privileges
-            setUser({
-              ...userData,
-              role: 'admin'
-            });
+            setUser({ ...userData, role: 'admin' });
           } else {
             setUser(userData);
           }
@@ -167,6 +176,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async () => {
     localStorage.removeItem('auth_token');
     setUser(null);
+    setToken(null);
   };
 
   return (
