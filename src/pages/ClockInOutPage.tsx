@@ -67,10 +67,11 @@ const ClockInOutPage: React.FC = () => {
     if (!user) return;
     
     const today = new Date().toISOString().split('T')[0];
+    // Use the user's full name to find their entries, as this is what's stored by the clock_in function.
     const { data, error } = await supabase
       .from('timesheet_entries')
       .select('*')
-      .eq('employee_name', user.full_name) // Match by full_name which is now consistent
+      .eq('employee_name', user.full_name)
       .eq('clock_in_date', today)
       .order('clock_in_time', { ascending: false });
 
@@ -101,9 +102,9 @@ const ClockInOutPage: React.FC = () => {
       const userLocation = await getCurrentLocation();
       setLocation(userLocation);
 
-      // Call the database function with the correct parameters
+      // Call the database function with the staff_id (which is the user's username)
       const { data, error } = await supabase.rpc('clock_in', {
-        p_staff_id: user.username, // Use username, which is the staff_id
+        p_staff_id: user.username,
         p_clock_in_location: userLocation,
       });
 
@@ -131,6 +132,7 @@ const ClockInOutPage: React.FC = () => {
       toast.error(error.message || 'Failed to clock in');
       console.error('Clock-in error:', error);
     } finally {
+      // This ensures the loading spinner always stops, even if there's an error.
       setLoading(false);
     }
   };
@@ -146,7 +148,7 @@ const ClockInOutPage: React.FC = () => {
       const userLocation = await getCurrentLocation();
       setLocation(userLocation);
 
-      // Call the database function with the correct parameters
+      // Call the database function with the correct parameter name
       const { error } = await supabase.rpc('clock_out', {
         p_entry_id: currentEntry.id,
         p_clock_out_location: userLocation
@@ -163,6 +165,7 @@ const ClockInOutPage: React.FC = () => {
       toast.error(error.message || 'Failed to clock out');
       console.error('Clock-out error:', error);
     } finally {
+      // This ensures the loading spinner always stops, even if there's an error.
       setLoading(false);
     }
   };
