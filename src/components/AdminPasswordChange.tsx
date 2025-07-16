@@ -14,7 +14,6 @@ interface Employee {
   staff_id: string;
   full_name: string;
   role: string;
-  is_admin_user?: boolean;
 }
 
 interface AdminPasswordChangeProps {

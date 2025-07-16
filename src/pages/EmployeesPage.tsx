@@ -22,7 +22,6 @@ interface Employee {
   phone_number?: string;
   morning_wage_rate?: number;
   night_wage_rate?: number;
-  is_admin_user?: boolean; // Flag to identify admin users
 }
 
 const EmployeesPage: React.FC = () => {
@@ -77,7 +76,7 @@ const EmployeesPage: React.FC = () => {
 
   const deleteEmployeeMutation = useMutation({
     mutationFn: async (employee: Employee) => {
-      if (employee.is_admin_user) {
+      if (employee.role === 'admin') {
         throw new Error('Cannot delete admin users from employee management');
       }
       
@@ -109,7 +108,7 @@ const EmployeesPage: React.FC = () => {
   };
 
   const handleDelete = (employee: Employee) => {
-    if (employee.is_admin_user) {
+    if (employee.role === 'admin') {
       toast.error('Admin users cannot be deleted from employee management');
       return;
     }
@@ -176,7 +175,7 @@ const EmployeesPage: React.FC = () => {
                     {employee.full_name}
                   </h3>
                   <p className="text-fluid-sm text-muted-foreground">{employee.staff_id}</p>
-                  {employee.is_admin_user && (
+                  {employee.role === 'admin' && (
                     <div className="flex items-center mt-2 space-x-2">
                       <Lock className="h-4 w-4 text-destructive" />
                       <span className="text-xs font-semibold text-destructive">Administrator Account</span>
@@ -193,7 +192,7 @@ const EmployeesPage: React.FC = () => {
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
-                  {employee.is_admin_user ? (
+                  {employee.role === 'admin' ? (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -229,7 +228,7 @@ const EmployeesPage: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {employee.is_admin_user ? (
+              {employee.role === 'admin' ? (
                 <div className="space-y-3">
                   <div className="bg-gradient-to-r from-destructive/10 to-warning/10 p-3 rounded-lg border border-destructive/20">
                     <p className="text-fluid-sm text-destructive/80">Full system access with password management</p>
