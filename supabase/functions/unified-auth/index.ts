@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2'
-import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts'
+import { hash, compare } from 'https://deno.land/x/bcrypt@v0.2.4/mod.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 
 interface AuthRequest {
@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
       
       if (user.role === 'admin') {
         try {
-          isValidPassword = await bcrypt.compare(password, user.password_hash);
+          isValidPassword = await compare(password, user.password_hash);
         } catch (bcryptError) {
           console.error('Bcrypt comparison error:', bcryptError);
           return new Response(
@@ -231,7 +231,7 @@ Deno.serve(async (req) => {
       // For admin users, verify current password unless admin is changing another user's password
       if (targetUserData.role === 'admin' && payload.username === userToChange) {
         if (currentPassword && currentPassword !== 'dummy_password') {
-          const isCurrentPasswordValid = await bcrypt.compare(currentPassword, targetUserData.password_hash);
+          const isCurrentPasswordValid = await compare(currentPassword, targetUserData.password_hash);
           if (!isCurrentPasswordValid) {
             return new Response(
               JSON.stringify({ success: false, error: 'Current password is incorrect' }),
@@ -243,7 +243,7 @@ Deno.serve(async (req) => {
 
       // Handle password update based on user role
       if (targetUserData.role === 'admin') {
-        const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+        const hashedNewPassword = await hash(newPassword, 10);
         const { error: updateError } = await supabaseAdmin
           .from('admin_users')
           .update({ 
