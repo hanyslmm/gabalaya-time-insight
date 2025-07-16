@@ -71,7 +71,6 @@ const ClockInOutPage: React.FC = () => {
     }
     
     const today = new Date().toISOString().split('T')[0];
-    // **THE FIX:** Use user.full_name, which is now reliably populated by the updated useAuth hook.
     const { data, error } = await supabase
       .from('timesheet_entries')
       .select('*')
