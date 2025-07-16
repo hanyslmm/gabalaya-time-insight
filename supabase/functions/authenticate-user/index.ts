@@ -1,6 +1,6 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2'
-import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts'
+import { compare } from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 
 interface AuthRequest {
@@ -97,6 +97,7 @@ Deno.serve(async (req) => {
       .single()
 
     if (error || !user) {
+      console.log('User not found or database error:', error?.message || 'User not found');
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid credentials' }),
         { 
@@ -111,7 +112,18 @@ Deno.serve(async (req) => {
     
     if (user.role === 'admin') {
       // For admin, verify against bcrypt hash
-      isValidPassword = await bcrypt.compare(password, user.password_hash);
+      try {
+        isValidPassword = await compare(password, user.password_hash);
+      } catch (bcryptError) {
+        console.error('Bcrypt comparison error:', bcryptError);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Authentication system error' }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500 
+          }
+        );
+      }
     } else if (user.role === 'employee') {
       // For employees, password should be username + "123" 
       // e.g., if username is "EMP051994", password should be "EMP051994123"
@@ -121,6 +133,7 @@ Deno.serve(async (req) => {
     }
     
     if (!isValidPassword) {
+      console.log(`Invalid password for user: ${username}, role: ${user.role}`);
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid credentials' }),
         { 
