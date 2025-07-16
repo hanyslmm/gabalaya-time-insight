@@ -70,7 +70,7 @@ const ClockInOutPage: React.FC = () => {
     const { data, error } = await supabase
       .from('timesheet_entries')
       .select('*')
-      .eq('employee_name', user.username)
+      .eq('employee_name', user.full_name) // Match by full_name which is now consistent
       .eq('clock_in_date', today)
       .order('clock_in_time', { ascending: false });
 
@@ -125,7 +125,7 @@ const ClockInOutPage: React.FC = () => {
         setCurrentEntry(newEntry);
       }
 
-      fetchTodayEntries();
+      await fetchTodayEntries();
       toast.success('Clocked in successfully!');
     } catch (error: any) {
       toast.error(error.message || 'Failed to clock in');
@@ -157,7 +157,7 @@ const ClockInOutPage: React.FC = () => {
       }
       
       setCurrentEntry(null);
-      fetchTodayEntries();
+      await fetchTodayEntries();
       toast.success('Clocked out successfully!');
     } catch (error: any) {
       toast.error(error.message || 'Failed to clock out');
