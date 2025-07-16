@@ -1,4 +1,4 @@
-  const handleClockIn = async () => {
+const handleClockIn = async () => {
     if (!user) {
       toast.error('Please log in to clock in');
       return;
