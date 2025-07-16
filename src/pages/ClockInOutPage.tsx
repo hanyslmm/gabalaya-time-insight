@@ -101,9 +101,9 @@ const ClockInOutPage: React.FC = () => {
       const userLocation = await getCurrentLocation();
       setLocation(userLocation);
 
-      // Call the database function
+      // Call the database function with the correct parameters
       const { data, error } = await supabase.rpc('clock_in', {
-        p_user_id: user.id,
+        p_staff_id: user.username, // Use username, which is the staff_id
         p_clock_in_location: userLocation,
       });
 
@@ -146,10 +146,10 @@ const ClockInOutPage: React.FC = () => {
       const userLocation = await getCurrentLocation();
       setLocation(userLocation);
 
-      // Call the database function
+      // Call the database function with the correct parameters
       const { error } = await supabase.rpc('clock_out', {
-        entry_id: currentEntry.id,
-        clock_out_location: userLocation
+        p_entry_id: currentEntry.id,
+        p_clock_out_location: userLocation
       });
 
       if (error) {
