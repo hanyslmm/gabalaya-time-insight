@@ -33,9 +33,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
-      // Call the authentication edge function
-      const { data, error } = await supabase.functions.invoke('authenticate-user', {
-        body: { username, password }
+      // Call the unified authentication edge function
+      const { data, error } = await supabase.functions.invoke('unified-auth', {
+        body: { action: 'login', username, password }
       });
 
       if (error) {
@@ -54,9 +54,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(authUser);
         localStorage.setItem('auth_user', JSON.stringify(authUser));
         
-        // Store the token if provided
+        // Store the token if provided and set up Supabase session
         if (data.token) {
           localStorage.setItem('auth_token', data.token);
+          
+          // Set up a custom session with the JWT for RLS
+          // This creates a fake JWT that RLS can read
+          const customJWT = btoa(JSON.stringify({
+            aud: 'authenticated',
+            exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60),
+            sub: data.user.id,
+            email: `${data.user.username}@company.com`,
+            user_metadata: {},
+            app_metadata: {
+              provider: 'custom',
+              providers: ['custom']
+            },
+            // Custom claims for RLS - these go in root for auth.jwt() access
+            username: data.user.username,
+            full_name: data.user.full_name,
+            role: data.user.role
+          }));
+          
+          // Set the authorization header for all future requests
+          supabase.auth.getSession().then(() => {
+            // Override the session to include our custom JWT claims
+            (supabase as any).rest.headers['Authorization'] = `Bearer ${customJWT}`;
+          });
         }
         
         return true;
