@@ -81,7 +81,7 @@ const LoginPage: React.FC = () => {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
-                  placeholder="admin"
+                  placeholder={t('username')}
                 />
               </div>
               <div className="space-y-2">
@@ -92,7 +92,7 @@ const LoginPage: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  placeholder="admin123"
+                  placeholder={t('password')}
                 />
               </div>
               <Button
