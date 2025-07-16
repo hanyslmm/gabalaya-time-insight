@@ -63,11 +63,16 @@ All colors MUST be HSL.
     --gradient-accent: linear-gradient(135deg, hsl(15 85% 65%), hsl(15 70% 75%));
     --gradient-success: linear-gradient(135deg, hsl(140 70% 45%), hsl(140 60% 55%));
     
-  /* Enhanced shadows */
-  --shadow-elegant: 0 15px 40px -15px hsl(195 100% 25% / 0.25);
-  --shadow-glow: 0 0 50px hsl(45 100% 60% / 0.3);
-  --shadow-card: 0 6px 25px -6px hsl(195 100% 25% / 0.12);
-  --shadow-hover: 0 20px 50px -20px hsl(195 100% 25% / 0.3);
+    /* Enhanced shadows */
+    --shadow-elegant: 0 15px 40px -15px hsl(195 100% 25% / 0.25);
+    --shadow-glow: 0 0 50px hsl(45 100% 60% / 0.3);
+    --shadow-card: 0 6px 25px -6px hsl(195 100% 25% / 0.12);
+    --shadow-hover: 0 20px 50px -20px hsl(195 100% 25% / 0.3);
+    
+    /* Mobile-first spacing */
+    --mobile-padding: 1rem;
+    --mobile-gap: 0.75rem;
+    --mobile-border-radius: 1.5rem;
   }
 
   .dark {
@@ -555,6 +560,45 @@ All colors MUST be HSL.
   @media (prefers-color-scheme: dark) {
     .auto-dark-shadow {
       box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.5);
+    }
+  }
+
+  /* Mobile-first utilities */
+  .pb-safe {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+
+  .pt-safe {
+    padding-top: calc(1rem + env(safe-area-inset-top));
+  }
+
+  .mobile-gradient-card {
+    background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--card) / 0.95) 100%);
+    backdrop-filter: blur(10px);
+    border: 1px solid hsl(var(--border) / 0.5);
+  }
+
+  /* Enhanced button interactions for mobile */
+  .mobile-button {
+    min-height: 3rem;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .mobile-button:active {
+    transform: scale(0.98);
+  }
+
+  /* Mobile-optimized focus states */
+  @media (max-width: 768px) {
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible {
+      outline: 2px solid hsl(var(--primary));
+      outline-offset: 2px;
+      box-shadow: 0 0 0 4px hsl(var(--primary) / 0.1);
     }
   }
 }

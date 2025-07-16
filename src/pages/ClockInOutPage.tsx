@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Clock, LogIn, LogOut, MapPin, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -160,45 +161,55 @@ const ClockInOutPage: React.FC = () => {
   }
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-8">
-      <div className="max-w-xl mx-auto">
+    <div className="w-full px-3 sm:px-6 lg:px-8 pb-safe">
+      <div className="max-w-md mx-auto space-y-4 sm:space-y-6">
         {motivationalMessage && (
-          <Alert variant="default" className="mb-6 bg-blue-50 border-blue-200">
-            <AlertCircle className="h-4 w-4 text-blue-600" />
-            <AlertDescription className="text-blue-800">
+          <Alert variant="default" className="bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20 rounded-2xl p-4">
+            <AlertCircle className="h-4 w-4 text-primary" />
+            <AlertDescription className="text-foreground font-medium">
               {motivationalMessage}
             </AlertDescription>
           </Alert>
         )}
 
-        <Card className="shadow-lg border-border/30">
-          <CardHeader className="text-center">
-            <Clock className="h-12 w-12 text-primary mx-auto mb-4" />
-            <CardTitle className="text-2xl font-bold">
+        <Card className="shadow-xl border-border/20 bg-gradient-to-br from-card to-card/90 rounded-3xl overflow-hidden">
+          <CardHeader className="text-center pb-4 px-6 pt-8">
+            <div className="relative mb-6">
+              <div className="w-20 h-20 mx-auto bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center shadow-lg">
+                <Clock className="h-10 w-10 text-primary-foreground" />
+              </div>
+              {currentEntry && (
+                <div className="absolute -top-1 -right-1 w-6 h-6 bg-success rounded-full border-2 border-card animate-pulse"></div>
+              )}
+            </div>
+            <CardTitle className="text-2xl sm:text-3xl font-bold mb-2">
               {currentEntry ? 'You are Clocked In' : 'Ready to Work?'}
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-base text-muted-foreground">
               {format(new Date(), 'eeee, MMMM dd, yyyy')}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-6 pb-8">
             {currentEntry ? (
-              <div className="text-center space-y-4">
-                <p className="text-lg">
-                  Clocked in at <span className="font-semibold text-primary">{currentEntry.clock_in_time}</span>
-                </p>
-                {currentEntry.clock_in_location && (
-                  <div className="flex items-center justify-center space-x-2 text-sm text-muted-foreground">
-                    <MapPin className="h-4 w-4" />
-                    <span>{currentEntry.clock_in_location}</span>
-                  </div>
-                )}
+              <div className="text-center space-y-6">
+                <div className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl p-4 border border-primary/20">
+                  <p className="text-lg font-medium mb-2">
+                    Clocked in at <span className="font-bold text-primary text-xl">{currentEntry.clock_in_time}</span>
+                  </p>
+                  {currentEntry.clock_in_location && (
+                    <div className="flex items-center justify-center space-x-2 text-sm text-muted-foreground">
+                      <MapPin className="h-4 w-4" />
+                      <span className="truncate max-w-48">{currentEntry.clock_in_location}</span>
+                    </div>
+                  )}
+                </div>
                 <Button
                   onClick={handleClockOut}
                   disabled={actionLoading}
-                  className="w-full bg-destructive hover:bg-destructive/90"
+                  size="lg"
+                  className="w-full h-14 bg-gradient-to-r from-destructive to-destructive/90 hover:from-destructive/90 hover:to-destructive/80 text-lg font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
                 >
-                  <LogOut className="mr-2 h-4 w-4" />
+                  <LogOut className="mr-3 h-5 w-5" />
                   {actionLoading ? 'Clocking Out...' : 'Clock Out'}
                 </Button>
               </div>
@@ -206,46 +217,54 @@ const ClockInOutPage: React.FC = () => {
               <Button
                 onClick={handleClockIn}
                 disabled={actionLoading}
-                className="w-full"
+                size="lg"
+                className="w-full h-14 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 text-lg font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
               >
-                <LogIn className="mr-2 h-4 w-4" />
+                <LogIn className="mr-3 h-5 w-5" />
                 {actionLoading ? 'Clocking In...' : 'Clock In'}
               </Button>
             )}
           </CardContent>
         </Card>
 
-        <Card className="mt-8 shadow-lg border-border/30">
-          <CardHeader>
-            <CardTitle>Today's Entries</CardTitle>
+        <Card className="shadow-xl border-border/20 bg-gradient-to-br from-card to-card/90 rounded-3xl overflow-hidden">
+          <CardHeader className="px-6 py-4">
+            <CardTitle className="text-xl font-bold">Today's Entries</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-6 pb-6">
             {todayEntries.length === 0 ? (
-              <p className="text-muted-foreground text-center py-4">
-                No entries for today yet
-              </p>
+              <div className="text-center py-8">
+                <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                <p className="text-muted-foreground">
+                  No entries for today yet
+                </p>
+              </div>
             ) : (
-              <ul className="space-y-3">
+              <div className="space-y-3">
                 {todayEntries.map((entry) => (
-                  <li key={entry.id} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                    <div className="text-sm">
-                      <p>
-                        <span className="font-semibold">In:</span> {entry.clock_in_time}
-                      </p>
-                      {entry.clock_out_time && (
-                        <p>
-                          <span className="font-semibold">Out:</span> {entry.clock_out_time}
-                        </p>
+                  <div key={entry.id} className="bg-gradient-to-r from-muted/30 to-muted/20 rounded-2xl p-4 border border-border/30">
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-1 flex-1">
+                        <div className="flex items-center space-x-2">
+                          <LogIn className="h-4 w-4 text-success" />
+                          <span className="text-sm font-medium">In: {entry.clock_in_time}</span>
+                        </div>
+                        {entry.clock_out_time && (
+                          <div className="flex items-center space-x-2">
+                            <LogOut className="h-4 w-4 text-destructive" />
+                            <span className="text-sm font-medium">Out: {entry.clock_out_time}</span>
+                          </div>
+                        )}
+                      </div>
+                      {entry.total_hours !== null && (
+                        <Badge variant="secondary" className="bg-gradient-to-r from-primary/10 to-secondary/10 text-primary border-primary/20 font-semibold">
+                          {entry.total_hours.toFixed(2)}h
+                        </Badge>
                       )}
                     </div>
-                    {entry.total_hours !== null && (
-                      <Badge variant="secondary">
-                        {entry.total_hours.toFixed(2)} hours
-                      </Badge>
-                    )}
-                  </li>
+                  </div>
                 ))}
-              </ul>
+              </div>
             )}
           </CardContent>
         </Card>

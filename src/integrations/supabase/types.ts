@@ -436,9 +436,9 @@ export type Database = {
           clock_in_date: string
           clock_in_location: string | null
           clock_in_time: string
-          clock_out_date: string
+          clock_out_date: string | null
           clock_out_location: string | null
-          clock_out_time: string
+          clock_out_time: string | null
           created_at: string
           employee_id: string | null
           employee_name: string
@@ -464,9 +464,9 @@ export type Database = {
           clock_in_date: string
           clock_in_location?: string | null
           clock_in_time: string
-          clock_out_date: string
+          clock_out_date?: string | null
           clock_out_location?: string | null
-          clock_out_time: string
+          clock_out_time?: string | null
           created_at?: string
           employee_id?: string | null
           employee_name: string
@@ -492,9 +492,9 @@ export type Database = {
           clock_in_date?: string
           clock_in_location?: string | null
           clock_in_time?: string
-          clock_out_date?: string
+          clock_out_date?: string | null
           clock_out_location?: string | null
-          clock_out_time?: string
+          clock_out_time?: string | null
           created_at?: string
           employee_id?: string | null
           employee_name?: string
@@ -688,6 +688,72 @@ export type Database = {
       }
     }
     Functions: {
+      clock_in: {
+        Args: { p_staff_id: string; p_clock_in_location: string }
+        Returns: {
+          actual_hours: number | null
+          break_end: string | null
+          break_length: number | null
+          break_start: string | null
+          break_type: string | null
+          clock_in_date: string
+          clock_in_location: string | null
+          clock_in_time: string
+          clock_out_date: string | null
+          clock_out_location: string | null
+          clock_out_time: string | null
+          created_at: string
+          employee_id: string | null
+          employee_name: string
+          employee_note: string | null
+          id: string
+          is_split_calculation: boolean | null
+          manager_note: string | null
+          morning_hours: number | null
+          night_hours: number | null
+          no_show_reason: string | null
+          payroll_id: string | null
+          total_card_amount_flat: number
+          total_card_amount_split: number | null
+          total_hours: number
+          updated_at: string
+        }
+      }
+      clock_out: {
+        Args: { p_entry_id: string; p_clock_out_location: string }
+        Returns: {
+          actual_hours: number | null
+          break_end: string | null
+          break_length: number | null
+          break_start: string | null
+          break_type: string | null
+          clock_in_date: string
+          clock_in_location: string | null
+          clock_in_time: string
+          clock_out_date: string | null
+          clock_out_location: string | null
+          clock_out_time: string | null
+          created_at: string
+          employee_id: string | null
+          employee_name: string
+          employee_note: string | null
+          id: string
+          is_split_calculation: boolean | null
+          manager_note: string | null
+          morning_hours: number | null
+          night_hours: number | null
+          no_show_reason: string | null
+          payroll_id: string | null
+          total_card_amount_flat: number
+          total_card_amount_split: number | null
+          total_hours: number
+          updated_at: string
+        }
+      }
+      get_dashboard_stats: {
+        Args: { from_date: string; to_date: string }
+        Returns: Json
+      }
       get_monthly_summary: {
         Args: { target_year: number; target_month: number }
         Returns: {

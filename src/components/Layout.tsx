@@ -229,14 +229,14 @@ const Layout = () => {
 
           {/* Page content */}
           <main className="flex-1 overflow-y-auto bg-gradient-to-br from-background to-background/95">
-            <div className="py-6 px-4 sm:px-6 lg:px-8 min-h-full pb-20 md:pb-6 w-full">
+            <div className="py-4 px-3 sm:py-6 sm:px-6 lg:px-8 min-h-full pb-safe md:pb-6 w-full max-w-screen-2xl mx-auto">
               <Outlet />
             </div>
           </main>
 
           {/* Mobile bottom navigation */}
-          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border/50 z-50 safe-area-bottom">
-            <div className="flex justify-around items-center py-2 px-1">
+          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-card/98 backdrop-blur-lg border-t border-border/30 z-50 pb-safe">
+            <div className="flex justify-around items-center py-3 px-2">
               {visibleNavigation.slice(0, 5).map((item) => {
                 const isActive = location.pathname === item.href;
                 return (
@@ -244,19 +244,19 @@ const Layout = () => {
                     key={item.name}
                     to={item.href}
                     className={cn(
-                      "flex flex-col items-center justify-center p-1.5 min-w-0 flex-1 text-[10px] font-medium transition-all duration-200",
+                      "flex flex-col items-center justify-center p-2 min-w-0 flex-1 text-xs font-medium transition-all duration-200 rounded-lg",
                       isActive
-                        ? "text-primary"
-                        : "text-muted-foreground hover:text-foreground"
+                        ? "text-primary bg-primary/10"
+                        : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
                     )}
                   >
                     <item.icon
                       className={cn(
-                        "h-4 w-4 mb-0.5",
+                        "h-5 w-5 mb-1",
                         isActive ? "text-primary" : "text-muted-foreground"
                       )}
                     />
-                    <span className="truncate max-w-full leading-tight">{item.name}</span>
+                    <span className="truncate max-w-full leading-tight text-[10px] sm:text-xs">{item.name}</span>
                   </Link>
                 );
               })}

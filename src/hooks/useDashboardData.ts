@@ -32,7 +32,7 @@ export const useDashboardData = (dateRange: DateRange, enabled: boolean = true) 
         throw new Error('Failed to fetch dashboard statistics.');
       }
 
-      return data;
+      return data as unknown as DashboardData;
     },
     enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes
