@@ -100,7 +100,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (error) {
-        return { error: error.message || 'Login failed' };
+        return { error: "Incorrect username or password" };
       }
 
       if (data?.success && data?.user && data?.token) {
@@ -147,11 +147,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         return {};
       } else {
-        return { error: data?.error || 'Invalid credentials' };
+        return { error: "Incorrect username or password" };
       }
     } catch (error: any) {
       console.error('Login error:', error);
-      return { error: error.message || 'Login failed' };
+      return { error: "Incorrect username or password" };
     } finally {
       setLoading(false);
     }

@@ -43,7 +43,7 @@ const Layout = () => {
 
   const isAdmin = user?.role === 'admin';
 
-  const navigation = [
+  const navigation = isAdmin ? [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, adminOnly: false },
     { name: 'Clock In/Out', href: '/clock-in-out', icon: Clock, adminOnly: false },
     { name: 'Employees', href: '/employees', icon: Users, adminOnly: true },
@@ -52,6 +52,9 @@ const Layout = () => {
     { name: 'Reports', href: '/reports', icon: BarChart3, adminOnly: true },
     { name: 'Company Settings', href: '/company-settings', icon: Building, adminOnly: true },
     { name: 'Settings', href: '/settings', icon: Settings, adminOnly: true },
+  ] : [
+    { name: 'Clock In/Out', href: '/clock-in-out', icon: Clock, adminOnly: false },
+    { name: 'My Timesheet', href: '/my-timesheet', icon: FileText, adminOnly: false },
   ];
 
   const visibleNavigation = navigation.filter(item => !item.adminOnly || isAdmin);

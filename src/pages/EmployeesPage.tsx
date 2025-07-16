@@ -176,27 +176,24 @@ const EmployeesPage: React.FC = () => {
                   <p className="text-sm text-gray-600">{employee.staff_id}</p>
                 </div>
                 <div className="flex space-x-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleEdit(employee)}
+                    title="Edit"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
                   {employee.is_admin_user ? (
-                    // Admin user actions
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleChangePassword(employee)}
-                        title="Change Password"
-                      >
-                        <Lock className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEdit(employee)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleChangePassword(employee)}
+                      title="Change Password"
+                    >
+                      <Lock className="h-4 w-4" />
+                    </Button>
                   ) : (
-                    // Regular employee actions
                     <>
                       <Button
                         variant="ghost"
@@ -209,15 +206,9 @@ const EmployeesPage: React.FC = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleEdit(employee)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
                         onClick={() => handleDelete(employee)}
                         className="text-red-600 hover:text-red-700"
+                        title="Delete"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -229,7 +220,6 @@ const EmployeesPage: React.FC = () => {
             <CardContent>
               <div className="space-y-3">
                 {employee.is_admin_user ? (
-                  // Admin user content
                   <div className="space-y-3">
                     <div className="bg-gradient-to-r from-red-50 to-orange-50 p-4 rounded-lg border border-red-200">
                       <div className="flex items-center space-x-2">
@@ -246,7 +236,6 @@ const EmployeesPage: React.FC = () => {
                     </div>
                   </div>
                 ) : (
-                  // Regular employee content
                   <>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="bg-blue-50 p-3 rounded-lg">
@@ -271,19 +260,17 @@ const EmployeesPage: React.FC = () => {
                         <p><span className="font-medium text-gray-600">{t('phoneNumber')}:</span> <span className="text-gray-900">{employee.phone_number}</span></p>
                       )}
                     </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full mt-4"
+                      onClick={() => handleViewStats(employee)}
+                    >
+                      View Statistics
+                    </Button>
                   </>
                 )}
               </div>
-              {!employee.is_admin_user && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full mt-4"
-                  onClick={() => handleViewStats(employee)}
-                >
-                  View Statistics
-                </Button>
-              )}
             </CardContent>
           </Card>
         ))}

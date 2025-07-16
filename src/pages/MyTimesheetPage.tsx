@@ -1,203 +1,223 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Clock, DollarSign, Calendar, Quote } from 'lucide-react';
-import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
-
-interface TimesheetEntry {
-  id: string;
-  clock_in_date: string;
-  clock_in_time: string;
-  clock_out_time: string;
-  total_hours: number;
-  total_card_amount_flat: number;
-}
+import { Clock, DollarSign, Calendar, TrendingUp } from 'lucide-react';
+// Simple format function for hours display
+const formatHours = (hours: number) => hours.toFixed(2);
 
 const MyTimesheetPage: React.FC = () => {
   const { user } = useAuth();
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-  // Fetch employee's timesheet entries
-  const { data: timesheetEntries, isLoading: timesheetsLoading } = useQuery({
-    queryKey: ['my-timesheet', user?.username],
+  const { data: timesheetData, isLoading } = useQuery({
+    queryKey: ['my-timesheet', user?.username, selectedMonth, selectedYear],
     queryFn: async () => {
-      if (!user?.username) return [];
+      if (!user?.username) return null;
       
       const { data, error } = await supabase
         .from('timesheet_entries')
         .select('*')
         .eq('employee_name', user.username)
+        .gte('clock_in_date', `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-01`)
+        .lt('clock_in_date', `${selectedYear}-${(selectedMonth + 1).toString().padStart(2, '0')}-01`)
         .order('clock_in_date', { ascending: false });
 
       if (error) throw error;
-      return data as TimesheetEntry[];
+      return data || [];
     },
     enabled: !!user?.username
   });
 
-  // Fetch motivational message
-  const { data: motivationalMessage } = useQuery({
-    queryKey: ['motivational-message'],
+  const { data: employeeData } = useQuery({
+    queryKey: ['employee-wage-rates', user?.username],
     queryFn: async () => {
+      if (!user?.username) return null;
+      
       const { data, error } = await supabase
-        .from('company_settings')
-        .select('motivational_message')
-        .single();
+        .from('employees')
+        .select('morning_wage_rate, night_wage_rate, full_name')
+        .eq('staff_id', user.username)
+        .maybeSingle();
 
-      return data?.motivational_message || "Keep up the great work! Your dedication and effort make a real difference to our team.";
-    }
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.username
   });
 
-  // Calculate current pay period stats (current month)
-  const currentPayPeriodStats = React.useMemo(() => {
-    if (!timesheetEntries) return { totalHours: 0, estimatedEarnings: 0 };
+  const totalHours = timesheetData?.reduce((sum, entry) => sum + (entry.total_hours || 0), 0) || 0;
+  const totalMorningHours = timesheetData?.reduce((sum, entry) => sum + (entry.morning_hours || 0), 0) || 0;
+  const totalNightHours = timesheetData?.reduce((sum, entry) => sum + (entry.night_hours || 0), 0) || 0;
+  
+  const morningWageRate = employeeData?.morning_wage_rate || 17;
+  const nightWageRate = employeeData?.night_wage_rate || 20;
+  
+  const totalEarnings = (totalMorningHours * morningWageRate) + (totalNightHours * nightWageRate);
 
-    const currentMonth = new Date();
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(currentMonth);
+  const months = [
+    { value: 1, label: 'January' },
+    { value: 2, label: 'February' },
+    { value: 3, label: 'March' },
+    { value: 4, label: 'April' },
+    { value: 5, label: 'May' },
+    { value: 6, label: 'June' },
+    { value: 7, label: 'July' },
+    { value: 8, label: 'August' },
+    { value: 9, label: 'September' },
+    { value: 10, label: 'October' },
+    { value: 11, label: 'November' },
+    { value: 12, label: 'December' }
+  ];
 
-    const currentPeriodEntries = timesheetEntries.filter(entry => {
-      const entryDate = parseISO(entry.clock_in_date);
-      return isWithinInterval(entryDate, { start: monthStart, end: monthEnd });
-    });
+  const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
 
-    const totalHours = currentPeriodEntries.reduce((sum, entry) => sum + (entry.total_hours || 0), 0);
-    const estimatedEarnings = currentPeriodEntries.reduce((sum, entry) => sum + (entry.total_card_amount_flat || 0), 0);
-
-    return { totalHours, estimatedEarnings };
-  }, [timesheetEntries]);
-
-  if (timesheetsLoading) {
+  if (isLoading) {
     return (
-      <div className="w-full px-4 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">My Timesheet</h1>
-          <p className="mt-2 text-muted-foreground">View your work hours and contributions</p>
-        </div>
-        
-        <div className="animate-pulse space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="h-32 bg-muted/20 rounded-lg"></div>
-            <div className="h-32 bg-muted/20 rounded-lg"></div>
-          </div>
-          <div className="h-64 bg-muted/20 rounded-lg"></div>
-        </div>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">My Timesheet</h1>
-        <p className="mt-2 text-muted-foreground">Welcome back, {user?.full_name || user?.username}!</p>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">My Timesheet</h1>
+          <p className="text-muted-foreground">View your attendance and earnings summary</p>
+        </div>
+        <div className="flex space-x-2">
+          <Select value={selectedMonth.toString()} onValueChange={(value) => setSelectedMonth(parseInt(value))}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {months.map((month) => (
+                <SelectItem key={month.value} value={month.value.toString()}>
+                  {month.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(parseInt(value))}>
+            <SelectTrigger className="w-20">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {years.map((year) => (
+                <SelectItem key={year} value={year.toString()}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {/* Motivational Message */}
-      {motivationalMessage && (
-        <Card className="mb-8 bg-gradient-to-br from-primary/5 via-card to-accent/5 border-primary/20 shadow-lg">
-          <CardContent className="p-6">
-            <div className="flex items-start gap-4">
-              <div className="p-2 bg-primary/10 rounded-lg flex-shrink-0">
-                <Quote className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-lg font-medium text-foreground italic">
-                  "{motivationalMessage}"
-                </p>
-                <p className="text-sm text-muted-foreground mt-2">— Management Team</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* At-a-Glance Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <Card className="bg-gradient-to-br from-card via-card to-primary/5 border-border/50 shadow-lg">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Hours (This Month)</CardTitle>
-            <Clock className="h-4 w-4 text-primary" />
+            <CardTitle className="text-sm font-medium">Total Hours</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">
-              {Math.round(currentPayPeriodStats.totalHours)}h
-            </div>
-            <p className="text-xs text-muted-foreground">Current pay period</p>
+            <div className="text-2xl font-bold">{formatHours(totalHours)}</div>
+            <p className="text-xs text-muted-foreground">
+              This period
+            </p>
           </CardContent>
         </Card>
-
-        <Card className="bg-gradient-to-br from-card via-card to-warning/5 border-border/50 shadow-lg">
+        
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Estimated Earnings</CardTitle>
-            <DollarSign className="h-4 w-4 text-warning" />
+            <CardTitle className="text-sm font-medium">Morning Hours</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-warning">
-              {Math.round(currentPayPeriodStats.estimatedEarnings)} LE
-            </div>
-            <p className="text-xs text-muted-foreground">Current pay period</p>
+            <div className="text-2xl font-bold text-blue-600">{formatHours(totalMorningHours)}</div>
+            <p className="text-xs text-muted-foreground">
+              LE {morningWageRate}/hour
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Night Hours</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600">{formatHours(totalNightHours)}</div>
+            <p className="text-xs text-muted-foreground">
+              LE {nightWageRate}/hour
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Earnings</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">LE {totalEarnings.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground">
+              This period
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Detailed Time Card View */}
-      <Card className="bg-gradient-to-br from-card via-card to-muted/5 border-border/50 shadow-lg">
+      {/* Timesheet Entries */}
+      <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-3">
-            <div className="p-2 bg-accent/10 rounded-lg">
-              <Calendar className="h-5 w-5 text-accent" />
-            </div>
-            Recent Time Entries
-          </CardTitle>
+          <CardTitle>Timesheet Entries</CardTitle>
         </CardHeader>
         <CardContent>
-          {timesheetEntries && timesheetEntries.length > 0 ? (
+          {timesheetData && timesheetData.length > 0 ? (
             <div className="space-y-4">
-              {timesheetEntries.slice(0, 10).map((entry) => (
-                <div
-                  key={entry.id}
-                  className="flex items-center justify-between p-4 bg-gradient-to-r from-muted/20 to-muted/5 rounded-lg border border-border/30 hover:border-border/50 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="text-center">
-                      <div className="text-sm font-semibold text-foreground">
-                        {format(parseISO(entry.clock_in_date), 'MMM')}
-                      </div>
-                      <div className="text-lg font-bold text-primary">
-                        {format(parseISO(entry.clock_in_date), 'dd')}
-                      </div>
+              {timesheetData.map((entry) => (
+                <div key={entry.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">{new Date(entry.clock_in_date).toLocaleDateString()}</span>
                     </div>
-                    <div>
-                      <div className="font-medium text-foreground">
-                        {format(parseISO(entry.clock_in_date), 'EEEE, MMMM dd, yyyy')}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {entry.clock_in_time} - {entry.clock_out_time}
-                      </div>
+                    <div className="text-sm text-muted-foreground">
+                      {entry.clock_in_time} - {entry.clock_out_time}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <Badge variant="secondary" className="mb-1">
-                      {Math.round(entry.total_hours || 0)}h
+                  <div className="flex items-center space-x-4">
+                    <Badge variant="outline">
+                      {formatHours(entry.total_hours)} hours
                     </Badge>
-                    <div className="text-sm text-warning font-semibold">
-                      {Math.round(entry.total_card_amount_flat || 0)} LE
+                    {entry.morning_hours > 0 && (
+                      <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                        Morning: {formatHours(entry.morning_hours)}
+                      </Badge>
+                    )}
+                    {entry.night_hours > 0 && (
+                      <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                        Night: {formatHours(entry.night_hours)}
+                      </Badge>
+                    )}
+                    <div className="text-sm font-medium text-green-600">
+                      LE {entry.total_card_amount_split || entry.total_card_amount_flat}
                     </div>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-8">
-              <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No timesheet entries found.</p>
-              <p className="text-sm text-muted-foreground mt-2">
-                Your work hours will appear here once you start logging time.
-              </p>
+            <div className="text-center py-8 text-muted-foreground">
+              <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No timesheet entries found for the selected period.</p>
             </div>
           )}
         </CardContent>
