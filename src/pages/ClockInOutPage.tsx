@@ -22,7 +22,7 @@ interface ClockEntry {
 
 const ClockInOutPage: React.FC = () => {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Start with loading true
   const [currentEntry, setCurrentEntry] = useState<ClockEntry | null>(null);
   const [todayEntries, setTodayEntries] = useState<ClockEntry[]>([]);
   const [location, setLocation] = useState<string | null>(null);
@@ -64,10 +64,10 @@ const ClockInOutPage: React.FC = () => {
 
   // Fetch today's clock-in/out entries
   const fetchTodayEntries = async () => {
-    if (!user) return;
+    if (!user || !user.full_name) return;
     
+    setLoading(true);
     const today = new Date().toISOString().split('T')[0];
-    // Use the user's full name to find their entries, as this is what's stored by the clock_in function.
     const { data, error } = await supabase
       .from('timesheet_entries')
       .select('*')
@@ -75,11 +75,12 @@ const ClockInOutPage: React.FC = () => {
       .eq('clock_in_date', today)
       .order('clock_in_time', { ascending: false });
 
+    setLoading(false);
     if (error) {
       console.error('Error fetching entries:', error);
+      toast.error("Could not fetch today's entries.");
     } else {
       setTodayEntries(data);
-      // Find the currently active entry (not clocked out)
       const activeEntry = data.find(entry => !entry.clock_out_time);
       setCurrentEntry(activeEntry || null);
     }
@@ -102,37 +103,19 @@ const ClockInOutPage: React.FC = () => {
       const userLocation = await getCurrentLocation();
       setLocation(userLocation);
 
-      // Call the database function with the staff_id (which is the user's username)
       const { data, error } = await supabase.rpc('clock_in', {
         p_staff_id: user.username,
         p_clock_in_location: userLocation,
       });
 
-      if (error) {
-        throw new Error(error.message);
-      }
+      if (error) throw new Error(error.message);
       
-      if (data) {
-        const newEntry: ClockEntry = {
-          id: data.id,
-          employee_name: data.employee_name,
-          clock_in_time: data.clock_in_time,
-          clock_in_date: data.clock_in_date,
-          clock_out_time: data.clock_out_time,
-          clock_out_date: data.clock_out_date,
-          clock_in_location: data.clock_in_location,
-          total_hours: data.total_hours,
-        };
-        setCurrentEntry(newEntry);
-      }
-
       await fetchTodayEntries();
       toast.success('Clocked in successfully!');
     } catch (error: any) {
       toast.error(error.message || 'Failed to clock in');
       console.error('Clock-in error:', error);
     } finally {
-      // This ensures the loading spinner always stops, even if there's an error.
       setLoading(false);
     }
   };
@@ -148,24 +131,19 @@ const ClockInOutPage: React.FC = () => {
       const userLocation = await getCurrentLocation();
       setLocation(userLocation);
 
-      // Call the database function with the correct parameter name
       const { error } = await supabase.rpc('clock_out', {
         p_entry_id: currentEntry.id,
         p_clock_out_location: userLocation
       });
 
-      if (error) {
-        throw new Error(error.message);
-      }
+      if (error) throw new Error(error.message);
       
-      setCurrentEntry(null);
       await fetchTodayEntries();
       toast.success('Clocked out successfully!');
     } catch (error: any) {
       toast.error(error.message || 'Failed to clock out');
       console.error('Clock-out error:', error);
     } finally {
-      // This ensures the loading spinner always stops, even if there's an error.
       setLoading(false);
     }
   };
@@ -173,7 +151,6 @@ const ClockInOutPage: React.FC = () => {
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8">
       <div className="max-w-xl mx-auto">
-        {/* Motivational Message */}
         {motivationalMessage && (
           <Alert variant="default" className="mb-6 bg-blue-50 border-blue-200">
             <AlertCircle className="h-4 w-4 text-blue-600" />
@@ -183,7 +160,6 @@ const ClockInOutPage: React.FC = () => {
           </Alert>
         )}
 
-        {/* Clock In/Out Card */}
         <Card className="shadow-lg border-border/30">
           <CardHeader className="text-center">
             <Clock className="h-12 w-12 text-primary mx-auto mb-4" />
@@ -228,13 +204,14 @@ const ClockInOutPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Today's Entries */}
         <Card className="mt-8 shadow-lg border-border/30">
           <CardHeader>
             <CardTitle>Today's Entries</CardTitle>
           </CardHeader>
           <CardContent>
-            {todayEntries.length === 0 ? (
+            {loading ? (
+              <p className="text-muted-foreground text-center py-4">Loading entries...</p>
+            ) : todayEntries.length === 0 ? (
               <p className="text-muted-foreground text-center py-4">
                 No entries for today yet
               </p>
