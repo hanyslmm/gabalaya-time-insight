@@ -22,6 +22,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Set up Supabase auth headers when user changes
+  useEffect(() => {
+    if (user && user.role) {
+      // Create a custom JWT that RLS can read
+      const customPayload = {
+        aud: 'authenticated',
+        exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60),
+        sub: user.id,
+        email: `${user.username}@company.com`,
+        user_metadata: {},
+        app_metadata: { provider: 'custom' },
+        // These claims are accessible via auth.jwt() in RLS
+        username: user.username,
+        full_name: user.full_name,
+        role: user.role
+      };
+      
+      const token = btoa(JSON.stringify(customPayload));
+      
+      // Set the auth header for all Supabase requests
+      (supabase as any).rest.headers['Authorization'] = `Bearer ${token}`;
+      (supabase as any).realtime.accessToken = token;
+    } else {
+      // Clear auth headers when user is null
+      delete (supabase as any).rest.headers['Authorization'];
+      delete (supabase as any).realtime.accessToken;
+    }
+  }, [user]);
+
   useEffect(() => {
     // Check for existing session
     const storedUser = localStorage.getItem('auth_user');
@@ -54,33 +83,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(authUser);
         localStorage.setItem('auth_user', JSON.stringify(authUser));
         
-        // Store the token if provided and set up Supabase session
+        // Store the token if provided
         if (data.token) {
           localStorage.setItem('auth_token', data.token);
-          
-          // Set up a custom session with the JWT for RLS
-          // This creates a fake JWT that RLS can read
-          const customJWT = btoa(JSON.stringify({
-            aud: 'authenticated',
-            exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60),
-            sub: data.user.id,
-            email: `${data.user.username}@company.com`,
-            user_metadata: {},
-            app_metadata: {
-              provider: 'custom',
-              providers: ['custom']
-            },
-            // Custom claims for RLS - these go in root for auth.jwt() access
-            username: data.user.username,
-            full_name: data.user.full_name,
-            role: data.user.role
-          }));
-          
-          // Set the authorization header for all future requests
-          supabase.auth.getSession().then(() => {
-            // Override the session to include our custom JWT claims
-            (supabase as any).rest.headers['Authorization'] = `Bearer ${customJWT}`;
-          });
         }
         
         return true;
@@ -97,6 +102,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     localStorage.removeItem('auth_user');
     localStorage.removeItem('auth_token');
+    // Clear Supabase auth headers
+    delete (supabase as any).rest.headers['Authorization'];
+    delete (supabase as any).realtime.accessToken;
   };
 
   return (
