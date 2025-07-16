@@ -22,8 +22,8 @@ interface ClockEntry {
 
 const ClockInOutPage: React.FC = () => {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true); // Set initial loading state to true
-  const [actionLoading, setActionLoading] = useState(false); // For button-specific loading
+  const [loading, setLoading] = useState(true); // For initial page load
+  const [actionLoading, setActionLoading] = useState(false); // For button clicks
   const [currentEntry, setCurrentEntry] = useState<ClockEntry | null>(null);
   const [todayEntries, setTodayEntries] = useState<ClockEntry[]>([]);
   const [location, setLocation] = useState<string | null>(null);
@@ -71,7 +71,7 @@ const ClockInOutPage: React.FC = () => {
     }
     
     const today = new Date().toISOString().split('T')[0];
-    // **THE FIX IS HERE:** We now use `user.full_name` to match records.
+    // **THE FIX:** Use user.full_name, which is now reliably populated by the updated useAuth hook.
     const { data, error } = await supabase
       .from('timesheet_entries')
       .select('*')
@@ -87,7 +87,7 @@ const ClockInOutPage: React.FC = () => {
       const activeEntry = data.find(entry => !entry.clock_out_time);
       setCurrentEntry(activeEntry || null);
     }
-    setLoading(false); // Stop loading after data is fetched
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -256,4 +256,3 @@ const ClockInOutPage: React.FC = () => {
 };
 
 export default ClockInOutPage;
-
