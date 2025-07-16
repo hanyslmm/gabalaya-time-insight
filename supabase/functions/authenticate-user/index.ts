@@ -1,6 +1,6 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2'
-import { compare } from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts'
+import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 
 interface AuthRequest {
@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
     if (user.role === 'admin') {
       // For admin, verify against bcrypt hash
       try {
-        isValidPassword = await compare(password, user.password_hash);
+        isValidPassword = await bcrypt.compare(password, user.password_hash);
       } catch (bcryptError) {
         console.error('Bcrypt comparison error:', bcryptError);
         return new Response(
