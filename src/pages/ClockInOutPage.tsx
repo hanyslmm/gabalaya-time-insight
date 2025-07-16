@@ -103,7 +103,8 @@ const ClockInOutPage: React.FC = () => {
 
       // Call the database function
       const { data, error } = await supabase.rpc('clock_in', {
-        clock_in_location: userLocation,
+        p_user_id: user.id,
+        p_clock_in_location: userLocation,
       });
 
       if (error) {
