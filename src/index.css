@@ -387,12 +387,90 @@ All colors MUST be HSL.
     input, select, textarea {
       font-size: 16px !important;
     }
+    
+    /* Enhanced mobile card layouts */
+    .mobile-card-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+      padding: 0.5rem;
+    }
+    
+    /* Mobile-friendly spacing */
+    .mobile-spacing {
+      padding: 0.75rem;
+      margin: 0.5rem 0;
+    }
+    
+    /* Touch-friendly buttons */
+    .mobile-touch-target {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    
+    /* Responsive text sizing */
+    .mobile-text-responsive {
+      font-size: clamp(0.875rem, 4vw, 1rem);
+      line-height: 1.5;
+    }
   }
 
   /* Landscape mode adjustments for mobile */
   @media (max-width: 768px) and (orientation: landscape) {
     .mobile-landscape-adjust {
       height: calc(100vh - 3rem);
+    }
+    
+    .mobile-landscape-sidebar {
+      height: calc(100vh - 2rem);
+    }
+  }
+
+  /* Tablet adjustments */
+  @media (min-width: 768px) and (max-width: 1024px) {
+    .tablet-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+    }
+    
+    .tablet-spacing {
+      padding: 1rem;
+    }
+  }
+
+  /* Ultra-wide screen optimizations */
+  @media (min-width: 1920px) {
+    .ultrawide-container {
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+  }
+
+  /* Enhanced accessibility */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    .card-interactive {
+      border: 2px solid currentColor;
+    }
+    
+    .hover-scale:hover {
+      transform: none;
+      outline: 3px solid currentColor;
+    }
+  }
+
+  /* Dark mode improvements */
+  @media (prefers-color-scheme: dark) {
+    .auto-dark-shadow {
+      box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.5);
     }
   }
 }

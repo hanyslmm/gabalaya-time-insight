@@ -48,6 +48,7 @@ const Layout = () => {
     { name: 'Clock In/Out', href: '/clock-in-out', icon: Clock, adminOnly: false },
     { name: 'Employees', href: '/employees', icon: Users, adminOnly: true },
     { name: 'Timesheets', href: '/timesheets', icon: FileText, adminOnly: true },
+    { name: 'My Timesheet', href: '/my-timesheet', icon: Clock, adminOnly: false },
     { name: 'Monitor', href: '/monitor', icon: Monitor, adminOnly: true },
     { name: 'Reports', href: '/reports', icon: BarChart3, adminOnly: true },
     { name: 'Company Settings', href: '/company-settings', icon: Building, adminOnly: true },

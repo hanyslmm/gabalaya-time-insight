@@ -43,14 +43,20 @@ const AdminPasswordChange: React.FC<AdminPasswordChangeProps> = ({ employee, onC
       const { data: result, error } = await supabase.functions.invoke('change-admin-password', {
         body: {
           username: employee.staff_id,
-          currentPassword: data.currentPassword || 'dummy_password', // Use dummy password for admin actions
+          currentPassword: data.currentPassword || '', // Empty for admin actions
           newPassword: data.newPassword,
-          token: token
+          token: token,
+          isAdminAction: !isChangingOwnPassword
         }
       });
 
-      if (error) throw error;
-      if (!result.success) throw new Error(result.error);
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error('Failed to change password');
+      }
+      if (!result?.success) {
+        throw new Error(result?.error || 'Failed to change password');
+      }
       
       return result;
     },

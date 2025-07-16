@@ -53,6 +53,7 @@ interface TimesheetTableProps {
   onSelectionChange: (selectedRows: string[]) => void;
   onDataChange: () => void;
   dateRange?: DateRange;
+  selectedEmployee?: string;
 }
 
 const ITEMS_PER_PAGE = 20;
@@ -62,7 +63,8 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
   selectedRows, 
   onSelectionChange, 
   onDataChange,
-  dateRange 
+  dateRange,
+  selectedEmployee 
 }) => {
   const { user } = useAuth();
   const [editingEntry, setEditingEntry] = useState<any>(null);
@@ -93,7 +95,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
     handleSelectRow,
     handleDeleteSelected,
     deleteMutation
-  } = useTimesheetTable(data, selectedRows, onSelectionChange, onDataChange, dateRange);
+  } = useTimesheetTable(data, selectedRows, onSelectionChange, onDataChange, dateRange, selectedEmployee);
 
   // Pagination logic
   const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);

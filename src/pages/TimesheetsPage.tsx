@@ -3,9 +3,11 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Upload, Download, Split, Trash2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Upload, Download, Split, Trash2, User } from 'lucide-react';
 import TimesheetUpload from '@/components/TimesheetUpload';
 import TimesheetTable from '@/components/TimesheetTable';
 import TimesheetDateFilter from '@/components/TimesheetDateFilter';
@@ -18,8 +20,10 @@ interface DateRange {
 
 const TimesheetsPage: React.FC = () => {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [showUpload, setShowUpload] = useState(false);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
+  const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
   // Initialize with a proper date range - last 30 days by default
   const [dateRange, setDateRange] = useState<DateRange>(() => {
     const today = new Date();
@@ -28,6 +32,19 @@ const TimesheetsPage: React.FC = () => {
     return { from: thirtyDaysAgo, to: today };
   });
   const [payPeriodEndDay, setPayPeriodEndDay] = useState(28);
+
+  // Fetch employees for the filter dropdown
+  const { data: employees } = useQuery({
+    queryKey: ['employees-filter'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('id, staff_id, full_name')
+        .order('full_name');
+      if (error) throw error;
+      return data;
+    }
+  });
 
   const { data: timesheets, isLoading, refetch } = useQuery({
     queryKey: ['timesheets'],
@@ -187,13 +204,39 @@ const TimesheetsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Date Filter */}
-      <TimesheetDateFilter
-        dateRange={dateRange}
-        onDateRangeChange={setDateRange}
-        payPeriodEndDay={payPeriodEndDay}
-        onPayPeriodEndDayChange={setPayPeriodEndDay}
-      />
+      {/* Filters */}
+      <div className="space-y-4 mb-6">
+        <TimesheetDateFilter
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+          payPeriodEndDay={payPeriodEndDay}
+          onPayPeriodEndDayChange={setPayPeriodEndDay}
+        />
+        
+        {/* Employee Filter - Only show for admins */}
+        {user?.role === 'admin' && employees && (
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-4">
+                <User className="h-4 w-4 text-muted-foreground" />
+                <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                  <SelectTrigger className="w-64">
+                    <SelectValue placeholder="Filter by employee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Employees</SelectItem>
+                    {employees.map((employee) => (
+                      <SelectItem key={employee.id} value={employee.id}>
+                        {employee.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
         <Card className="lg:col-span-4 xl:col-span-3">
@@ -212,6 +255,7 @@ const TimesheetsPage: React.FC = () => {
                 onSelectionChange={setSelectedRows}
                 onDataChange={refetch}
                 dateRange={dateRange}
+                selectedEmployee={selectedEmployee}
               />
             )}
           </CardContent>

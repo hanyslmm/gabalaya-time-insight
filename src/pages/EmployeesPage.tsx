@@ -166,21 +166,30 @@ const EmployeesPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         {filteredEmployees.map((employee) => (
-          <Card key={employee.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex justify-between items-start">
-                <div>
-                  <h3 className="text-lg font-semibold">{employee.full_name}</h3>
-                  <p className="text-sm text-gray-600">{employee.staff_id}</p>
+          <Card key={employee.id} className="hover:shadow-lg transition-all duration-300 animate-fade-in card-interactive">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex flex-col sm:flex-row justify-between items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-fluid-lg font-semibold text-foreground break-words-enhanced">
+                    {employee.full_name}
+                  </h3>
+                  <p className="text-fluid-sm text-muted-foreground">{employee.staff_id}</p>
+                  {employee.is_admin_user && (
+                    <div className="flex items-center mt-2 space-x-2">
+                      <Lock className="h-4 w-4 text-destructive" />
+                      <span className="text-xs font-semibold text-destructive">Administrator Account</span>
+                    </div>
+                  )}
                 </div>
-                <div className="flex space-x-1">
+                <div className="flex flex-wrap gap-1">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleEdit(employee)}
                     title="Edit"
+                    className="h-8 w-8 p-0"
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
@@ -190,6 +199,7 @@ const EmployeesPage: React.FC = () => {
                       size="sm"
                       onClick={() => handleChangePassword(employee)}
                       title="Change Password"
+                      className="h-8 w-8 p-0"
                     >
                       <Lock className="h-4 w-4" />
                     </Button>
@@ -200,6 +210,7 @@ const EmployeesPage: React.FC = () => {
                         size="sm"
                         onClick={() => handleSetWageRates(employee)}
                         title="Set Wage Rates"
+                        className="h-8 w-8 p-0"
                       >
                         <DollarSign className="h-4 w-4" />
                       </Button>
@@ -207,7 +218,7 @@ const EmployeesPage: React.FC = () => {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDelete(employee)}
-                        className="text-red-600 hover:text-red-700"
+                        className="text-destructive hover:text-destructive/80 h-8 w-8 p-0"
                         title="Delete"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -217,60 +228,76 @@ const EmployeesPage: React.FC = () => {
                 </div>
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {employee.is_admin_user ? (
-                  <div className="space-y-3">
-                    <div className="bg-gradient-to-r from-red-50 to-orange-50 p-4 rounded-lg border border-red-200">
-                      <div className="flex items-center space-x-2">
-                        <Lock className="h-5 w-5 text-red-600" />
-                        <p className="text-sm font-semibold text-red-800">Administrator Account</p>
-                      </div>
-                      <p className="text-xs text-red-600 mt-1">Full system access with password management</p>
+            <CardContent className="space-y-4">
+              {employee.is_admin_user ? (
+                <div className="space-y-3">
+                  <div className="bg-gradient-to-r from-destructive/10 to-warning/10 p-3 rounded-lg border border-destructive/20">
+                    <p className="text-fluid-sm text-destructive/80">Full system access with password management</p>
+                  </div>
+                  
+                  <div className="space-y-2 text-fluid-sm">
+                    <div className="flex justify-between">
+                      <span className="font-medium text-muted-foreground">Username:</span>
+                      <span className="text-foreground font-medium">{employee.staff_id}</span>
                     </div>
-                    
-                    <div className="border-t pt-2 space-y-1">
-                      <p><span className="font-medium text-gray-600">Username:</span> <span className="text-gray-900">{employee.staff_id}</span></p>
-                      <p><span className="font-medium text-gray-600">{t('role')}:</span> <span className="text-gray-900 font-semibold text-red-600">{employee.role}</span></p>
-                      <p><span className="font-medium text-gray-600">Created:</span> <span className="text-gray-900">{new Date(employee.hiring_date).toLocaleDateString()}</span></p>
+                    <div className="flex justify-between">
+                      <span className="font-medium text-muted-foreground">{t('role')}:</span>
+                      <span className="text-destructive font-semibold">{employee.role}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-medium text-muted-foreground">Created:</span>
+                      <span className="text-foreground">{new Date(employee.hiring_date).toLocaleDateString()}</span>
                     </div>
                   </div>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="bg-blue-50 p-3 rounded-lg">
-                        <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">Morning Rate</p>
-                        <p className="text-lg font-bold text-blue-900">LE {employee.morning_wage_rate?.toFixed(2) || '17.00'}</p>
-                        <p className="text-xs text-blue-600">per hour</p>
-                      </div>
-                      <div className="bg-purple-50 p-3 rounded-lg">
-                        <p className="text-xs font-medium text-purple-600 uppercase tracking-wide">Night Rate</p>
-                        <p className="text-lg font-bold text-purple-900">LE {employee.night_wage_rate?.toFixed(2) || '20.00'}</p>
-                        <p className="text-xs text-purple-600">per hour</p>
-                      </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-3 rounded-lg border border-primary/20">
+                      <p className="text-xs font-medium text-primary uppercase tracking-wide">Morning Rate</p>
+                      <p className="text-fluid-lg font-bold text-primary">LE {employee.morning_wage_rate?.toFixed(2) || '17.00'}</p>
+                      <p className="text-xs text-primary/70">per hour</p>
                     </div>
-                    
-                    <div className="border-t pt-2 space-y-1">
-                      <p><span className="font-medium text-gray-600">{t('role')}:</span> <span className="text-gray-900">{employee.role}</span></p>
-                      <p><span className="font-medium text-gray-600">{t('hiringDate')}:</span> <span className="text-gray-900">{new Date(employee.hiring_date).toLocaleDateString()}</span></p>
-                      {employee.email && (
-                        <p><span className="font-medium text-gray-600">{t('email')}:</span> <span className="text-gray-900">{employee.email}</span></p>
-                      )}
-                      {employee.phone_number && (
-                        <p><span className="font-medium text-gray-600">{t('phoneNumber')}:</span> <span className="text-gray-900">{employee.phone_number}</span></p>
-                      )}
+                    <div className="bg-gradient-to-br from-secondary/20 to-secondary/10 p-3 rounded-lg border border-secondary/30">
+                      <p className="text-xs font-medium text-secondary-foreground uppercase tracking-wide">Night Rate</p>
+                      <p className="text-fluid-lg font-bold text-secondary-foreground">LE {employee.night_wage_rate?.toFixed(2) || '20.00'}</p>
+                      <p className="text-xs text-secondary-foreground/70">per hour</p>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full mt-4"
-                      onClick={() => handleViewStats(employee)}
-                    >
-                      View Statistics
-                    </Button>
-                  </>
-                )}
-              </div>
+                  </div>
+                  
+                  <div className="space-y-2 text-fluid-sm">
+                    <div className="flex justify-between">
+                      <span className="font-medium text-muted-foreground">{t('role')}:</span>
+                      <span className="text-foreground">{employee.role}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-medium text-muted-foreground">{t('hiringDate')}:</span>
+                      <span className="text-foreground">{new Date(employee.hiring_date).toLocaleDateString()}</span>
+                    </div>
+                    {employee.email && (
+                      <div className="flex justify-between">
+                        <span className="font-medium text-muted-foreground">{t('email')}:</span>
+                        <span className="text-foreground break-words-enhanced">{employee.email}</span>
+                      </div>
+                    )}
+                    {employee.phone_number && (
+                      <div className="flex justify-between">
+                        <span className="font-medium text-muted-foreground">{t('phoneNumber')}:</span>
+                        <span className="text-foreground">{employee.phone_number}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full hover-scale"
+                    onClick={() => handleViewStats(employee)}
+                  >
+                    View Statistics
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}

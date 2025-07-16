@@ -40,7 +40,8 @@ export const useTimesheetTable = (
   selectedRows: string[],
   onSelectionChange: (selectedRows: string[]) => void,
   onDataChange: () => void,
-  dateRange?: DateRange
+  dateRange?: DateRange,
+  selectedEmployee?: string
 ) => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -70,6 +71,15 @@ export const useTimesheetTable = (
 
   const filteredData = useMemo(() => {
     return data.filter(entry => {
+      // Employee filter
+      if (selectedEmployee && selectedEmployee !== 'all') {
+        // Check if entry belongs to selected employee by comparing employee_id if available
+        const entryEmployeeId = (entry as any).employee_id;
+        if (entryEmployeeId && entryEmployeeId !== selectedEmployee) {
+          return false;
+        }
+      }
+      
       // Date range filter with proper inclusive boundaries
       if (dateRange && dateRange.from && dateRange.to) {
         const entryDate = parseISO(entry.clock_in_date);
@@ -97,7 +107,7 @@ export const useTimesheetTable = (
         return value?.toString().toLowerCase().includes(filter.toLowerCase());
       });
     });
-  }, [data, searchTerm, columnFilters, dateRange]);
+  }, [data, searchTerm, columnFilters, dateRange, selectedEmployee]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
