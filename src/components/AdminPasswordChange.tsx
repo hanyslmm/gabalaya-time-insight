@@ -40,13 +40,13 @@ const AdminPasswordChange: React.FC<AdminPasswordChangeProps> = ({ employee, onC
       const token = localStorage.getItem('auth_token');
       if (!token) throw new Error('No authentication token found');
 
-      const { data: result, error } = await supabase.functions.invoke('change-admin-password', {
+      const { data: result, error } = await supabase.functions.invoke('unified-auth', {
         body: {
-          username: employee.staff_id,
+          action: 'change-password',
+          targetUser: employee.staff_id,
           currentPassword: data.currentPassword || '', // Empty for admin actions
           newPassword: data.newPassword,
-          token: token,
-          isAdminAction: !isChangingOwnPassword
+          token: token
         }
       });
 

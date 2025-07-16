@@ -13,6 +13,7 @@ import TopPerformersLeaderboard from '@/components/TopPerformersLeaderboard';
 import WeeklyHoursTrend from '@/components/WeeklyHoursTrend';
 import MonthlyShiftsActivity from '@/components/MonthlyShiftsActivity';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { useDashboardData } from '@/hooks/useDashboardData';
 
 const DashboardPage: React.FC = () => {
   const { t } = useTranslation();
@@ -55,70 +56,9 @@ const DashboardPage: React.FC = () => {
     label: 'Previous Pay Period'
   };
 
-  // Fetch employee count
-  const { data: employeeCount } = useQuery({
-    queryKey: ['employee-count'],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from('employees')
-        .select('*', { count: 'exact', head: true });
-      
-      if (error) throw error;
-      return count || 0;
-    }
-  });
-
-  // Fetch timesheet summary for current period - Fixed date filtering
-  const { data: currentTimesheetSummary } = useQuery({
-    queryKey: ['timesheet-summary-current', currentDateRange],
-    queryFn: async () => {
-      const fromDate = format(currentDateRange.from, 'yyyy-MM-dd');
-      const toDate = format(currentDateRange.to, 'yyyy-MM-dd');
-      
-      const { data, error } = await supabase
-        .from('timesheet_entries')
-        .select('total_hours, total_card_amount_flat, total_card_amount_split')
-        .gte('clock_in_date', fromDate)
-        .lte('clock_in_date', toDate);
-      
-      if (error) throw error;
-      
-      const totalHours = data?.reduce((sum, entry) => sum + (entry.total_hours || 0), 0) || 0;
-      // Use split amount if available, otherwise flat amount
-      const totalPayroll = data?.reduce((sum, entry) => 
-        sum + (entry.total_card_amount_split || entry.total_card_amount_flat || 0), 0
-      ) || 0;
-      const totalShifts = data?.length || 0;
-      
-      return { totalHours, totalPayroll, totalShifts };
-    }
-  });
-
-  // Fetch timesheet summary for previous period - Fixed date filtering
-  const { data: previousTimesheetSummary } = useQuery({
-    queryKey: ['timesheet-summary-previous', previousDateRange],
-    queryFn: async () => {
-      const fromDate = format(previousDateRange.from, 'yyyy-MM-dd');
-      const toDate = format(previousDateRange.to, 'yyyy-MM-dd');
-      
-      const { data, error } = await supabase
-        .from('timesheet_entries')
-        .select('total_hours, total_card_amount_flat, total_card_amount_split')
-        .gte('clock_in_date', fromDate)
-        .lte('clock_in_date', toDate);
-      
-      if (error) throw error;
-      
-      const totalHours = data?.reduce((sum, entry) => sum + (entry.total_hours || 0), 0) || 0;
-      // Use split amount if available, otherwise flat amount
-      const totalPayroll = data?.reduce((sum, entry) => 
-        sum + (entry.total_card_amount_split || entry.total_card_amount_flat || 0), 0
-      ) || 0;
-      const totalShifts = data?.length || 0;
-      
-      return { totalHours, totalPayroll, totalShifts };
-    }
-  });
+  // Use optimized dashboard data hooks
+  const { data: currentData, isLoading: currentLoading } = useDashboardData(currentDateRange, true);
+  const { data: previousData, isLoading: previousLoading } = useDashboardData(previousDateRange, true);
 
   const quickActions = [
     {
@@ -184,7 +124,7 @@ const DashboardPage: React.FC = () => {
                       </div>
                     </CardHeader>
                     <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
-                      <div className="text-fluid-2xl font-bold text-primary mb-1 line-clamp-1">{Math.round(employeeCount || 0)}</div>
+                      <div className="text-fluid-2xl font-bold text-primary mb-1 line-clamp-1">{currentLoading ? '...' : Math.round(currentData?.employeeCount || 0)}</div>
                       <p className="text-fluid-sm text-muted-foreground line-clamp-1">Active staff members</p>
                     </CardContent>
                   </Card>
@@ -197,7 +137,7 @@ const DashboardPage: React.FC = () => {
                       </div>
                     </CardHeader>
                      <CardContent className="p-4 sm:p-6 pt-0">
-                       <div className="text-2xl sm:text-3xl font-bold text-secondary mb-1">{Math.round(currentTimesheetSummary?.totalHours || 0)}</div>
+                       <div className="text-2xl sm:text-3xl font-bold text-secondary mb-1">{currentLoading ? '...' : Math.round(currentData?.totalHours || 0)}</div>
                        <p className="text-xs text-muted-foreground">Hours worked</p>
                      </CardContent>
                   </Card>
@@ -210,7 +150,7 @@ const DashboardPage: React.FC = () => {
                       </div>
                     </CardHeader>
                      <CardContent className="p-4 sm:p-6 pt-0">
-                       <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-accent mb-1">{Math.round(currentTimesheetSummary?.totalPayroll || 0)} LE</div>
+                       <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-accent mb-1">{currentLoading ? '...' : Math.round(currentData?.totalPayroll || 0)} LE</div>
                        <p className="text-xs text-muted-foreground">Total earnings</p>
                      </CardContent>
                   </Card>
@@ -223,7 +163,7 @@ const DashboardPage: React.FC = () => {
                       </div>
                     </CardHeader>
                      <CardContent className="p-4 sm:p-6 pt-0">
-                       <div className="text-2xl sm:text-3xl font-bold text-success mb-1">{Math.round(currentTimesheetSummary?.totalShifts || 0)}</div>
+                       <div className="text-2xl sm:text-3xl font-bold text-success mb-1">{currentLoading ? '...' : Math.round(currentData?.totalShifts || 0)}</div>
                        <p className="text-xs text-muted-foreground">Completed shifts</p>
                      </CardContent>
                   </Card>
@@ -270,7 +210,7 @@ const DashboardPage: React.FC = () => {
                       </div>
                     </CardHeader>
                     <CardContent className="p-4 sm:p-6 pt-0">
-                      <div className="text-2xl sm:text-3xl font-bold text-primary mb-1">{Math.round(employeeCount || 0)}</div>
+                      <div className="text-2xl sm:text-3xl font-bold text-primary mb-1">{previousLoading ? '...' : Math.round(previousData?.employeeCount || 0)}</div>
                       <p className="text-xs text-muted-foreground">Active staff members</p>
                     </CardContent>
                   </Card>
@@ -283,7 +223,7 @@ const DashboardPage: React.FC = () => {
                       </div>
                     </CardHeader>
                      <CardContent className="p-4 sm:p-6 pt-0">
-                       <div className="text-2xl sm:text-3xl font-bold text-secondary mb-1">{Math.round(previousTimesheetSummary?.totalHours || 0)}</div>
+                       <div className="text-2xl sm:text-3xl font-bold text-secondary mb-1">{previousLoading ? '...' : Math.round(previousData?.totalHours || 0)}</div>
                        <p className="text-xs text-muted-foreground">Hours worked</p>
                      </CardContent>
                   </Card>
@@ -296,7 +236,7 @@ const DashboardPage: React.FC = () => {
                       </div>
                     </CardHeader>
                      <CardContent className="p-4 sm:p-6 pt-0">
-                       <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-accent mb-1">{Math.round(previousTimesheetSummary?.totalPayroll || 0)} LE</div>
+                       <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-accent mb-1">{previousLoading ? '...' : Math.round(previousData?.totalPayroll || 0)} LE</div>
                        <p className="text-xs text-muted-foreground">Total earnings</p>
                      </CardContent>
                   </Card>
@@ -309,7 +249,7 @@ const DashboardPage: React.FC = () => {
                       </div>
                     </CardHeader>
                      <CardContent className="p-4 sm:p-6 pt-0">
-                       <div className="text-2xl sm:text-3xl font-bold text-success mb-1">{Math.round(previousTimesheetSummary?.totalShifts || 0)}</div>
+                       <div className="text-2xl sm:text-3xl font-bold text-success mb-1">{previousLoading ? '...' : Math.round(previousData?.totalShifts || 0)}</div>
                        <p className="text-xs text-muted-foreground">Completed shifts</p>
                      </CardContent>
                   </Card>

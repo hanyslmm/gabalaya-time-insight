@@ -674,7 +674,18 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      employee_timesheet_summary: {
+        Row: {
+          full_name: string | null
+          month_year: string | null
+          staff_id: string | null
+          total_flat_amount: number | null
+          total_hours: number | null
+          total_shifts: number | null
+          total_split_amount: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_monthly_summary: {
@@ -685,6 +696,10 @@ export type Database = {
           net_profit: number
           transaction_count: number
         }[]
+      }
+      get_user_role: {
+        Args: { user_username: string }
+        Returns: string
       }
     }
     Enums: {

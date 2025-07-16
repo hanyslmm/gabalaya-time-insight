@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Upload, X, Eye, AlertTriangle, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { parseFile } from '@/utils/fileParser';
-import { processTimesheetData } from '@/utils/timesheetDataProcessor';
+import { supabase } from '@/integrations/supabase/client';
 import { useTimesheetUpload } from '@/hooks/useTimesheetUpload';
 
 interface TimesheetUploadProps {
@@ -72,23 +72,51 @@ const TimesheetUpload: React.FC<TimesheetUploadProps> = ({ onClose, onUploadComp
       const rawData = await parseFile(file);
       console.log('Parsed raw data:', rawData);
       
-      const processedData = await processTimesheetData(rawData);
-      console.log('Processed data:', processedData);
-      
-      if (processedData.length === 0) {
-        toast.error(t('noValidData') || 'No valid data found in file. Please check the file format.');
+      // Use the new edge function for processing and validation
+      const { data: result, error } = await supabase.functions.invoke('process-timesheet', {
+        body: {
+          data: rawData,
+          validateOnly: true // Only validate for preview
+        }
+      });
+
+      if (error) {
+        console.error('Error validating timesheet data:', error);
+        toast.error('Error validating timesheet data: ' + error.message);
         return;
       }
 
-      // Create preview data with validation
-      const preview: PreviewRow[] = processedData.slice(0, 10).map(row => {
-        const { errors, warnings } = validateRow(row);
-        return { data: row, errors, warnings };
-      });
+      if (result && result.success) {
+        console.log('Validation result:', result);
+        
+        if (result.validEntries === 0) {
+          toast.error(t('noValidData') || 'No valid data found in file. Please check the file format.');
+          return;
+        }
 
-      setPreviewData(preview);
-      setProcessedData(processedData);
-      setShowPreview(true);
+        // Create preview data with validation
+        const preview: PreviewRow[] = result.preview.map((row: any, index: number) => {
+          const { errors, warnings } = validateRow(row);
+          return { data: row, errors, warnings };
+        });
+
+        // Show validation errors if any
+        if (result.errors && result.errors.length > 0) {
+          console.warn('Validation errors:', result.errors);
+        }
+
+        setPreviewData(preview);
+        setProcessedData(result.preview);
+        setShowPreview(true);
+        
+        if (result.errors.length > 0) {
+          toast.warning(`Processed ${result.validEntries} valid entries. ${result.errors.length} rows had issues.`);
+        } else {
+          toast.success(`Successfully validated ${result.validEntries} entries.`);
+        }
+      } else {
+        toast.error(result?.error || 'Unknown error occurred during validation');
+      }
     } catch (error) {
       console.error('Error processing file:', error);
       toast.error(t('errorProcessingFile') || 'Error processing file: ' + (error as Error).message);
@@ -97,14 +125,45 @@ const TimesheetUpload: React.FC<TimesheetUploadProps> = ({ onClose, onUploadComp
     }
   };
 
-  const handleConfirmUpload = () => {
+  const handleConfirmUpload = async () => {
     const hasErrors = previewData.some(row => row.errors.length > 0);
     if (hasErrors) {
       toast.error('Please fix the errors before uploading');
       return;
     }
 
-    uploadMutation.mutate(processedData);
+    try {
+      setUploading(true);
+      
+      // Parse file again and process for real this time
+      const rawData = await parseFile(file!);
+      
+      const { data: result, error } = await supabase.functions.invoke('process-timesheet', {
+        body: {
+          data: rawData,
+          validateOnly: false // Actually process and insert
+        }
+      });
+
+      if (error) {
+        console.error('Error uploading timesheet data:', error);
+        toast.error('Error uploading timesheet data: ' + error.message);
+        return;
+      }
+
+      if (result && result.success) {
+        toast.success(`Successfully uploaded ${result.processed} timesheet entries!`);
+        onUploadComplete();
+        onClose();
+      } else {
+        toast.error(result?.error || 'Unknown error occurred during upload');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Upload failed: ' + (error as Error).message);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleBackToFileSelection = () => {

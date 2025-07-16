@@ -35,8 +35,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // Verify token with backend
-      const { data, error } = await supabase.functions.invoke('authenticate-user', {
-        body: { token }
+      const { data, error } = await supabase.functions.invoke('unified-auth', {
+        body: { 
+          action: 'validate-token',
+          token 
+        }
       });
 
       if (error || !data?.success || !data?.user) {
@@ -95,8 +98,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase.functions.invoke('authenticate-user', {
-        body: { username, password }
+      const { data, error } = await supabase.functions.invoke('unified-auth', {
+        body: { 
+          action: 'login',
+          username, 
+          password 
+        }
       });
 
       if (error) {
