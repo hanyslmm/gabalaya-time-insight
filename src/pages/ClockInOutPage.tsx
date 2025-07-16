@@ -22,7 +22,8 @@ interface ClockEntry {
 
 const ClockInOutPage: React.FC = () => {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true); // Start with loading true
+  const [loading, setLoading] = useState(true); // Set initial loading state to true
+  const [actionLoading, setActionLoading] = useState(false); // For button-specific loading
   const [currentEntry, setCurrentEntry] = useState<ClockEntry | null>(null);
   const [todayEntries, setTodayEntries] = useState<ClockEntry[]>([]);
   const [location, setLocation] = useState<string | null>(null);
@@ -64,10 +65,13 @@ const ClockInOutPage: React.FC = () => {
 
   // Fetch today's clock-in/out entries
   const fetchTodayEntries = async () => {
-    if (!user || !user.full_name) return;
+    if (!user || !user.full_name) {
+      setLoading(false);
+      return;
+    }
     
-    setLoading(true);
     const today = new Date().toISOString().split('T')[0];
+    // **THE FIX IS HERE:** We now use `user.full_name` to match records.
     const { data, error } = await supabase
       .from('timesheet_entries')
       .select('*')
@@ -75,7 +79,6 @@ const ClockInOutPage: React.FC = () => {
       .eq('clock_in_date', today)
       .order('clock_in_time', { ascending: false });
 
-    setLoading(false);
     if (error) {
       console.error('Error fetching entries:', error);
       toast.error("Could not fetch today's entries.");
@@ -84,6 +87,7 @@ const ClockInOutPage: React.FC = () => {
       const activeEntry = data.find(entry => !entry.clock_out_time);
       setCurrentEntry(activeEntry || null);
     }
+    setLoading(false); // Stop loading after data is fetched
   };
 
   useEffect(() => {
@@ -98,7 +102,7 @@ const ClockInOutPage: React.FC = () => {
       return;
     }
 
-    setLoading(true);
+    setActionLoading(true);
     try {
       const userLocation = await getCurrentLocation();
       setLocation(userLocation);
@@ -116,7 +120,7 @@ const ClockInOutPage: React.FC = () => {
       toast.error(error.message || 'Failed to clock in');
       console.error('Clock-in error:', error);
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
   };
 
@@ -126,7 +130,7 @@ const ClockInOutPage: React.FC = () => {
       return;
     }
 
-    setLoading(true);
+    setActionLoading(true);
     try {
       const userLocation = await getCurrentLocation();
       setLocation(userLocation);
@@ -144,9 +148,17 @@ const ClockInOutPage: React.FC = () => {
       toast.error(error.message || 'Failed to clock out');
       console.error('Clock-out error:', error);
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8">
@@ -184,21 +196,21 @@ const ClockInOutPage: React.FC = () => {
                 )}
                 <Button
                   onClick={handleClockOut}
-                  disabled={loading}
+                  disabled={actionLoading}
                   className="w-full bg-destructive hover:bg-destructive/90"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  {loading ? 'Clocking Out...' : 'Clock Out'}
+                  {actionLoading ? 'Clocking Out...' : 'Clock Out'}
                 </Button>
               </div>
             ) : (
               <Button
                 onClick={handleClockIn}
-                disabled={loading}
+                disabled={actionLoading}
                 className="w-full"
               >
                 <LogIn className="mr-2 h-4 w-4" />
-                {loading ? 'Clocking In...' : 'Clock In'}
+                {actionLoading ? 'Clocking In...' : 'Clock In'}
               </Button>
             )}
           </CardContent>
@@ -209,9 +221,7 @@ const ClockInOutPage: React.FC = () => {
             <CardTitle>Today's Entries</CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <p className="text-muted-foreground text-center py-4">Loading entries...</p>
-            ) : todayEntries.length === 0 ? (
+            {todayEntries.length === 0 ? (
               <p className="text-muted-foreground text-center py-4">
                 No entries for today yet
               </p>
@@ -246,3 +256,4 @@ const ClockInOutPage: React.FC = () => {
 };
 
 export default ClockInOutPage;
+
