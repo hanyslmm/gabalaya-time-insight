@@ -124,14 +124,14 @@ const Layout = () => {
         {/* Main content */}
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Top navigation */}
-          <header className="bg-card/95 backdrop-blur-sm border-b border-border/50 px-4 py-3 sm:px-6 sticky top-0 z-40">
+          <header className="bg-card/95 backdrop-blur-sm border-b border-border/50 px-2 py-2 sm:px-6 sm:py-3 sticky top-0 z-40">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 sm:space-x-4">
                 {/* Mobile menu trigger */}
                 <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                   <SheetTrigger asChild>
-                    <Button variant="ghost" size="sm" className="md:hidden">
-                      <Menu className="h-5 w-5" />
+                    <Button variant="ghost" size="sm" className="md:hidden h-8 w-8 p-0">
+                      <Menu className="h-4 w-4" />
                     </Button>
                   </SheetTrigger>
                   <SheetContent side="left" className="w-64 p-0">
@@ -175,7 +175,7 @@ const Layout = () => {
                   </SheetContent>
                 </Sheet>
 
-                <h2 className="text-lg font-semibold text-foreground capitalize tracking-tight">
+                <h2 className="text-sm sm:text-lg font-semibold text-foreground capitalize tracking-tight">
                   {location.pathname.split('/').pop()?.replace('-', ' ') || 'Dashboard'}
                 </h2>
                 <div className="hidden sm:block">
@@ -187,11 +187,11 @@ const Layout = () => {
               </div>
 
               {/* Global Search */}
-              <div className="flex-1 max-w-md mx-4 hidden md:block">
+              <div className="flex-1 max-w-md mx-2 sm:mx-4 hidden md:block">
                 <GlobalSearch />
               </div>
               
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 sm:space-x-4">
                 <NotificationSystem />
                 <ThemeToggle />
                 
@@ -239,7 +239,7 @@ const Layout = () => {
 
           {/* Page content */}
           <main className="flex-1 overflow-y-auto bg-gradient-to-br from-background to-background/95">
-            <div className="py-4 px-3 sm:py-6 sm:px-6 lg:px-8 min-h-full pb-safe md:pb-6 w-full max-w-screen-2xl mx-auto">
+            <div className="py-2 px-2 sm:py-6 sm:px-6 lg:px-8 min-h-full pb-20 md:pb-6 w-full max-w-screen-2xl mx-auto">
               <Outlet />
             </div>
           </main>

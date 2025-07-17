@@ -94,9 +94,9 @@ const MobileNavigation: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-lg border-t border-border/30 md:hidden">
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/98 backdrop-blur-lg border-t border-border/30 md:hidden">
       <div 
-        className="flex items-center justify-around px-2 py-1 max-w-md mx-auto"
+        className="flex items-center justify-around px-1 py-1 w-full"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -111,7 +111,7 @@ const MobileNavigation: React.FC = () => {
               variant="ghost"
               size="sm"
               className={cn(
-                "flex flex-col items-center justify-center min-h-[60px] px-3 py-2 relative transition-all duration-300",
+                "flex flex-col items-center justify-center min-h-[56px] px-1 py-1 relative transition-all duration-300 flex-1",
                 "hover:bg-accent/10 active:bg-accent/20 active:scale-95",
                 isActive && "text-primary bg-primary/10"
               )}
@@ -132,7 +132,7 @@ const MobileNavigation: React.FC = () => {
                 )}
               </div>
               <span className={cn(
-                "text-xs font-medium transition-all duration-300",
+                "text-xs font-medium transition-all duration-300 text-center truncate max-w-full",
                 isActive ? "text-primary" : "text-muted-foreground"
               )}>
                 {item.name}

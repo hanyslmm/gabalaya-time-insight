@@ -161,8 +161,8 @@ const ClockInOutPage: React.FC = () => {
   }
 
   return (
-    <div className="w-full px-3 sm:px-6 lg:px-8 pb-safe">
-      <div className="max-w-md mx-auto space-y-4 sm:space-y-6">
+    <div className="w-full px-2 sm:px-6 lg:px-8 pb-safe">
+      <div className="max-w-md mx-auto space-y-3 sm:space-y-6">
         {motivationalMessage && (
           <Alert variant="default" className="bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20 rounded-2xl p-4">
             <AlertCircle className="h-4 w-4 text-primary" />
@@ -172,24 +172,24 @@ const ClockInOutPage: React.FC = () => {
           </Alert>
         )}
 
-        <Card className="shadow-xl border-border/20 bg-gradient-to-br from-card to-card/90 rounded-3xl overflow-hidden">
-          <CardHeader className="text-center pb-4 px-6 pt-8">
-            <div className="relative mb-6">
-              <div className="w-20 h-20 mx-auto bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center shadow-lg">
-                <Clock className="h-10 w-10 text-primary-foreground" />
+        <Card className="shadow-xl border-border/20 bg-gradient-to-br from-card to-card/90 rounded-2xl overflow-hidden">
+          <CardHeader className="text-center pb-3 px-4 pt-6">
+            <div className="relative mb-4">
+              <div className="w-16 h-16 mx-auto bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center shadow-lg">
+                <Clock className="h-8 w-8 text-primary-foreground" />
               </div>
               {currentEntry && (
-                <div className="absolute -top-1 -right-1 w-6 h-6 bg-success rounded-full border-2 border-card animate-pulse"></div>
+                <div className="absolute -top-1 -right-1 w-5 h-5 bg-success rounded-full border-2 border-card animate-pulse"></div>
               )}
             </div>
-            <CardTitle className="text-2xl sm:text-3xl font-bold mb-2">
+            <CardTitle className="text-lg sm:text-2xl lg:text-3xl font-bold mb-2">
               {currentEntry ? 'You are Clocked In' : 'Ready to Work?'}
             </CardTitle>
-            <CardDescription className="text-base text-muted-foreground">
+            <CardDescription className="text-sm sm:text-base text-muted-foreground">
               {format(new Date(), 'eeee, MMMM dd, yyyy')}
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-6 pb-8">
+          <CardContent className="px-4 pb-6">
             {currentEntry ? (
               <div className="text-center space-y-6">
                 <div className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl p-4 border border-primary/20">

@@ -99,10 +99,10 @@ const DashboardPage: React.FC = () => {
   ];
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">{t('dashboard') || 'Dashboard'}</h1>
-        <p className="mt-2 text-muted-foreground">Overview of your HRM system</p>
+    <div className="w-full px-1 sm:px-6 lg:px-8">
+      <div className="mb-4 sm:mb-8">
+        <h1 className="text-xl sm:text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">{t('dashboard') || 'Dashboard'}</h1>
+        <p className="mt-1 sm:mt-2 text-sm sm:text-base text-muted-foreground">Overview of your HRM system</p>
       </div>
 
       {/* Period Selection and Dashboard Content */}
@@ -113,19 +113,19 @@ const DashboardPage: React.FC = () => {
             value: "current",
             label: "Current Pay Period",
             content: (
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 {/* Stats Cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 lg:gap-6">
                   <Card className="group bg-gradient-to-br from-card via-card to-primary/5 border-primary/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden card-interactive">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 p-3 sm:p-4 lg:p-6">
-                      <CardTitle className="text-fluid-sm font-semibold text-card-foreground/80 leading-snug line-clamp-2 min-w-0 flex-1 pr-2">Total Employees</CardTitle>
-                      <div className="p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors flex-shrink-0">
-                        <Users className="h-4 w-4 text-primary" />
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-2 sm:p-4 lg:p-6">
+                      <CardTitle className="text-xs sm:text-sm font-semibold text-card-foreground/80 leading-snug line-clamp-2 min-w-0 flex-1 pr-1">Total Employees</CardTitle>
+                      <div className="p-1 sm:p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors flex-shrink-0">
+                        <Users className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
                       </div>
                     </CardHeader>
-                    <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
-                      <div className="text-fluid-2xl font-bold text-primary mb-1 line-clamp-1">{currentLoading ? '...' : Math.round(currentData?.employeeCount || 0)}</div>
-                      <p className="text-fluid-sm text-muted-foreground line-clamp-1">Active staff members</p>
+                    <CardContent className="p-2 sm:p-4 lg:p-6 pt-0">
+                      <div className="text-lg sm:text-2xl lg:text-3xl font-bold text-primary mb-1 line-clamp-1">{currentLoading ? '...' : Math.round(currentData?.employeeCount || 0)}</div>
+                      <p className="text-xs sm:text-sm text-muted-foreground line-clamp-1">Active staff members</p>
                     </CardContent>
                   </Card>
 
