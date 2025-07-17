@@ -8,6 +8,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import NotificationSystem from '@/components/NotificationSystem';
+import MobileNavigation from '@/components/MobileNavigation';
+import OfflineIndicator from '@/components/OfflineIndicator';
+import GlobalSearch from '@/components/GlobalSearch';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { 
   LayoutDashboard, 
   Clock, 
@@ -30,6 +34,7 @@ const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   const handleLogout = async () => {
     try {
@@ -180,6 +185,11 @@ const Layout = () => {
                   Welcome back, {user?.full_name || user?.username}
                 </p>
               </div>
+
+              {/* Global Search */}
+              <div className="flex-1 max-w-md mx-4 hidden md:block">
+                <GlobalSearch />
+              </div>
               
               <div className="flex items-center space-x-4">
                 <NotificationSystem />
@@ -299,6 +309,12 @@ const Layout = () => {
           </div>
         </div>
       </div>
+      
+      {/* Mobile Navigation */}
+      {isMobile && <MobileNavigation />}
+      
+      {/* Offline Indicator */}
+      <OfflineIndicator />
     </div>
   );
 };
