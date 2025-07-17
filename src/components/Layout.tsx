@@ -244,69 +244,7 @@ const Layout = () => {
             </div>
           </main>
 
-          {/* Mobile bottom navigation */}
-          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-card/98 backdrop-blur-lg border-t border-border/30 z-50 pb-safe">
-            <div className="flex justify-around items-center py-3 px-2">
-              {visibleNavigation.slice(0, 5).map((item) => {
-                const isActive = location.pathname === item.href;
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className={cn(
-                      "flex flex-col items-center justify-center p-2 min-w-0 flex-1 text-xs font-medium transition-all duration-200 rounded-lg",
-                      isActive
-                        ? "text-primary bg-primary/10"
-                        : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-                    )}
-                  >
-                    <item.icon
-                      className={cn(
-                        "h-5 w-5 mb-1",
-                        isActive ? "text-primary" : "text-muted-foreground"
-                      )}
-                    />
-                    <span className="truncate max-w-full leading-tight text-[10px] sm:text-xs">{item.name}</span>
-                  </Link>
-                );
-              })}
-              {visibleNavigation.length > 5 && (
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <button className="flex flex-col items-center justify-center p-1.5 min-w-0 flex-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-all duration-200">
-                      <Menu className="h-4 w-4 mb-0.5" />
-                      <span className="leading-tight">More</span>
-                    </button>
-                  </SheetTrigger>
-                  <SheetContent side="bottom" className="h-auto max-h-96">
-                    <SheetHeader>
-                      <SheetTitle>More Options</SheetTitle>
-                    </SheetHeader>
-                    <div className="grid grid-cols-2 gap-2 mt-4">
-                      {visibleNavigation.slice(5).map((item) => {
-                        const isActive = location.pathname === item.href;
-                        return (
-                          <Link
-                            key={item.name}
-                            to={item.href}
-                            className={cn(
-                              "flex items-center p-3 rounded-lg transition-all duration-200",
-                              isActive
-                                ? "bg-primary text-primary-foreground"
-                                : "hover:bg-accent/80"
-                            )}
-                          >
-                            <item.icon className="h-5 w-5 mr-3" />
-                            {item.name}
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  </SheetContent>
-                </Sheet>
-              )}
-            </div>
-          </div>
+
         </div>
       </div>
       
