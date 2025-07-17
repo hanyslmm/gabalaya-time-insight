@@ -167,11 +167,53 @@ const ClockInOutPage: React.FC = () => {
     const today = new Date().toISOString().split('T')[0];
     
     try {
-      // Try searching by both username (staff_id) and full_name to ensure we find entries
+      // First, get the user's employee record to understand all possible identifiers
+      const { data: employeeData, error: employeeError } = await supabase
+        .from('employees')
+        .select('staff_id, full_name, username, email')
+        .or(`staff_id.eq.${user.username},full_name.eq.${user.full_name},username.eq.${user.username},email.eq.${user.email}`)
+        .limit(1);
+
+      if (employeeError) {
+        console.error('Error fetching employee data:', employeeError);
+      }
+
+      // Build a comprehensive list of possible identifiers for this user
+      const userIdentifiers = [
+        user.username,
+        user.full_name,
+        user.email
+      ];
+
+      // Add identifiers from employee record if found
+      if (employeeData && employeeData.length > 0) {
+        const emp = employeeData[0];
+        if (emp.staff_id && !userIdentifiers.includes(emp.staff_id)) {
+          userIdentifiers.push(emp.staff_id);
+        }
+        if (emp.full_name && !userIdentifiers.includes(emp.full_name)) {
+          userIdentifiers.push(emp.full_name);
+        }
+        if (emp.username && !userIdentifiers.includes(emp.username)) {
+          userIdentifiers.push(emp.username);
+        }
+        if (emp.email && !userIdentifiers.includes(emp.email)) {
+          userIdentifiers.push(emp.email);
+        }
+      }
+
+      // Filter out null/undefined values
+      const validIdentifiers = userIdentifiers.filter(id => id && id.trim() !== '');
+      
+      console.log('Searching for entries with identifiers:', validIdentifiers);
+
+      // Build OR query for all possible identifiers
+      const orQuery = validIdentifiers.map(id => `employee_name.eq.${id}`).join(',');
+      
       const { data, error } = await supabase
         .from('timesheet_entries')
         .select('*')
-        .or(`employee_name.eq.${user.username},employee_name.eq.${user.full_name}`)
+        .or(orQuery)
         .eq('clock_in_date', today)
         .order('clock_in_time', { ascending: false });
 
@@ -184,11 +226,16 @@ const ClockInOutPage: React.FC = () => {
       setTodayEntries(data || []);
       
       // Find the most recent entry without clock_out_time (active entry)
-      const activeEntry = data?.find(entry => !entry.clock_out_time) || null;
+      const activeEntry = data?.find(entry => !entry.clock_out_time && entry.clock_out_time !== '00:00:00') || null;
       setCurrentEntry(activeEntry);
       
       // Enhanced debug logging
-      console.log('User info:', { username: user.username, full_name: user.full_name });
+      console.log('User info:', { 
+        username: user.username, 
+        full_name: user.full_name, 
+        email: user.email,
+        identifiers: validIdentifiers 
+      });
       console.log('Today entries found:', data);
       console.log('Active entry:', activeEntry);
       console.log('Current entry state will be set to:', activeEntry);
@@ -229,8 +276,20 @@ const ClockInOutPage: React.FC = () => {
       const userLocation = await getCurrentLocation();
       setLocation(userLocation);
 
+      // Try to get the correct staff_id from the employee record
+      const { data: employeeData } = await supabase
+        .from('employees')
+        .select('staff_id, full_name, username')
+        .or(`staff_id.eq.${user.username},full_name.eq.${user.full_name},username.eq.${user.username}`)
+        .limit(1);
+
+      // Use staff_id if found, otherwise fallback to username
+      const staffId = employeeData && employeeData.length > 0 ? employeeData[0].staff_id : user.username;
+
+      console.log('Attempting clock in with staff_id:', staffId);
+
       const { data, error } = await supabase.rpc('clock_in', {
-        p_staff_id: user.username,
+        p_staff_id: staffId,
         p_clock_in_location: userLocation,
       });
 
@@ -239,19 +298,40 @@ const ClockInOutPage: React.FC = () => {
         if (error.message.toLowerCase().includes('already') || error.message.toLowerCase().includes('clocked in')) {
           console.log('Clock in error - user already clocked in, refreshing data...');
           
-          // Refresh the data and check the result
+          // Refresh the data and check the result directly
           const today = new Date().toISOString().split('T')[0];
           try {
+            // Get the user's employee record for comprehensive search
+            const { data: employeeData } = await supabase
+              .from('employees')
+              .select('staff_id, full_name, username, email')
+              .or(`staff_id.eq.${user.username},full_name.eq.${user.full_name},username.eq.${user.username},email.eq.${user.email}`)
+              .limit(1);
+
+            // Build comprehensive identifier list
+            const userIdentifiers = [user.username, user.full_name, user.email];
+            if (employeeData && employeeData.length > 0) {
+              const emp = employeeData[0];
+              [emp.staff_id, emp.full_name, emp.username, emp.email].forEach(id => {
+                if (id && !userIdentifiers.includes(id)) {
+                  userIdentifiers.push(id);
+                }
+              });
+            }
+
+            const validIdentifiers = userIdentifiers.filter(id => id && id.trim() !== '');
+            const orQuery = validIdentifiers.map(id => `employee_name.eq.${id}`).join(',');
+            
             const { data: refreshedData, error: refreshError } = await supabase
               .from('timesheet_entries')
               .select('*')
-              .or(`employee_name.eq.${user.username},employee_name.eq.${user.full_name}`)
+              .or(orQuery)
               .eq('clock_in_date', today)
               .order('clock_in_time', { ascending: false });
 
             if (!refreshError && refreshedData) {
               setTodayEntries(refreshedData);
-              const activeEntry = refreshedData.find(entry => !entry.clock_out_time) || null;
+              const activeEntry = refreshedData.find(entry => !entry.clock_out_time && entry.clock_out_time !== '00:00:00') || null;
               setCurrentEntry(activeEntry);
               
               console.log('Refreshed data:', refreshedData);
@@ -376,12 +456,47 @@ const ClockInOutPage: React.FC = () => {
             
             {/* Debug info - remove in production */}
             <div className="text-xs text-muted-foreground mt-2 p-2 bg-muted/20 rounded">
-              <div>User: {user?.username} ({user?.full_name})</div>
-              <div>Current Entry: {currentEntry ? 'YES' : 'NO'}</div>
-              <div>Today Entries: {todayEntries.length}</div>
-              {currentEntry && (
-                <div>Clock In: {currentEntry.clock_in_time}</div>
-              )}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <div>User: {user?.username}</div>
+                  <div>Name: {user?.full_name}</div>
+                  <div>Email: {user?.email}</div>
+                  <div>Role: {user?.role}</div>
+                </div>
+                <div>
+                  <div>Current Entry: {currentEntry ? 'YES' : 'NO'}</div>
+                  <div>Today Entries: {todayEntries.length}</div>
+                  {currentEntry && (
+                    <>
+                      <div>Entry ID: {currentEntry.id}</div>
+                      <div>Clock In: {currentEntry.clock_in_time}</div>
+                      <div>Clock Out: {currentEntry.clock_out_time || 'N/A'}</div>
+                      <div>Employee Name: {currentEntry.employee_name}</div>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="mt-2 pt-2 border-t border-muted-foreground/20">
+                <div className="text-xs">All Today's Entries:</div>
+                {todayEntries.map((entry, index) => (
+                  <div key={index} className="ml-2 text-xs">
+                    {index + 1}. {entry.employee_name} | In: {entry.clock_in_time} | Out: {entry.clock_out_time || 'Active'}
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2 pt-2 border-t border-muted-foreground/20 flex justify-between items-center">
+                <span className="text-xs">Having issues? Try manual refresh:</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={refreshData}
+                  disabled={loading}
+                  className="h-6 px-2 text-xs"
+                >
+                  <RefreshCw className={`h-3 w-3 mr-1 ${loading ? 'animate-spin' : ''}`} />
+                  Force Refresh
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="px-4 pb-6">
