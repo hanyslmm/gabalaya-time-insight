@@ -4,14 +4,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, addDays } from 'date-fns';
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, addDays, subDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { Clock, TrendingUp } from 'lucide-react';
+import { Clock, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 
 interface WeeklyData {
   date: string;
   hours: number;
   displayDay: string;
+  fullDayName: string;
 }
 
 interface WeeklyHoursTrendProps {
@@ -27,31 +28,30 @@ const WeeklyHoursTrend: React.FC<WeeklyHoursTrendProps> = ({
   timePeriod = 'current',
   dateRange 
 }) => {
-  const [currentWeekOffset, setCurrentWeekOffset] = useState(0);
+  const [weekOffset, setWeekOffset] = useState(0);
   
   const { data: weeklyData, isLoading } = useQuery({
-    queryKey: ['weekly-hours-trend', timePeriod, dateRange, currentWeekOffset],
+    queryKey: ['weekly-hours-trend', timePeriod, dateRange, weekOffset],
     queryFn: async () => {
-      // Get target week starting from Saturday with offset
+      // Get the last 7 days from today with offset
       const today = new Date();
-      const baseDate = addDays(today, currentWeekOffset * 7);
-      const currentWeekStart = startOfWeek(baseDate, { weekStartsOn: 6 }); // Saturday = 6
-      const currentWeekEnd = endOfWeek(baseDate, { weekStartsOn: 6 }); // Friday = 5
+      const endDate = subDays(today, weekOffset * 7);
+      const startDate = subDays(endDate, 6); // Get 7 days including endDate
       
-      // Get all days in the current week (Saturday to Friday)
+      // Get all days in the 7-day period
       const weekDays = eachDayOfInterval({
-        start: currentWeekStart,
-        end: currentWeekEnd
+        start: startDate,
+        end: endDate
       });
 
       let query = supabase
         .from('timesheet_entries')
         .select('clock_in_date, total_hours');
       
-      // Query for current week data
+      // Query for the 7-day period
       query = query
-        .gte('clock_in_date', format(currentWeekStart, 'yyyy-MM-dd'))
-        .lte('clock_in_date', format(currentWeekEnd, 'yyyy-MM-dd'));
+        .gte('clock_in_date', format(startDate, 'yyyy-MM-dd'))
+        .lte('clock_in_date', format(endDate, 'yyyy-MM-dd'));
 
       const { data: timesheets, error } = await query;
 
@@ -64,7 +64,8 @@ const WeeklyHoursTrend: React.FC<WeeklyHoursTrendProps> = ({
         const dateKey = format(date, 'yyyy-MM-dd');
         dailyStats[dateKey] = {
           date: dateKey,
-          displayDay: format(date, 'EEE'), // Sat, Sun, Mon, etc.
+          displayDay: format(date, 'EEEE'), // Full day name: Saturday, Sunday, Monday, etc.
+          fullDayName: format(date, 'EEEE'),
           hours: 0
         };
       });
@@ -77,7 +78,7 @@ const WeeklyHoursTrend: React.FC<WeeklyHoursTrendProps> = ({
         }
       });
 
-      // Return days in order: Saturday to Friday
+      // Return days in chronological order
       return weekDays.map(date => {
         const dateKey = format(date, 'yyyy-MM-dd');
         return dailyStats[dateKey];
@@ -108,6 +109,20 @@ const WeeklyHoursTrend: React.FC<WeeklyHoursTrendProps> = ({
   }
 
   const totalHours = weeklyData?.reduce((sum, day) => sum + day.hours, 0) || 0;
+  
+  // Get date range for display
+  const getDateRangeLabel = () => {
+    if (!weeklyData || weeklyData.length === 0) return '';
+    const startDate = weeklyData[0].date;
+    const endDate = weeklyData[weeklyData.length - 1].date;
+    return `${format(new Date(startDate), 'MMM dd')} - ${format(new Date(endDate), 'MMM dd')}`;
+  };
+  
+  const getWeekLabel = () => {
+    if (weekOffset === 0) return 'Last 7 Days';
+    if (weekOffset === 1) return 'Previous 7 Days';
+    return `${weekOffset * 7} days ago`;
+  };
 
   return (
     <Card className="bg-gradient-to-br from-card via-card to-primary/5 border-border/50 shadow-lg hover:shadow-xl transition-all duration-300">
@@ -125,24 +140,29 @@ const WeeklyHoursTrend: React.FC<WeeklyHoursTrendProps> = ({
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={() => setCurrentWeekOffset(prev => prev - 1)}
-              className="h-8 w-8 p-0"
+              onClick={() => setWeekOffset(prev => prev + 1)}
+              className="h-8 w-8 p-0 hover:bg-primary/10"
+              title="Previous 7 days"
             >
-              ←
+              <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-sm text-muted-foreground min-w-[100px] text-center">
-              {currentWeekOffset === 0 ? 'Current Week' : 
-               currentWeekOffset === -1 ? 'Last Week' : 
-               `${Math.abs(currentWeekOffset)} weeks ago`}
-            </span>
+            <div className="text-center min-w-[120px]">
+              <div className="text-sm font-medium text-foreground">
+                {getWeekLabel()}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {getDateRangeLabel()}
+              </div>
+            </div>
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={() => setCurrentWeekOffset(prev => prev + 1)}
-              disabled={currentWeekOffset >= 0}
-              className="h-8 w-8 p-0"
+              onClick={() => setWeekOffset(prev => prev - 1)}
+              disabled={weekOffset <= 0}
+              className="h-8 w-8 p-0 hover:bg-primary/10"
+              title="Next 7 days"
             >
-              →
+              <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -150,13 +170,13 @@ const WeeklyHoursTrend: React.FC<WeeklyHoursTrendProps> = ({
           <div className="text-lg font-bold text-primary">
             {Math.round(totalHours)}h
           </div>
-          <p className="text-xs text-muted-foreground">Total (Sat-Fri)</p>
+          <p className="text-xs text-muted-foreground">Total Hours</p>
         </div>
       </CardHeader>
       <CardContent className="p-6">
         <ChartContainer config={chartConfig}>
           <ResponsiveContainer width="100%" height={280}>
-            <AreaChart data={weeklyData} margin={{ top: 10, right: 30, left: 0, bottom: 40 }}>
+            <AreaChart data={weeklyData} margin={{ top: 10, right: 30, left: 0, bottom: 60 }}>
               <defs>
                 <linearGradient id="colorHours" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4}/>
@@ -168,9 +188,12 @@ const WeeklyHoursTrend: React.FC<WeeklyHoursTrendProps> = ({
               <XAxis 
                 dataKey="displayDay" 
                 stroke="hsl(var(--muted-foreground))" 
-                fontSize={12}
-                tick={{ fontSize: 12 }}
+                fontSize={11}
+                tick={{ fontSize: 11 }}
                 interval={0}
+                angle={-45}
+                textAnchor="end"
+                height={60}
               />
               <YAxis 
                 stroke="hsl(var(--muted-foreground))" 
