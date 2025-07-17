@@ -3,7 +3,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 
 interface AuthRequest {
   action: 'login' | 'change-password' | 'validate-token';
-  username: string;
+  username?: string; // Optional for change-password action
   password?: string;
   currentPassword?: string;
   newPassword?: string;
