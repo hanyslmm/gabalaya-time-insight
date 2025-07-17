@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Clock, LogIn, LogOut, MapPin, AlertCircle } from 'lucide-react';
+import { Clock, LogIn, LogOut, MapPin, AlertCircle, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -66,28 +66,46 @@ const ClockInOutPage: React.FC = () => {
 
   // Fetch today's clock-in/out entries
   const fetchTodayEntries = async () => {
-    if (!user || !user.full_name) {
+    if (!user) {
       setLoading(false);
       return;
     }
     
     const today = new Date().toISOString().split('T')[0];
-    const { data, error } = await supabase
-      .from('timesheet_entries')
-      .select('*')
-      .eq('employee_name', user.full_name)
-      .eq('clock_in_date', today)
-      .order('clock_in_time', { ascending: false });
+    
+    try {
+      // Try searching by both username (staff_id) and full_name to ensure we find entries
+      const { data, error } = await supabase
+        .from('timesheet_entries')
+        .select('*')
+        .or(`employee_name.eq.${user.username},employee_name.eq.${user.full_name}`)
+        .eq('clock_in_date', today)
+        .order('clock_in_time', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching entries:', error);
+      if (error) {
+        console.error('Error fetching entries:', error);
+        toast.error("Could not fetch today's entries.");
+        return;
+      }
+
+      setTodayEntries(data || []);
+      
+      // Find the most recent entry without clock_out_time (active entry)
+      const activeEntry = data?.find(entry => !entry.clock_out_time) || null;
+      setCurrentEntry(activeEntry);
+      
+      // Enhanced debug logging
+      console.log('User info:', { username: user.username, full_name: user.full_name });
+      console.log('Today entries found:', data);
+      console.log('Active entry:', activeEntry);
+      console.log('Current entry state will be set to:', activeEntry);
+      
+    } catch (error) {
+      console.error('Error fetching today entries:', error);
       toast.error("Could not fetch today's entries.");
-    } else {
-      setTodayEntries(data);
-      const activeEntry = data.find(entry => !entry.clock_out_time);
-      setCurrentEntry(activeEntry || null);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -102,6 +120,12 @@ const ClockInOutPage: React.FC = () => {
       return;
     }
 
+    // Check if user is already clocked in
+    if (currentEntry) {
+      toast.info('You are already clocked in. Please clock out first.');
+      return;
+    }
+
     setActionLoading(true);
     try {
       const userLocation = await getCurrentLocation();
@@ -112,7 +136,45 @@ const ClockInOutPage: React.FC = () => {
         p_clock_in_location: userLocation,
       });
 
-      if (error) throw new Error(error.message);
+      if (error) {
+        // If the error is about already being clocked in, refresh the entries to show the current state
+        if (error.message.toLowerCase().includes('already') || error.message.toLowerCase().includes('clocked in')) {
+          console.log('Clock in error - user already clocked in, refreshing data...');
+          
+          // Refresh the data and check the result
+          const today = new Date().toISOString().split('T')[0];
+          try {
+            const { data: refreshedData, error: refreshError } = await supabase
+              .from('timesheet_entries')
+              .select('*')
+              .or(`employee_name.eq.${user.username},employee_name.eq.${user.full_name}`)
+              .eq('clock_in_date', today)
+              .order('clock_in_time', { ascending: false });
+
+            if (!refreshError && refreshedData) {
+              setTodayEntries(refreshedData);
+              const activeEntry = refreshedData.find(entry => !entry.clock_out_time) || null;
+              setCurrentEntry(activeEntry);
+              
+              console.log('Refreshed data:', refreshedData);
+              console.log('Found active entry:', activeEntry);
+              
+              if (activeEntry) {
+                toast.info('You are already clocked in. The page has been refreshed to show your current status.');
+              } else {
+                toast.warning('No active clock-in found. You may need to clock in again.');
+              }
+            } else {
+              toast.error('Unable to refresh your status. Please try again.');
+            }
+          } catch (refreshError) {
+            console.error('Error refreshing data:', refreshError);
+            toast.error('Unable to refresh your status. Please try again.');
+          }
+          return;
+        }
+        throw new Error(error.message);
+      }
       
       await fetchTodayEntries();
       toast.success('Clocked in successfully!');
@@ -161,8 +223,8 @@ const ClockInOutPage: React.FC = () => {
   }
 
   return (
-    <div className="w-full px-3 sm:px-6 lg:px-8 pb-safe">
-      <div className="max-w-md mx-auto space-y-4 sm:space-y-6">
+    <div className="w-full px-2 sm:px-6 lg:px-8 pb-safe">
+      <div className="max-w-md mx-auto space-y-3 sm:space-y-6">
         {motivationalMessage && (
           <Alert variant="default" className="bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20 rounded-2xl p-4">
             <AlertCircle className="h-4 w-4 text-primary" />
@@ -172,24 +234,46 @@ const ClockInOutPage: React.FC = () => {
           </Alert>
         )}
 
-        <Card className="shadow-xl border-border/20 bg-gradient-to-br from-card to-card/90 rounded-3xl overflow-hidden">
-          <CardHeader className="text-center pb-4 px-6 pt-8">
-            <div className="relative mb-6">
-              <div className="w-20 h-20 mx-auto bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center shadow-lg">
-                <Clock className="h-10 w-10 text-primary-foreground" />
+        <Card className="shadow-xl border-border/20 bg-gradient-to-br from-card to-card/90 rounded-2xl overflow-hidden">
+          <CardHeader className="text-center pb-3 px-4 pt-6">
+            <div className="flex justify-end mb-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={fetchTodayEntries}
+                disabled={loading}
+                className="h-8 w-8 p-0 opacity-60 hover:opacity-100"
+                title="Refresh status"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
+            <div className="relative mb-4">
+              <div className="w-16 h-16 mx-auto bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center shadow-lg">
+                <Clock className="h-8 w-8 text-primary-foreground" />
               </div>
               {currentEntry && (
-                <div className="absolute -top-1 -right-1 w-6 h-6 bg-success rounded-full border-2 border-card animate-pulse"></div>
+                <div className="absolute -top-1 -right-1 w-5 h-5 bg-success rounded-full border-2 border-card animate-pulse"></div>
               )}
             </div>
-            <CardTitle className="text-2xl sm:text-3xl font-bold mb-2">
+            <CardTitle className="text-lg sm:text-2xl lg:text-3xl font-bold mb-2">
               {currentEntry ? 'You are Clocked In' : 'Ready to Work?'}
             </CardTitle>
-            <CardDescription className="text-base text-muted-foreground">
+            <CardDescription className="text-sm sm:text-base text-muted-foreground">
               {format(new Date(), 'eeee, MMMM dd, yyyy')}
             </CardDescription>
+            
+            {/* Debug info - remove in production */}
+            <div className="text-xs text-muted-foreground mt-2 p-2 bg-muted/20 rounded">
+              <div>User: {user?.username} ({user?.full_name})</div>
+              <div>Current Entry: {currentEntry ? 'YES' : 'NO'}</div>
+              <div>Today Entries: {todayEntries.length}</div>
+              {currentEntry && (
+                <div>Clock In: {currentEntry.clock_in_time}</div>
+              )}
+            </div>
           </CardHeader>
-          <CardContent className="px-6 pb-8">
+          <CardContent className="px-4 pb-6">
             {currentEntry ? (
               <div className="text-center space-y-6">
                 <div className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl p-4 border border-primary/20">

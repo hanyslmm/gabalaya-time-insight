@@ -176,7 +176,7 @@ html {
 /* Mobile-specific styles */
 @media (max-width: 768px) {
   .mobile-optimized {
-    padding: 1rem;
+    padding: 0.5rem;
   }
   
   .mobile-text {
@@ -185,6 +185,121 @@ html {
   
   .mobile-spacing {
     margin-bottom: 80px; /* Account for mobile navigation */
+  }
+  
+  /* Full screen mobile layout */
+  .mobile-full-width {
+    width: 100vw;
+    margin-left: calc(-50vw + 50%);
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+  
+  /* Compact mobile cards */
+  .mobile-card {
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    border-radius: 0.5rem;
+  }
+  
+  /* Mobile grid optimizations */
+  .mobile-grid-tight {
+    gap: 0.5rem;
+  }
+  
+  /* Mobile typography */
+  .mobile-title {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+  
+  .mobile-subtitle {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+  
+  .mobile-body {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+  
+  .mobile-caption {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+  
+  /* Remove unnecessary margins on mobile */
+  .mobile-no-margin {
+    margin: 0;
+  }
+  
+  /* Tighter mobile spacing */
+  .mobile-tight-spacing > * + * {
+    margin-top: 0.5rem;
+  }
+  
+  /* Mobile button optimizations */
+  .mobile-button {
+    min-height: 44px;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+  }
+  
+  /* Mobile form optimizations */
+  .mobile-form-input {
+    padding: 0.75rem;
+    font-size: 16px; /* Prevents zoom */
+  }
+  
+  /* Mobile header optimizations */
+  .mobile-header {
+    padding: 0.5rem;
+    min-height: 3rem;
+  }
+  
+  /* Mobile content area */
+  .mobile-content {
+    padding: 0.5rem;
+    min-height: calc(100vh - 3rem - 4rem); /* Header + Navigation */
+  }
+  
+  /* Mobile navigation spacing */
+  .mobile-nav {
+    padding: 0.25rem 0.5rem;
+    min-height: 4rem;
+  }
+  
+  /* Mobile table optimizations */
+  .mobile-table {
+    font-size: 0.75rem;
+  }
+  
+  .mobile-table th,
+  .mobile-table td {
+    padding: 0.5rem 0.25rem;
+  }
+  
+  /* Mobile modal optimizations */
+  .mobile-modal {
+    margin: 0.5rem;
+    max-height: calc(100vh - 1rem);
+  }
+  
+  /* Mobile dashboard cards */
+  .mobile-dashboard-card {
+    padding: 0.75rem;
+    min-height: 5rem;
+  }
+  
+  /* Mobile stats display */
+  .mobile-stat-value {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+  
+  .mobile-stat-label {
+    font-size: 0.75rem;
+    line-height: 1rem;
   }
 }
 

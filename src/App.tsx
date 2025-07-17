@@ -34,7 +34,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <Router>
-          <div className="min-h-screen w-full bg-background">
+          <div className="min-h-screen w-full bg-background overflow-x-hidden">
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route

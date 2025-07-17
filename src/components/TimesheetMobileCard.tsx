@@ -42,18 +42,18 @@ const TimesheetMobileCard: React.FC<TimesheetMobileCardProps> = ({
   const [showEditDialog, setShowEditDialog] = React.useState(false);
 
   return (
-    <Card className={`mb-4 transition-all duration-300 hover:shadow-elegant card-interactive ${isSelected ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-muted/20'} rounded-xl border-border/30`}>
-      <CardContent className="p-4 sm:p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center space-x-3 flex-1 min-w-0">
+    <Card className={`mb-2 transition-all duration-300 hover:shadow-elegant card-interactive ${isSelected ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-muted/20'} rounded-lg border-border/30`}>
+      <CardContent className="p-3 sm:p-6">
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center space-x-2 flex-1 min-w-0">
             <Checkbox
               checked={isSelected}
               onCheckedChange={onSelect}
-              className="mt-1 flex-shrink-0"
+              className="mt-0.5 flex-shrink-0"
             />
             <div className="flex items-center space-x-2 min-w-0 flex-1">
               <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-              <h3 className="font-semibold text-fluid-lg text-card-foreground break-words-enhanced line-clamp-1">
+              <h3 className="font-semibold text-sm text-card-foreground break-words-enhanced line-clamp-1">
                 {entry.employee_name}
               </h3>
             </div>
@@ -78,42 +78,42 @@ const TimesheetMobileCard: React.FC<TimesheetMobileCardProps> = ({
           </div>
         </div>
         
-        <div className="space-y-4">
+        <div className="space-y-3">
           {/* Time Info */}
-          <div className="grid grid-cols-2 gap-3 p-4 bg-gradient-to-r from-primary/5 to-secondary/5 rounded-lg border border-border/20">
+          <div className="grid grid-cols-2 gap-2 p-3 bg-gradient-to-r from-primary/5 to-secondary/5 rounded-lg border border-border/20">
             <div className="flex items-center space-x-2 min-w-0">
-              <CalendarDays className="h-4 w-4 text-primary flex-shrink-0" />
+              <CalendarDays className="h-3 w-3 text-primary flex-shrink-0" />
               <div className="min-w-0 flex-1">
                 <p className="text-xs text-primary font-medium">Clock In</p>
-                <p className="text-fluid-sm font-semibold line-clamp-1">{entry.clock_in_date}</p>
+                <p className="text-sm font-semibold line-clamp-1">{entry.clock_in_date}</p>
                 <p className="text-xs text-muted-foreground">{formatTimeToAMPM(entry.clock_in_time)}</p>
               </div>
             </div>
             <div className="flex items-center space-x-2 min-w-0">
-              <CalendarDays className="h-4 w-4 text-primary flex-shrink-0" />
+              <CalendarDays className="h-3 w-3 text-primary flex-shrink-0" />
               <div className="min-w-0 flex-1">
                 <p className="text-xs text-primary font-medium">Clock Out</p>
-                <p className="text-fluid-sm font-semibold line-clamp-1">{entry.clock_out_date}</p>
+                <p className="text-sm font-semibold line-clamp-1">{entry.clock_out_date}</p>
                 <p className="text-xs text-muted-foreground">{formatTimeToAMPM(entry.clock_out_time)}</p>
               </div>
             </div>
           </div>
 
           {/* Hours & Payment */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex items-center space-x-2 p-3 bg-success/5 rounded-lg border border-success/20 min-w-0">
-              <Clock className="h-4 w-4 text-success flex-shrink-0" />
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex items-center space-x-2 p-2 bg-success/5 rounded-lg border border-success/20 min-w-0">
+              <Clock className="h-3 w-3 text-success flex-shrink-0" />
               <div className="min-w-0 flex-1">
                 <p className="text-xs text-success font-medium">Total Hours</p>
-                <p className="text-fluid-lg font-bold text-success line-clamp-1">{entry.total_hours.toFixed(2)}</p>
+                <p className="text-sm font-bold text-success line-clamp-1">{entry.total_hours.toFixed(2)}</p>
               </div>
             </div>
             
-            <div className="flex items-center space-x-2 p-3 bg-accent/5 rounded-lg border border-accent/20 min-w-0">
-              <DollarSign className="h-4 w-4 text-accent flex-shrink-0" />
+            <div className="flex items-center space-x-2 p-2 bg-accent/5 rounded-lg border border-accent/20 min-w-0">
+              <DollarSign className="h-3 w-3 text-accent flex-shrink-0" />
               <div className="min-w-0 flex-1">
                 <p className="text-xs text-accent font-medium">Amount</p>
-                <p className="text-fluid-lg font-bold text-accent line-clamp-1">
+                <p className="text-sm font-bold text-accent line-clamp-1">
                   LE {(entry.total_card_amount_split || entry.total_card_amount_flat).toFixed(2)}
                 </p>
               </div>

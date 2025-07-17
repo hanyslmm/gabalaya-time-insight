@@ -184,18 +184,18 @@ const TimesheetsPage: React.FC = () => {
   });
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 space-y-4 sm:space-y-0">
+    <div className="w-full px-2 sm:px-6 lg:px-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-8 space-y-3 sm:space-y-0">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('timesheets')}</h1>
-          <p className="mt-2 text-sm text-gray-600">Manage timesheet data and wage calculations</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('timesheets')}</h1>
+          <p className="mt-1 sm:mt-2 text-xs sm:text-sm text-gray-600">Manage timesheet data and wage calculations</p>
         </div>
         <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
           <Button 
             onClick={() => setShowUpload(true)} 
-            className="flex items-center justify-center space-x-2 w-full sm:w-auto"
+            className="flex items-center justify-center space-x-2 w-full sm:w-auto h-9 text-sm"
           >
-            <Upload className="h-4 w-4" />
+            <Upload className="h-3 w-3 sm:h-4 sm:w-4" />
             <span>{t('uploadTimesheet')}</span>
           </Button>
           <div className="w-full sm:w-auto">
@@ -205,7 +205,7 @@ const TimesheetsPage: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <div className="space-y-4 mb-6">
+      <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
         <TimesheetDateFilter
           dateRange={dateRange}
           onDateRangeChange={setDateRange}

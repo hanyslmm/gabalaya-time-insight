@@ -34,6 +34,7 @@ const EmployeeMonitorPage: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [processingClockout, setProcessingClockout] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -134,6 +135,112 @@ const EmployeeMonitorPage: React.FC = () => {
     }
   };
 
+  const forceClockoutEmployee = async (employeeName: string) => {
+    if (!user || !isAdmin) {
+      toast.error('Unauthorized access');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to force clock out ${employeeName}?`)) {
+      return;
+    }
+
+    setProcessingClockout(true);
+    try {
+      // Find the employee's staff_id from the employees data
+      const employee = employees.find(emp => emp.full_name === employeeName);
+      const employeeIdentifier = employee?.staff_id || employeeName;
+
+      console.log('Force clocking out employee:', employeeIdentifier);
+
+      // Use the clock_out RPC function
+      const { data, error } = await supabase.rpc('clock_out', {
+        employee_name: employeeIdentifier
+      });
+
+      if (error) {
+        console.error('Force clockout error:', error);
+        throw error;
+      }
+
+      toast.success(`Successfully forced clock out for ${employeeName}`);
+      
+      // Refresh the data to show updated status
+      await fetchData();
+    } catch (error: any) {
+      console.error('Error forcing clockout:', error);
+      toast.error(`Failed to force clock out ${employeeName}: ${error.message}`);
+    } finally {
+      setProcessingClockout(false);
+    }
+  };
+
+  const forceClockoutAll = async () => {
+    if (!user || !isAdmin) {
+      toast.error('Unauthorized access');
+      return;
+    }
+
+    const activeEmployees = employeeStatuses.filter(status => status.is_active);
+    if (activeEmployees.length === 0) {
+      toast.info('No active employees to clock out');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to force clock out all ${activeEmployees.length} active employees?`)) {
+      return;
+    }
+
+    setProcessingClockout(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+      // Process each active employee
+      for (const status of activeEmployees) {
+        try {
+          // Find the employee's staff_id from the employees data
+          const employee = employees.find(emp => emp.full_name === status.employee_name);
+          const employeeIdentifier = employee?.staff_id || status.employee_name;
+
+          console.log('Force clocking out employee:', employeeIdentifier);
+
+          // Use the clock_out RPC function
+          const { data, error } = await supabase.rpc('clock_out', {
+            employee_name: employeeIdentifier
+          });
+
+          if (error) {
+            console.error(`Force clockout error for ${status.employee_name}:`, error);
+            errorCount++;
+          } else {
+            successCount++;
+          }
+        } catch (error) {
+          console.error(`Error forcing clockout for ${status.employee_name}:`, error);
+          errorCount++;
+        }
+      }
+
+      // Show summary toast
+      if (successCount > 0 && errorCount === 0) {
+        toast.success(`Successfully forced clock out for all ${successCount} employees`);
+      } else if (successCount > 0 && errorCount > 0) {
+        toast.warning(`Forced clock out for ${successCount} employees, ${errorCount} failed`);
+      } else {
+        toast.error(`Failed to force clock out any employees`);
+      }
+
+      // Refresh the data to show updated status
+      await fetchData();
+    } catch (error: any) {
+      console.error('Error in bulk force clockout:', error);
+      toast.error(`Failed to force clock out employees: ${error.message}`);
+    } finally {
+      setProcessingClockout(false);
+    }
+  };
+
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = Math.round(minutes % 60);
@@ -214,6 +321,10 @@ const EmployeeMonitorPage: React.FC = () => {
         activeEmployees={activeEmployees}
         onLocationClick={openLocationInMaps}
         formatDuration={formatDuration}
+        isAdmin={isAdmin}
+        onForceClockout={forceClockoutEmployee}
+        onForceClockoutAll={forceClockoutAll}
+        isProcessing={processingClockout}
       />
 
       <CompletedShiftsList
