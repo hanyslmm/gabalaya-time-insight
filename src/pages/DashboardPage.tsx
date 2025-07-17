@@ -113,86 +113,78 @@ const DashboardPage: React.FC = () => {
             value: "current",
             label: "Current Pay Period",
             content: (
-              <div className="space-y-4 sm:space-y-6">
-                {/* Stats Cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 lg:gap-6">
-                  <Card className="group bg-gradient-to-br from-card via-card to-primary/5 border-primary/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden card-interactive">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-2 sm:p-4 lg:p-6">
-                      <CardTitle className="text-xs sm:text-sm font-semibold text-card-foreground/80 leading-snug line-clamp-2 min-w-0 flex-1 pr-1">Total Employees</CardTitle>
-                      <div className="p-1 sm:p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors flex-shrink-0">
-                        <Users className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-2 sm:p-4 lg:p-6 pt-0">
-                      <div className="text-lg sm:text-2xl lg:text-3xl font-bold text-primary mb-1 line-clamp-1">{currentLoading ? '...' : Math.round(currentData?.employeeCount || 0)}</div>
-                      <p className="text-xs sm:text-sm text-muted-foreground line-clamp-1">Active staff members</p>
-                    </CardContent>
-                  </Card>
+                <div className="space-y-4 sm:space-y-6">
+                  {/* Stats Cards */}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 lg:gap-6">
+                    <Card className="group bg-gradient-to-br from-card via-card to-primary/5 border-primary/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden card-interactive">
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-2 sm:p-4 lg:p-6">
+                        <CardTitle className="text-xs sm:text-sm font-semibold text-card-foreground/80 leading-snug line-clamp-2 min-w-0 flex-1 pr-1">Total Employees</CardTitle>
+                        <div className="p-1 sm:p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors flex-shrink-0">
+                          <Users className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-2 sm:p-4 lg:p-6 pt-0">
+                        <div className="text-lg sm:text-2xl lg:text-3xl font-bold text-primary mb-1 line-clamp-1">{currentLoading ? '...' : Math.round(currentData?.employeeCount || 0)}</div>
+                        <p className="text-xs sm:text-sm text-muted-foreground line-clamp-1">Active staff members</p>
+                      </CardContent>
+                    </Card>
 
-                  <Card className="group bg-gradient-to-br from-card via-card to-secondary/5 border-secondary/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 p-4 sm:p-6">
-                      <CardTitle className="text-xs sm:text-sm font-semibold text-card-foreground/80 leading-relaxed">Total Hours</CardTitle>
-                      <div className="p-2 bg-secondary/10 rounded-lg group-hover:bg-secondary/20 transition-colors">
-                        <Clock className="h-4 w-4 text-secondary" />
-                      </div>
-                    </CardHeader>
-                     <CardContent className="p-4 sm:p-6 pt-0">
-                       <div className="text-2xl sm:text-3xl font-bold text-secondary mb-1">{currentLoading ? '...' : Math.round(currentData?.totalHours || 0)}</div>
-                       <p className="text-xs text-muted-foreground">Hours worked</p>
-                     </CardContent>
-                  </Card>
+                    <Card className="group bg-gradient-to-br from-card via-card to-secondary/5 border-secondary/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 p-4 sm:p-6">
+                        <CardTitle className="text-xs sm:text-sm font-semibold text-card-foreground/80 leading-relaxed">Total Hours</CardTitle>
+                        <div className="p-2 bg-secondary/10 rounded-lg group-hover:bg-secondary/20 transition-colors">
+                          <Clock className="h-4 w-4 text-secondary" />
+                        </div>
+                      </CardHeader>
+                       <CardContent className="p-4 sm:p-6 pt-0">
+                         <div className="text-2xl sm:text-3xl font-bold text-secondary mb-1">{currentLoading ? '...' : Math.round(currentData?.totalHours || 0)}</div>
+                         <p className="text-xs text-muted-foreground">Hours worked</p>
+                       </CardContent>
+                    </Card>
 
-                  <Card className="group bg-gradient-to-br from-card via-card to-accent/5 border-accent/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 p-4 sm:p-6">
-                      <CardTitle className="text-xs sm:text-sm font-semibold text-card-foreground/80 leading-relaxed">Total Payroll</CardTitle>
-                      <div className="p-2 bg-accent/10 rounded-lg group-hover:bg-accent/20 transition-colors">
-                        <DollarSign className="h-4 w-4 text-accent" />
-                      </div>
-                    </CardHeader>
-                     <CardContent className="p-4 sm:p-6 pt-0">
-                       <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-accent mb-1">{currentLoading ? '...' : Math.round(currentData?.totalPayroll || 0)} LE</div>
-                       <p className="text-xs text-muted-foreground">Total earnings</p>
-                     </CardContent>
-                  </Card>
+                    <Card className="group bg-gradient-to-br from-card via-card to-accent/5 border-accent/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 p-4 sm:p-6">
+                        <CardTitle className="text-xs sm:text-sm font-semibold text-card-foreground/80 leading-relaxed">Total Payroll</CardTitle>
+                        <div className="p-2 bg-accent/10 rounded-lg group-hover:bg-accent/20 transition-colors">
+                          <DollarSign className="h-4 w-4 text-accent" />
+                        </div>
+                      </CardHeader>
+                       <CardContent className="p-4 sm:p-6 pt-0">
+                         <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-accent mb-1">{currentLoading ? '...' : Math.round(currentData?.totalPayroll || 0)} LE</div>
+                         <p className="text-xs text-muted-foreground">Total earnings</p>
+                       </CardContent>
+                    </Card>
 
-                  <Card className="group bg-gradient-to-br from-card via-card to-success/5 border-success/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 p-4 sm:p-6">
-                      <CardTitle className="text-xs sm:text-sm font-semibold text-card-foreground/80 leading-relaxed">Total Shifts</CardTitle>
-                      <div className="p-2 bg-success/10 rounded-lg group-hover:bg-success/20 transition-colors">
-                        <TrendingUp className="h-4 w-4 text-success" />
-                      </div>
-                    </CardHeader>
-                     <CardContent className="p-4 sm:p-6 pt-0">
-                       <div className="text-2xl sm:text-3xl font-bold text-success mb-1">{currentLoading ? '...' : Math.round(currentData?.totalShifts || 0)}</div>
-                       <p className="text-xs text-muted-foreground">Completed shifts</p>
-                     </CardContent>
-                  </Card>
-                </div>
-
-                {/* Charts and Analytics Section */}
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                  {/* Main Charts */}
-                  <div className="xl:col-span-2 space-y-6">
-                    <DashboardCharts timePeriod="current" dateRange={currentDateRange} />
+                    <Card className="group bg-gradient-to-br from-card via-card to-success/5 border-success/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 p-4 sm:p-6">
+                        <CardTitle className="text-xs sm:text-sm font-semibold text-card-foreground/80 leading-relaxed">Total Shifts</CardTitle>
+                        <div className="p-2 bg-success/10 rounded-lg group-hover:bg-success/20 transition-colors">
+                          <TrendingUp className="h-4 w-4 text-success" />
+                        </div>
+                      </CardHeader>
+                       <CardContent className="p-4 sm:p-6 pt-0">
+                         <div className="text-2xl sm:text-3xl font-bold text-success mb-1">{currentLoading ? '...' : Math.round(currentData?.totalShifts || 0)}</div>
+                         <p className="text-xs text-muted-foreground">Completed shifts</p>
+                       </CardContent>
+                    </Card>
                   </div>
-                  
+
+                  {/* Additional Charts Section */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                     <WeeklyHoursTrend timePeriod="current" dateRange={currentDateRange} />
+                     <MonthlyShiftsActivity timePeriod="current" dateRange={currentDateRange} />
+                  </div>
+
+                  {/* Daily Payment Chart */}
+                  <div>
+                    <DailyPaymentChart timePeriod="current" dateRange={currentDateRange} />
+                  </div>
+
                   {/* Leaderboard */}
-                  <div className="xl:col-span-1">
+                  <div>
                     <TopPerformersLeaderboard timePeriod="current" dateRange={currentDateRange} />
                   </div>
                 </div>
-
-                {/* Additional Charts Section */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                   <WeeklyHoursTrend timePeriod="current" dateRange={currentDateRange} />
-                   <MonthlyShiftsActivity timePeriod="current" dateRange={currentDateRange} />
-                </div>
-
-                {/* Daily Payment Chart */}
-                <div>
-                  <DailyPaymentChart timePeriod="current" dateRange={currentDateRange} />
-                </div>
-              </div>
             )
           },
           {
@@ -255,19 +247,6 @@ const DashboardPage: React.FC = () => {
                   </Card>
                 </div>
 
-                {/* Charts and Analytics Section */}
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                  {/* Main Charts */}
-                  <div className="xl:col-span-2 space-y-6">
-                    <DashboardCharts timePeriod="previous" dateRange={previousDateRange} />
-                  </div>
-                  
-                  {/* Leaderboard */}
-                  <div className="xl:col-span-1">
-                    <TopPerformersLeaderboard timePeriod="previous" dateRange={previousDateRange} />
-                  </div>
-                </div>
-
                 {/* Additional Charts Section */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                    <WeeklyHoursTrend timePeriod="previous" dateRange={previousDateRange} />
@@ -277,6 +256,11 @@ const DashboardPage: React.FC = () => {
                 {/* Daily Payment Chart */}
                 <div>
                   <DailyPaymentChart timePeriod="previous" dateRange={previousDateRange} />
+                </div>
+
+                {/* Leaderboard */}
+                <div>
+                  <TopPerformersLeaderboard timePeriod="previous" dateRange={previousDateRange} />
                 </div>
               </div>
             )
