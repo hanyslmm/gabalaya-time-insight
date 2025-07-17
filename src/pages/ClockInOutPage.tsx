@@ -223,8 +223,8 @@ const ClockInOutPage: React.FC = () => {
   }
 
   return (
-    <div className="w-full px-2 sm:px-6 lg:px-8 pb-safe">
-      <div className="max-w-md mx-auto space-y-3 sm:space-y-6">
+    <div className="w-full px-1 sm:px-2 lg:px-4 pb-safe min-h-screen">
+      <div className="max-w-md mx-auto space-y-2 sm:space-y-4">
         {motivationalMessage && (
           <Alert variant="default" className="bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20 rounded-2xl p-4">
             <AlertCircle className="h-4 w-4 text-primary" />

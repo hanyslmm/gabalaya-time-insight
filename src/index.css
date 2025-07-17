@@ -259,8 +259,15 @@ html {
   
   /* Mobile content area */
   .mobile-content {
-    padding: 0.5rem;
+    padding: 0.25rem;
     min-height: calc(100vh - 3rem - 4rem); /* Header + Navigation */
+  }
+  
+  /* Full screen utilization */
+  .mobile-fullscreen {
+    min-height: 100vh;
+    padding: 0;
+    margin: 0;
   }
   
   /* Mobile navigation spacing */

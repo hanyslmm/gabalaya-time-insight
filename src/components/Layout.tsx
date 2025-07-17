@@ -239,7 +239,7 @@ const Layout = () => {
 
           {/* Page content */}
           <main className="flex-1 overflow-y-auto bg-gradient-to-br from-background to-background/95">
-            <div className="py-2 px-2 sm:py-6 sm:px-6 lg:px-8 min-h-full pb-20 md:pb-6 w-full max-w-screen-2xl mx-auto">
+            <div className="py-1 px-1 sm:py-2 sm:px-2 lg:px-4 min-h-full pb-20 md:pb-6 w-full">
               <Outlet />
             </div>
           </main>
