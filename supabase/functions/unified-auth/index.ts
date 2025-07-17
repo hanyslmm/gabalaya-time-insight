@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     const body = await req.json()
     const { action, username, password, currentPassword, newPassword, token, targetUser }: AuthRequest = body
 
-    console.log(`Unified auth request: ${action} for user: ${username}`);
+    console.log(`Unified auth request: ${action} for user: ${username || targetUser || 'unknown'}`);
 
     // Create Supabase client with service role key
     const supabaseAdmin = createClient(
