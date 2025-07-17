@@ -191,6 +191,8 @@ Deno.serve(async (req) => {
 
       const userToChange = targetUser || payload.username;
       
+      console.log(`Password change requested by: ${payload.username}, target user: ${userToChange}`);
+      
       if (!newPassword) {
         return new Response(
           JSON.stringify({ success: false, error: 'New password is required' }),
