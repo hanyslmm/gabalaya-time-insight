@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Clock, MapPin, User } from 'lucide-react';
+import { Clock, MapPin, User, LogOut } from 'lucide-react';
 import ProfileAvatar from './ProfileAvatar';
 
 interface EmployeeStatus {
@@ -22,12 +22,18 @@ interface EmployeeStatusCardProps {
   status: EmployeeStatus;
   onLocationClick: (location: string) => void;
   formatDuration: (minutes: number) => string;
+  isAdmin?: boolean;
+  onForceClockout?: (employeeName: string) => void;
+  isProcessing?: boolean;
 }
 
 export const EmployeeStatusCard: React.FC<EmployeeStatusCardProps> = ({
   status,
   onLocationClick,
-  formatDuration
+  formatDuration,
+  isAdmin = false,
+  onForceClockout,
+  isProcessing = false
 }) => {
   return (
     <Card className="transition-all hover:shadow-md">
@@ -37,9 +43,23 @@ export const EmployeeStatusCard: React.FC<EmployeeStatusCardProps> = ({
             <ProfileAvatar employeeName={status.employee_name} size="sm" />
             <h3 className="font-semibold text-lg">{status.employee_name}</h3>
           </div>
-          <Badge variant={status.is_active ? "default" : "secondary"}>
-            {status.is_active ? 'Active' : 'Completed'}
-          </Badge>
+          <div className="flex items-center space-x-2">
+            <Badge variant={status.is_active ? "default" : "secondary"}>
+              {status.is_active ? 'Active' : 'Completed'}
+            </Badge>
+            {isAdmin && status.is_active && onForceClockout && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => onForceClockout(status.employee_name)}
+                disabled={isProcessing}
+                className="h-8 px-3"
+              >
+                <LogOut className="h-3 w-3 mr-1" />
+                Force Out
+              </Button>
+            )}
+          </div>
         </div>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
