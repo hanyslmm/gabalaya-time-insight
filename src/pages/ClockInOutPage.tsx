@@ -66,7 +66,7 @@ const ClockInOutPage: React.FC = () => {
 
   // Fetch today's clock-in/out entries
   const fetchTodayEntries = async () => {
-    if (!user || !user.full_name) {
+    if (!user) {
       setLoading(false);
       return;
     }
@@ -74,10 +74,11 @@ const ClockInOutPage: React.FC = () => {
     const today = new Date().toISOString().split('T')[0];
     
     try {
+      // Try searching by both username (staff_id) and full_name to ensure we find entries
       const { data, error } = await supabase
         .from('timesheet_entries')
         .select('*')
-        .eq('employee_name', user.full_name)
+        .or(`employee_name.eq.${user.username},employee_name.eq.${user.full_name}`)
         .eq('clock_in_date', today)
         .order('clock_in_time', { ascending: false });
 
@@ -93,9 +94,11 @@ const ClockInOutPage: React.FC = () => {
       const activeEntry = data?.find(entry => !entry.clock_out_time) || null;
       setCurrentEntry(activeEntry);
       
-      // Debug logging
-      console.log('Today entries:', data);
+      // Enhanced debug logging
+      console.log('User info:', { username: user.username, full_name: user.full_name });
+      console.log('Today entries found:', data);
       console.log('Active entry:', activeEntry);
+      console.log('Current entry state will be set to:', activeEntry);
       
     } catch (error) {
       console.error('Error fetching today entries:', error);
@@ -136,8 +139,38 @@ const ClockInOutPage: React.FC = () => {
       if (error) {
         // If the error is about already being clocked in, refresh the entries to show the current state
         if (error.message.toLowerCase().includes('already') || error.message.toLowerCase().includes('clocked in')) {
-          await fetchTodayEntries();
-          toast.info('You are already clocked in. The page has been refreshed to show your current status.');
+          console.log('Clock in error - user already clocked in, refreshing data...');
+          
+          // Refresh the data and check the result
+          const today = new Date().toISOString().split('T')[0];
+          try {
+            const { data: refreshedData, error: refreshError } = await supabase
+              .from('timesheet_entries')
+              .select('*')
+              .or(`employee_name.eq.${user.username},employee_name.eq.${user.full_name}`)
+              .eq('clock_in_date', today)
+              .order('clock_in_time', { ascending: false });
+
+            if (!refreshError && refreshedData) {
+              setTodayEntries(refreshedData);
+              const activeEntry = refreshedData.find(entry => !entry.clock_out_time) || null;
+              setCurrentEntry(activeEntry);
+              
+              console.log('Refreshed data:', refreshedData);
+              console.log('Found active entry:', activeEntry);
+              
+              if (activeEntry) {
+                toast.info('You are already clocked in. The page has been refreshed to show your current status.');
+              } else {
+                toast.warning('No active clock-in found. You may need to clock in again.');
+              }
+            } else {
+              toast.error('Unable to refresh your status. Please try again.');
+            }
+          } catch (refreshError) {
+            console.error('Error refreshing data:', refreshError);
+            toast.error('Unable to refresh your status. Please try again.');
+          }
           return;
         }
         throw new Error(error.message);
@@ -229,6 +262,16 @@ const ClockInOutPage: React.FC = () => {
             <CardDescription className="text-sm sm:text-base text-muted-foreground">
               {format(new Date(), 'eeee, MMMM dd, yyyy')}
             </CardDescription>
+            
+            {/* Debug info - remove in production */}
+            <div className="text-xs text-muted-foreground mt-2 p-2 bg-muted/20 rounded">
+              <div>User: {user?.username} ({user?.full_name})</div>
+              <div>Current Entry: {currentEntry ? 'YES' : 'NO'}</div>
+              <div>Today Entries: {todayEntries.length}</div>
+              {currentEntry && (
+                <div>Clock In: {currentEntry.clock_in_time}</div>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="px-4 pb-6">
             {currentEntry ? (
