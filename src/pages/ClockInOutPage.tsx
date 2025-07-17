@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Clock, LogIn, LogOut, MapPin, AlertCircle } from 'lucide-react';
+import { Clock, LogIn, LogOut, MapPin, AlertCircle, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -72,22 +72,37 @@ const ClockInOutPage: React.FC = () => {
     }
     
     const today = new Date().toISOString().split('T')[0];
-    const { data, error } = await supabase
-      .from('timesheet_entries')
-      .select('*')
-      .eq('employee_name', user.full_name)
-      .eq('clock_in_date', today)
-      .order('clock_in_time', { ascending: false });
+    
+    try {
+      const { data, error } = await supabase
+        .from('timesheet_entries')
+        .select('*')
+        .eq('employee_name', user.full_name)
+        .eq('clock_in_date', today)
+        .order('clock_in_time', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching entries:', error);
+      if (error) {
+        console.error('Error fetching entries:', error);
+        toast.error("Could not fetch today's entries.");
+        return;
+      }
+
+      setTodayEntries(data || []);
+      
+      // Find the most recent entry without clock_out_time (active entry)
+      const activeEntry = data?.find(entry => !entry.clock_out_time) || null;
+      setCurrentEntry(activeEntry);
+      
+      // Debug logging
+      console.log('Today entries:', data);
+      console.log('Active entry:', activeEntry);
+      
+    } catch (error) {
+      console.error('Error fetching today entries:', error);
       toast.error("Could not fetch today's entries.");
-    } else {
-      setTodayEntries(data);
-      const activeEntry = data.find(entry => !entry.clock_out_time);
-      setCurrentEntry(activeEntry || null);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -102,6 +117,12 @@ const ClockInOutPage: React.FC = () => {
       return;
     }
 
+    // Check if user is already clocked in
+    if (currentEntry) {
+      toast.info('You are already clocked in. Please clock out first.');
+      return;
+    }
+
     setActionLoading(true);
     try {
       const userLocation = await getCurrentLocation();
@@ -112,7 +133,15 @@ const ClockInOutPage: React.FC = () => {
         p_clock_in_location: userLocation,
       });
 
-      if (error) throw new Error(error.message);
+      if (error) {
+        // If the error is about already being clocked in, refresh the entries to show the current state
+        if (error.message.toLowerCase().includes('already') || error.message.toLowerCase().includes('clocked in')) {
+          await fetchTodayEntries();
+          toast.info('You are already clocked in. The page has been refreshed to show your current status.');
+          return;
+        }
+        throw new Error(error.message);
+      }
       
       await fetchTodayEntries();
       toast.success('Clocked in successfully!');
@@ -174,6 +203,18 @@ const ClockInOutPage: React.FC = () => {
 
         <Card className="shadow-xl border-border/20 bg-gradient-to-br from-card to-card/90 rounded-2xl overflow-hidden">
           <CardHeader className="text-center pb-3 px-4 pt-6">
+            <div className="flex justify-end mb-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={fetchTodayEntries}
+                disabled={loading}
+                className="h-8 w-8 p-0 opacity-60 hover:opacity-100"
+                title="Refresh status"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
             <div className="relative mb-4">
               <div className="w-16 h-16 mx-auto bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center shadow-lg">
                 <Clock className="h-8 w-8 text-primary-foreground" />
