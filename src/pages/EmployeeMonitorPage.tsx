@@ -67,12 +67,12 @@ const EmployeeMonitorPage: React.FC = () => {
         employeeMap.set(emp.full_name, emp.full_name);
       });
 
-      // Fetch today's timesheet entries
+      // Fetch today's entries AND any active entries (without clock_out_time) from any date
       const today = format(new Date(), 'yyyy-MM-dd');
       const { data: timesheetData, error: timesheetError } = await supabase
         .from('timesheet_entries')
         .select('*')
-        .eq('clock_in_date', today)
+        .or(`clock_in_date.eq.${today},clock_out_time.is.null`)
         .order('clock_in_time', { ascending: false });
 
       if (timesheetError) throw timesheetError;
@@ -147,13 +147,11 @@ const EmployeeMonitorPage: React.FC = () => {
 
     setProcessingClockout(true);
     try {
-      // Find the current active entry for this employee
-      const today = format(new Date(), 'yyyy-MM-dd');
+      // Find the current active entry for this employee from any date
       const { data: activeEntry, error: findError } = await supabase
         .from('timesheet_entries')
-        .select('id, employee_name')
+        .select('id, employee_name, clock_in_date')
         .eq('employee_name', employeeName)
-        .eq('clock_in_date', today)
         .is('clock_out_time', null)
         .single();
 
@@ -230,17 +228,14 @@ const EmployeeMonitorPage: React.FC = () => {
         // Use default location if geolocation fails
       }
 
-      const today = format(new Date(), 'yyyy-MM-dd');
-
       // Process each active employee
       for (const status of activeEmployees) {
         try {
-          // Find the current active entry for this employee
+          // Find the current active entry for this employee from any date
           const { data: activeEntry, error: findError } = await supabase
             .from('timesheet_entries')
             .select('id, employee_name')
             .eq('employee_name', status.employee_name)
-            .eq('clock_in_date', today)
             .is('clock_out_time', null)
             .single();
 
