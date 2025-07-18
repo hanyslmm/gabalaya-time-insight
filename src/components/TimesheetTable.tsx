@@ -90,6 +90,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
     setSearchTerm,
     columnFilters,
     updateColumnFilter,
+    clearAllFilters,
     filteredData,
     handleSelectAll,
     handleSelectRow,
@@ -123,6 +124,12 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
   };
 
   const isAllPageSelected = paginatedData.length > 0 && paginatedData.every(entry => selectedRows.includes(entry.id));
+
+  // Check if any filters are active
+  const hasActiveFilters = searchTerm.trim() !== '' || 
+    Object.values(columnFilters).some(filter => filter.trim() !== '') ||
+    (selectedEmployee && selectedEmployee !== 'all') ||
+    (dateRange && dateRange.from && dateRange.to);
 
   // Format total hours with ability to clear/delete
   const formatTotalHours = (hours: number | null | undefined) => {
@@ -174,6 +181,25 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
         />
       </div>
 
+      {/* Filter Status and Clear Button */}
+      {hasActiveFilters && (
+        <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center space-x-2">
+            <span className="text-sm font-medium text-blue-800">
+              Filters Active: {filteredData.length} of {data.length} entries shown
+            </span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={clearAllFilters}
+            className="text-blue-600 border-blue-300 hover:bg-blue-100"
+          >
+            Clear All Filters
+          </Button>
+        </div>
+      )}
+
       {/* Conditional View Rendering */}
       {viewMode === 'aggregated' ? (
         <AggregatedTimesheetView data={filteredData} onDataChange={onDataChange} />
@@ -197,7 +223,16 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
               
               {paginatedData.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
-                  {t('noTimesheetData') || 'No timesheet data available'}
+                  {hasActiveFilters ? (
+                    <div className="space-y-2">
+                      <p>{t('noFilteredData') || 'No data matches your filters'}</p>
+                      <Button variant="outline" onClick={clearAllFilters}>
+                        Clear Filters
+                      </Button>
+                    </div>
+                  ) : (
+                    <p>{t('noTimesheetData') || 'No timesheet data available'}</p>
+                  )}
                 </div>
               ) : (
                 paginatedData.map((entry) => (
@@ -249,10 +284,19 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
                    {paginatedData.length === 0 ? (
                      <TableRow>
                        <TableCell colSpan={isAdmin ? 11 : 10} className="text-center py-12">
-                         <div className="text-muted-foreground text-lg mb-2">No timesheet entries found</div>
-                         <div className="text-muted-foreground/70 text-sm">
-                           Try adjusting your filters or date range
-                         </div>
+                         {hasActiveFilters ? (
+                           <div className="space-y-3">
+                             <div className="text-muted-foreground text-lg mb-2">No entries match your filters</div>
+                             <div className="text-muted-foreground/70 text-sm mb-4">
+                               {filteredData.length === 0 ? 'No data matches the current filters' : 'Try adjusting your filters or date range'}
+                             </div>
+                             <Button variant="outline" onClick={clearAllFilters}>
+                               Clear All Filters
+                             </Button>
+                           </div>
+                         ) : (
+                           <div className="text-muted-foreground text-lg mb-2">No timesheet entries found</div>
+                         )}
                        </TableCell>
                      </TableRow>
                   ) : (

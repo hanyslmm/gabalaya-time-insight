@@ -108,10 +108,15 @@ const DashboardPage: React.FC = () => {
       {/* Period Selection and Dashboard Content */}
       <MobileDropdownTabs
         defaultValue="current"
+        onTabChange={(value) => {
+          // Handle tab change if needed
+          console.log('Dashboard tab changed to:', value);
+        }}
         tabs={[
           {
             value: "current",
             label: "Current Pay Period",
+            badge: currentData ? `${Math.round(currentData.employeeCount || 0)} employees` : undefined,
             content: (
                 <div className="space-y-4 sm:space-y-6">
                   {/* Stats Cards */}
