@@ -30,16 +30,23 @@ const DashboardPage: React.FC = () => {
     const year = targetDate.getFullYear();
     const month = targetDate.getMonth();
     
-    let endDate = new Date(year, month, endDay);
-    
-    if (offsetMonths === 0 && endDate > baseDate) {
-      endDate.setMonth(month - 1);
+    // For current period, use current month 1st to current date
+    if (offsetMonths === 0) {
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(); // Today
+      return { from: startDate, to: endDate };
     }
     
-    const startDate = new Date(endDate);
-    startDate.setMonth(startDate.getMonth() - 1);
-    startDate.setDate(endDay + 1);
+    // For previous period, use previous month full month
+    if (offsetMonths === -1) {
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0); // Last day of the month
+      return { from: startDate, to: endDate };
+    }
     
+    // For other periods, use full month
+    const startDate = new Date(year, month, 1);
+    const endDate = new Date(year, month + 1, 0);
     return { from: startDate, to: endDate };
   };
 
