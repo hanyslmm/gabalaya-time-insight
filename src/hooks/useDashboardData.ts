@@ -16,7 +16,7 @@ interface DashboardData {
 
 export const useDashboardData = (dateRange: DateRange, enabled: boolean = true) => {
   return useQuery({
-    queryKey: ['dashboard-data', dateRange],
+    queryKey: ['dashboard-data', format(dateRange.from, 'yyyy-MM-dd'), format(dateRange.to, 'yyyy-MM-dd')],
     queryFn: async (): Promise<DashboardData> => {
       const fromDate = format(dateRange.from, 'yyyy-MM-dd');
       const toDate = format(dateRange.to, 'yyyy-MM-dd');

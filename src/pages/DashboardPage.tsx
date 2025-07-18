@@ -58,12 +58,12 @@ const DashboardPage: React.FC = () => {
     return { from: targetDate, to: endDate };
   };
 
-  // Calculate periods
-  const currentPeriod = calculatePayPeriod(new Date());
-  const previousPeriod = calculatePayPeriod(new Date(), 28, -1);
+  // Calculate periods (memoized to prevent unnecessary re-renders)
+  const currentPeriod = React.useMemo(() => calculatePayPeriod(new Date()), []);
+  const previousPeriod = React.useMemo(() => calculatePayPeriod(new Date(), 28, -1), []);
 
-  // Determine which period to use based on selection
-  const getActivePeriod = () => {
+  // Determine which period to use based on selection (memoized)
+  const activePeriod = React.useMemo(() => {
     if (selectedPeriod === 'current') return currentPeriod;
     if (selectedPeriod === 'previous') return previousPeriod;
     if (selectedMonth) {
@@ -71,9 +71,7 @@ const DashboardPage: React.FC = () => {
       return getMonthPeriod(monthOffset);
     }
     return currentPeriod;
-  };
-
-  const activePeriod = getActivePeriod();
+  }, [selectedPeriod, selectedMonth, currentPeriod, previousPeriod]);
 
   // Fetch data for the active period
   const { data: activeData, isLoading: activeLoading } = useDashboardData(activePeriod);
