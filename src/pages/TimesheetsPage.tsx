@@ -47,14 +47,28 @@ const TimesheetsPage: React.FC = () => {
   });
 
   const { data: timesheets, isLoading, refetch } = useQuery({
-    queryKey: ['timesheets'],
+    queryKey: ['timesheets', dateRange, selectedEmployee],
     queryFn: async () => {
+      // Build query with filters
+      let query = supabase
+        .from('timesheet_entries')
+        .select('*');
+
+      // Apply date range filter
+      if (dateRange?.from && dateRange?.to) {
+        query = query
+          .gte('clock_in_date', dateRange.from.toISOString().split('T')[0])
+          .lte('clock_in_date', dateRange.to.toISOString().split('T')[0]);
+      }
+
+      // Apply employee filter
+      if (selectedEmployee && selectedEmployee !== 'all') {
+        query = query.eq('employee_id', selectedEmployee);
+      }
+
       // Fetch timesheet entries, employees, and wage settings in parallel
       const [timesheetResult, employeesResult, wageSettingsResult] = await Promise.all([
-        supabase
-          .from('timesheet_entries')
-          .select('*')
-          .order('created_at', { ascending: false }),
+        query.order('created_at', { ascending: false }),
         supabase
           .from('employees')
           .select('staff_id, full_name, morning_wage_rate, night_wage_rate'),
