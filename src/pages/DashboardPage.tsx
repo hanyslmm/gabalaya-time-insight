@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Users, Clock, DollarSign, TrendingUp, Upload, Download, Settings } from 'lucide-react';
+import WeeklyHoursTrend from '@/components/WeeklyHoursTrend';
+import MonthlyShiftsActivity from '@/components/MonthlyShiftsActivity';
 import DailyPaymentChart from '@/components/DailyPaymentChart';
 import TopPerformersLeaderboard from '@/components/TopPerformersLeaderboard';
 import { useDashboardData } from '@/hooks/useDashboardData';
@@ -240,6 +242,10 @@ const DashboardPage: React.FC = () => {
 
         {/* Charts */}
         <div className="space-y-6 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <WeeklyHoursTrend timePeriod={selectedPeriod} dateRange={{...activePeriod, label: getPeriodLabel()}} />
+            <MonthlyShiftsActivity timePeriod={selectedPeriod} dateRange={{...activePeriod, label: getPeriodLabel()}} />
+          </div>
           <DailyPaymentChart timePeriod={selectedPeriod} dateRange={{...activePeriod, label: getPeriodLabel()}} />
           <TopPerformersLeaderboard timePeriod={selectedPeriod} dateRange={{...activePeriod, label: getPeriodLabel()}} />
         </div>
