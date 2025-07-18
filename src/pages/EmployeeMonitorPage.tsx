@@ -67,12 +67,12 @@ const EmployeeMonitorPage: React.FC = () => {
         employeeMap.set(emp.full_name, emp.full_name);
       });
 
-      // Fetch today's timesheet entries
+      // Fetch today's entries AND any active entries (without clock_out_time) from any date
       const today = format(new Date(), 'yyyy-MM-dd');
       const { data: timesheetData, error: timesheetError } = await supabase
         .from('timesheet_entries')
         .select('*')
-        .eq('clock_in_date', today)
+        .or(`clock_in_date.eq.${today},clock_out_time.is.null`)
         .order('clock_in_time', { ascending: false });
 
       if (timesheetError) throw timesheetError;
@@ -147,15 +147,36 @@ const EmployeeMonitorPage: React.FC = () => {
 
     setProcessingClockout(true);
     try {
-      // Find the employee's staff_id from the employees data
-      const employee = employees.find(emp => emp.full_name === employeeName);
-      const employeeIdentifier = employee?.staff_id || employeeName;
+      // Find the current active entry for this employee from any date
+      const { data: activeEntry, error: findError } = await supabase
+        .from('timesheet_entries')
+        .select('id, employee_name, clock_in_date')
+        .eq('employee_name', employeeName)
+        .is('clock_out_time', null)
+        .single();
 
-      console.log('Force clocking out employee:', employeeIdentifier);
+      if (findError || !activeEntry) {
+        toast.error(`No active clock-in found for ${employeeName}`);
+        return;
+      }
 
-      // Use the clock_out RPC function
+      console.log('Force clocking out employee entry:', activeEntry.id);
+
+      // Get current location or use a default
+      let location = 'Force clockout by admin';
+      try {
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+        });
+        location = `${position.coords.latitude}, ${position.coords.longitude}`;
+      } catch {
+        // Use default location if geolocation fails
+      }
+
+      // Use the correct clock_out RPC function signature
       const { data, error } = await supabase.rpc('clock_out', {
-        employee_name: employeeIdentifier
+        p_entry_id: activeEntry.id,
+        p_clock_out_location: location
       });
 
       if (error) {
@@ -196,18 +217,38 @@ const EmployeeMonitorPage: React.FC = () => {
     let errorCount = 0;
 
     try {
+      // Get current location or use a default
+      let location = 'Force clockout by admin';
+      try {
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+        });
+        location = `${position.coords.latitude}, ${position.coords.longitude}`;
+      } catch {
+        // Use default location if geolocation fails
+      }
+
       // Process each active employee
       for (const status of activeEmployees) {
         try {
-          // Find the employee's staff_id from the employees data
-          const employee = employees.find(emp => emp.full_name === status.employee_name);
-          const employeeIdentifier = employee?.staff_id || status.employee_name;
+          // Find the current active entry for this employee from any date
+          const { data: activeEntry, error: findError } = await supabase
+            .from('timesheet_entries')
+            .select('id, employee_name')
+            .eq('employee_name', status.employee_name)
+            .is('clock_out_time', null)
+            .single();
 
-          console.log('Force clocking out employee:', employeeIdentifier);
+          if (findError || !activeEntry) {
+            console.error(`No active entry found for ${status.employee_name}`);
+            errorCount++;
+            continue;
+          }
 
-          // Use the clock_out RPC function
+          // Use the correct clock_out RPC function signature
           const { data, error } = await supabase.rpc('clock_out', {
-            employee_name: employeeIdentifier
+            p_entry_id: activeEntry.id,
+            p_clock_out_location: location
           });
 
           if (error) {
@@ -284,8 +325,8 @@ const EmployeeMonitorPage: React.FC = () => {
   }
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-8">
-      <div className="mb-8 flex justify-between items-center">
+    <div className="w-full px-1 sm:px-2 lg:px-4 min-h-screen">
+      <div className="mb-4 sm:mb-8 flex justify-between items-center px-2">
         <div>
           <h1 className="text-2xl font-bold text-foreground">
             {isAdmin ? 'Employee Monitor' : 'Team Status'}

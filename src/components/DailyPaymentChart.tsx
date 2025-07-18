@@ -41,18 +41,40 @@ const DailyPaymentChart: React.FC<DailyPaymentChartProps> = ({
         end: currentWeekEnd
       });
       
-      let query = supabase
-        .from('timesheet_entries')
-        .select('clock_in_date, total_card_amount_flat');
+      // Fetch both timesheet entries and employee data for wage calculations
+      const [timesheetResponse, employeeResponse, wageSettingsResponse] = await Promise.all([
+        supabase
+          .from('timesheet_entries')
+          .select('clock_in_date, employee_id, total_hours')
+          .gte('clock_in_date', format(currentWeekStart, 'yyyy-MM-dd'))
+          .lte('clock_in_date', format(currentWeekEnd, 'yyyy-MM-dd')),
+        supabase
+          .from('employees')
+          .select('id, morning_wage_rate, night_wage_rate'),
+        supabase
+          .from('wage_settings')
+          .select('default_flat_wage_rate')
+          .single()
+      ]);
+
+      if (timesheetResponse.error) throw timesheetResponse.error;
+      if (employeeResponse.error) throw employeeResponse.error;
       
-      // Query for current week data
-      query = query
-        .gte('clock_in_date', format(currentWeekStart, 'yyyy-MM-dd'))
-        .lte('clock_in_date', format(currentWeekEnd, 'yyyy-MM-dd'));
-
-      const { data: timesheets, error } = await query;
-
-      if (error) throw error;
+      const timesheets = timesheetResponse.data || [];
+      const employees = employeeResponse.data || [];
+      const wageSettings = wageSettingsResponse.data;
+      
+      // Default wage rate fallback
+      const defaultWageRate = wageSettings?.default_flat_wage_rate || 20;
+      
+      // Create employee wage rate lookup
+      const employeeWageRates: Record<string, { morning: number, night: number }> = {};
+      employees.forEach(emp => {
+        employeeWageRates[emp.id] = {
+          morning: emp.morning_wage_rate || defaultWageRate,
+          night: emp.night_wage_rate || defaultWageRate
+        };
+      });
 
       // Initialize all days with 0 amount
       const dailyStats: Record<string, WeeklyData> = {};
@@ -66,11 +88,21 @@ const DailyPaymentChart: React.FC<DailyPaymentChartProps> = ({
         };
       });
 
-      // Aggregate payments by date
-      timesheets?.forEach(entry => {
+      // Calculate daily payment based on hours worked and employee wage rates
+      timesheets.forEach(entry => {
         const dateKey = entry.clock_in_date;
         if (dailyStats[dateKey]) {
-          dailyStats[dateKey].amount += entry.total_card_amount_flat || 0;
+          // Get employee wage rates, default to system rate if employee not found
+          const employeeRates = entry.employee_id ? 
+            employeeWageRates[entry.employee_id] : 
+            { morning: defaultWageRate, night: defaultWageRate };
+          
+          // Calculate payment based on hours and average rate
+          // Using average wage rate as a simplification since we don't have morning/night hour split here
+          const avgRate = (employeeRates.morning + employeeRates.night) / 2;
+          const payment = (entry.total_hours || 0) * avgRate;
+          
+          dailyStats[dateKey].amount += payment;
         }
       });
 

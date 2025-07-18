@@ -3,7 +3,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 
 interface AuthRequest {
   action: 'login' | 'change-password' | 'validate-token';
-  username: string;
+  username?: string; // Optional for change-password action
   password?: string;
   currentPassword?: string;
   newPassword?: string;
@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     const body = await req.json()
     const { action, username, password, currentPassword, newPassword, token, targetUser }: AuthRequest = body
 
-    console.log(`Unified auth request: ${action} for user: ${username}`);
+    console.log(`Unified auth request: ${action} for user: ${username || targetUser || 'unknown'}`);
 
     // Create Supabase client with service role key
     const supabaseAdmin = createClient(
@@ -190,6 +190,8 @@ Deno.serve(async (req) => {
       }
 
       const userToChange = targetUser || payload.username;
+      
+      console.log(`Password change requested by: ${payload.username}, target user: ${userToChange}`);
       
       if (!newPassword) {
         return new Response(

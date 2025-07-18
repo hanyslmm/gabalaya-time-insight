@@ -1,5 +1,5 @@
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -28,6 +28,7 @@ interface TimesheetEntry {
   employee_note?: string;
   manager_note?: string;
   is_split_calculation: boolean;
+  employee_id?: string;
 }
 
 interface DateRange {
@@ -70,81 +71,111 @@ export const useTimesheetTable = (
   });
 
   const filteredData = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    
     return data.filter(entry => {
-      // Employee filter - enhanced to work with both employee_id and employee_name
-      if (selectedEmployee && selectedEmployee !== 'all') {
-        const entryEmployeeId = (entry as any).employee_id;
-        const entryEmployeeName = entry.employee_name;
-        
-        // Check both employee_id and employee_name for match
-        if (entryEmployeeId !== selectedEmployee && entryEmployeeName !== selectedEmployee) {
-          return false;
+      try {
+        // Employee filter - enhanced to work with both employee_id and employee_name
+        if (selectedEmployee && selectedEmployee !== 'all') {
+          const entryEmployeeId = entry.employee_id;
+          const entryEmployeeName = entry.employee_name;
+          
+          // Check both employee_id and employee_name for match
+          const matchesEmployeeId = entryEmployeeId === selectedEmployee;
+          const matchesEmployeeName = entryEmployeeName === selectedEmployee;
+          
+          if (!matchesEmployeeId && !matchesEmployeeName) {
+            return false;
+          }
         }
-      }
-      
-      // Date range filter with proper inclusive boundaries
-      if (dateRange && dateRange.from && dateRange.to) {
-        const entryDate = parseISO(entry.clock_in_date);
-        const fromDate = startOfDay(dateRange.from);
-        const toDate = endOfDay(dateRange.to);
         
-        const isWithinRange = isWithinInterval(entryDate, { start: fromDate, end: toDate });
-        
-        if (!isWithinRange) {
-          return false;
+        // Date range filter with proper inclusive boundaries
+        if (dateRange && dateRange.from && dateRange.to) {
+          try {
+            const entryDate = parseISO(entry.clock_in_date);
+            const fromDate = startOfDay(dateRange.from);
+            const toDate = endOfDay(dateRange.to);
+            
+            const isWithinRange = isWithinInterval(entryDate, { start: fromDate, end: toDate });
+            
+            if (!isWithinRange) {
+              return false;
+            }
+          } catch (dateError) {
+            console.warn('Date parsing error for entry:', entry.id, dateError);
+            return false;
+          }
         }
-      }
 
-      // Global search
-      const matchesGlobalSearch = Object.values(entry).some(value => 
-        value?.toString().toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      
-      if (!matchesGlobalSearch) return false;
-      
-      // Column-specific filters
-      return Object.entries(columnFilters).every(([column, filter]) => {
-        if (!filter) return true;
-        const value = entry[column as keyof TimesheetEntry];
-        return value?.toString().toLowerCase().includes(filter.toLowerCase());
-      });
+        // Global search - handle null/undefined values safely
+        if (searchTerm && searchTerm.trim() !== '') {
+          const searchLower = searchTerm.toLowerCase();
+          const matchesGlobalSearch = Object.values(entry).some(value => {
+            if (value === null || value === undefined) return false;
+            return value.toString().toLowerCase().includes(searchLower);
+          });
+          
+          if (!matchesGlobalSearch) return false;
+        }
+        
+        // Column-specific filters
+        const matchesColumnFilters = Object.entries(columnFilters).every(([column, filter]) => {
+          if (!filter || filter.trim() === '') return true;
+          
+          const value = entry[column as keyof TimesheetEntry];
+          if (value === null || value === undefined) return false;
+          
+          return value.toString().toLowerCase().includes(filter.toLowerCase());
+        });
+        
+        return matchesColumnFilters;
+      } catch (error) {
+        console.warn('Error filtering entry:', entry.id, error);
+        return false;
+      }
     });
   }, [data, searchTerm, columnFilters, dateRange, selectedEmployee]);
 
-  const handleSelectAll = (checked: boolean) => {
+  const handleSelectAll = useCallback((checked: boolean) => {
     if (checked) {
       onSelectionChange(filteredData.map(entry => entry.id));
     } else {
       onSelectionChange([]);
     }
-  };
+  }, [filteredData, onSelectionChange]);
 
-  const handleSelectRow = (id: string, checked: boolean) => {
+  const handleSelectRow = useCallback((id: string, checked: boolean) => {
     if (checked) {
       onSelectionChange([...selectedRows, id]);
     } else {
       onSelectionChange(selectedRows.filter(rowId => rowId !== id));
     }
-  };
+  }, [selectedRows, onSelectionChange]);
 
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = useCallback(() => {
     if (selectedRows.length > 0) {
       deleteMutation.mutate(selectedRows);
     }
-  };
+  }, [selectedRows, deleteMutation]);
 
-  const updateColumnFilter = (column: string, value: string) => {
+  const updateColumnFilter = useCallback((column: string, value: string) => {
     setColumnFilters(prev => ({
       ...prev,
       [column]: value
     }));
-  };
+  }, []);
+
+  const clearAllFilters = useCallback(() => {
+    setSearchTerm('');
+    setColumnFilters({});
+  }, []);
 
   return {
     searchTerm,
     setSearchTerm,
     columnFilters,
     updateColumnFilter,
+    clearAllFilters,
     filteredData,
     handleSelectAll,
     handleSelectRow,
