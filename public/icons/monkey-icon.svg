@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <!-- Monkey face background -->
+  <circle cx="50" cy="50" r="45" fill="#D4A574" stroke="#B8956A" stroke-width="2"/>
+  
+  <!-- Ears -->
+  <circle cx="25" cy="35" r="15" fill="#D4A574" stroke="#B8956A" stroke-width="1"/>
+  <circle cx="75" cy="35" r="15" fill="#D4A574" stroke="#B8956A" stroke-width="1"/>
+  <circle cx="25" cy="35" r="8" fill="#F5C6A0"/>
+  <circle cx="75" cy="35" r="8" fill="#F5C6A0"/>
+  
+  <!-- Face area -->
+  <ellipse cx="50" cy="55" rx="30" ry="25" fill="#F5C6A0"/>
+  
+  <!-- Eyes -->
+  <circle cx="42" cy="45" r="6" fill="white"/>
+  <circle cx="58" cy="45" r="6" fill="white"/>
+  <circle cx="42" cy="45" r="4" fill="black"/>
+  <circle cx="58" cy="45" r="4" fill="black"/>
+  <circle cx="43" cy="43" r="1.5" fill="white"/>
+  <circle cx="59" cy="43" r="1.5" fill="white"/>
+  
+  <!-- Nose -->
+  <ellipse cx="50" cy="55" rx="4" ry="3" fill="#E6A875"/>
+  <ellipse cx="48" cy="54" rx="1" ry="1.5" fill="#B8956A"/>
+  <ellipse cx="52" cy="54" rx="1" ry="1.5" fill="#B8956A"/>
+  
+  <!-- Mouth -->
+  <path d="M 45 65 Q 50 70 55 65" stroke="#B8956A" stroke-width="2" fill="none"/>
+  
+  <!-- Mouth area -->
+  <ellipse cx="50" cy="67" rx="8" ry="5" fill="#F5C6A0"/>
+  
+  <!-- Eyebrows -->
+  <path d="M 38 38 Q 42 35 46 38" stroke="#B8956A" stroke-width="1.5" fill="none"/>
+  <path d="M 54 38 Q 58 35 62 38" stroke="#B8956A" stroke-width="1.5" fill="none"/>
+</svg>
