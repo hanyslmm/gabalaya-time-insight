@@ -22,6 +22,7 @@ interface TimesheetData {
 interface ProcessTimesheetRequest {
   data: TimesheetData[];
   validateOnly?: boolean;
+  overwriteExisting?: boolean;
 }
 
 // Enhanced date/time formatting functions
@@ -111,7 +112,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json()
-    const { data: rawData, validateOnly = false }: ProcessTimesheetRequest = body
+    const { data: rawData, validateOnly = false, overwriteExisting = false }: ProcessTimesheetRequest = body
 
     console.log(`Processing ${rawData.length} timesheet entries (validate only: ${validateOnly})`);
 
@@ -233,20 +234,51 @@ Deno.serve(async (req) => {
 
     // Insert processed data into database
     if (processedData.length > 0) {
-      const { data: insertedData, error: insertError } = await supabaseAdmin
-        .from('timesheet_entries')
-        .insert(processedData)
-        .select();
+      // If overwriting, delete existing entries first
+      if (overwriteExisting) {
+        for (const entry of processedData) {
+          await supabaseAdmin
+            .from('timesheet_entries')
+            .delete()
+            .eq('employee_name', entry.employee_name)
+            .eq('clock_in_date', entry.clock_in_date);
+        }
+      } else {
+        // Check for duplicates and skip them
+        const filteredData = [];
+        for (const entry of processedData) {
+          const { data: existing } = await supabaseAdmin
+            .from('timesheet_entries')
+            .select('id')
+            .eq('employee_name', entry.employee_name)
+            .eq('clock_in_date', entry.clock_in_date)
+            .single();
 
-      if (insertError) {
-        console.error('Error inserting timesheet data:', insertError);
-        return new Response(
-          JSON.stringify({ success: false, error: 'Failed to insert timesheet data', details: insertError.message }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-        );
+          if (!existing) {
+            filteredData.push(entry);
+          } else {
+            errors.push(`Duplicate entry skipped for ${entry.employee_name} on ${entry.clock_in_date}`);
+          }
+        }
+        processedData.splice(0, processedData.length, ...filteredData);
       }
 
-      console.log(`Successfully inserted ${insertedData?.length || 0} timesheet entries`);
+      if (processedData.length > 0) {
+        const { data: insertedData, error: insertError } = await supabaseAdmin
+          .from('timesheet_entries')
+          .insert(processedData)
+          .select();
+
+        if (insertError) {
+          console.error('Error inserting timesheet data:', insertError);
+          return new Response(
+            JSON.stringify({ success: false, error: 'Failed to insert timesheet data', details: insertError.message }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+          );
+        }
+
+        console.log(`Successfully inserted ${insertedData?.length || 0} timesheet entries`);
+      }
     }
 
     return new Response(

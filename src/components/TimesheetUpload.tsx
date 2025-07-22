@@ -10,6 +10,8 @@ import { toast } from 'sonner';
 import { parseFile } from '@/utils/fileParser';
 import { supabase } from '@/integrations/supabase/client';
 import { useTimesheetUpload } from '@/hooks/useTimesheetUpload';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 interface TimesheetUploadProps {
   onClose: () => void;
@@ -29,6 +31,7 @@ const TimesheetUpload: React.FC<TimesheetUploadProps> = ({ onClose, onUploadComp
   const [showPreview, setShowPreview] = useState(false);
   const [previewData, setPreviewData] = useState<PreviewRow[]>([]);
   const [processedData, setProcessedData] = useState<any[]>([]);
+  const [overwriteExisting, setOverwriteExisting] = useState(false);
 
   const uploadMutation = useTimesheetUpload(onUploadComplete, onClose);
 
@@ -141,7 +144,8 @@ const TimesheetUpload: React.FC<TimesheetUploadProps> = ({ onClose, onUploadComp
       const { data: result, error } = await supabase.functions.invoke('process-timesheet', {
         body: {
           data: rawData,
-          validateOnly: false // Actually process and insert
+          validateOnly: false, // Actually process and insert
+          overwriteExisting: overwriteExisting // Pass the overwrite setting
         }
       });
 
@@ -300,6 +304,17 @@ const TimesheetUpload: React.FC<TimesheetUploadProps> = ({ onClose, onUploadComp
               accept=".csv,.xlsx,.xls"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
             />
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Checkbox 
+              id="overwrite" 
+              checked={overwriteExisting}
+              onCheckedChange={(checked) => setOverwriteExisting(checked as boolean)}
+            />
+            <Label htmlFor="overwrite" className="text-sm">
+              Overwrite existing timecards with same date (otherwise skip duplicates)
+            </Label>
           </div>
           
           <div className="p-3 bg-blue-50 rounded-md text-sm">
