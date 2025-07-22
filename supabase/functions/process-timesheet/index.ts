@@ -157,26 +157,56 @@ Deno.serve(async (req) => {
       const row = rawData[i];
       
       try {
+        // Skip header rows, empty rows, and summary rows
+        if (!row || typeof row !== 'object') continue;
+        
+        // Get the first column value to check row type
+        const firstCol = row['El Gabalaya'] || row['Name'] || row[Object.keys(row)[0]];
+        
+        // Skip if it's a header row, empty row, or summary row
+        if (!firstCol || 
+            firstCol === 'Payroll Period' || 
+            firstCol === 'Name' || 
+            firstCol === '' || 
+            firstCol === '-' ||
+            firstCol.toString().toLowerCase().includes('total') ||
+            typeof firstCol !== 'string') {
+          continue;
+        }
+        
+        // Map the Excel columns to our expected format
+        const employeeName = firstCol; // First column is employee name
+        const clockInDate = row[''] || row[Object.keys(row)[1]]; // Second column
+        const clockInTime = row['_1'] || row[Object.keys(row)[2]]; // Third column  
+        const clockOutDate = row['_2'] || row[Object.keys(row)[3]]; // Fourth column
+        const clockOutTime = row['_3'] || row[Object.keys(row)[4]]; // Fifth column
+        const actualHours = row['_9'] || row[Object.keys(row)[10]]; // Actual hours column
+        
+        // Skip if essential data is missing
+        if (!employeeName || !clockInDate || !clockInTime || !clockOutDate || !clockOutTime) {
+          continue;
+        }
+        
         // Extract employee identifier
-        const employeeIdentifier = row.employee_name || 'Unknown';
-        const employeeName = employeeMap.get(employeeIdentifier) || employeeIdentifier;
+        const employeeIdentifier = employeeName;
+        const employeeNameForDB = employeeMap.get(employeeIdentifier) || employeeIdentifier;
         
         // Format dates and times
-        const clockInDate = formatDate(row.clock_in_date);
-        const clockInTime = formatTime(row.clock_in_time);
-        const clockOutDate = formatDate(row.clock_out_date);
-        const clockOutTime = formatTime(row.clock_out_time);
+        const clockInDateFormatted = formatDate(clockInDate);
+        const clockInTimeFormatted = formatTime(clockInTime);
+        const clockOutDateFormatted = formatDate(clockOutDate);
+        const clockOutTimeFormatted = formatTime(clockOutTime);
 
         // Validate required fields
-        if (!clockInDate || !clockInTime || !clockOutDate || !clockOutTime) {
-          errors.push(`Row ${i + 1}: Missing required date/time fields`);
+        if (!clockInDateFormatted || !clockInTimeFormatted || !clockOutDateFormatted || !clockOutTimeFormatted) {
+          errors.push(`Row ${i + 1}: Missing required date/time fields for ${employeeIdentifier}`);
           continue;
         }
 
         // Calculate total hours
         let totalHours = 0;
-        const clockInDateTime = new Date(`${clockInDate}T${clockInTime}`);
-        const clockOutDateTime = new Date(`${clockOutDate}T${clockOutTime}`);
+        const clockInDateTime = new Date(`${clockInDateFormatted}T${clockInTimeFormatted}`);
+        const clockOutDateTime = new Date(`${clockOutDateFormatted}T${clockOutTimeFormatted}`);
         
         // Handle next day scenario
         if (clockOutDateTime < clockInDateTime) {
@@ -186,28 +216,28 @@ Deno.serve(async (req) => {
         totalHours = (clockOutDateTime.getTime() - clockInDateTime.getTime()) / (1000 * 60 * 60);
 
         // Use actual hours if provided, otherwise use calculated
-        const actualHours = row.actual_hours || totalHours;
+        const finalHours = actualHours ? parseFloat(actualHours.toString()) : totalHours;
         
         // Calculate wage amount
-        const totalCardAmountFlat = Math.max(0, actualHours) * defaultWageRate;
+        const totalCardAmountFlat = Math.max(0, finalHours) * defaultWageRate;
 
         const processedEntry = {
           employee_name: employeeIdentifier, // Keep original ID for database consistency
-          clock_in_date: clockInDate,
-          clock_in_time: clockInTime,
-          clock_out_date: clockOutDate,
-          clock_out_time: clockOutTime,
-          total_hours: Math.max(0, actualHours),
+          clock_in_date: clockInDateFormatted,
+          clock_in_time: clockInTimeFormatted,
+          clock_out_date: clockOutDateFormatted,
+          clock_out_time: clockOutTimeFormatted,
+          total_hours: Math.max(0, finalHours),
           total_card_amount_flat: totalCardAmountFlat,
-          break_start: formatTime(row.break_start) || null,
-          break_end: formatTime(row.break_end) || null,
-          break_length: row.break_length || null,
-          break_type: row.break_type || null,
-          payroll_id: row.payroll_id || null,
-          actual_hours: actualHours || null,
-          no_show_reason: row.no_show_reason || null,
-          employee_note: row.employee_note || null,
-          manager_note: row.manager_note || null,
+          break_start: null,
+          break_end: null,
+          break_length: null,
+          break_type: null,
+          payroll_id: null,
+          actual_hours: finalHours || null,
+          no_show_reason: null,
+          employee_note: null,
+          manager_note: null,
           is_split_calculation: false
         };
 
