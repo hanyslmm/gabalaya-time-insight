@@ -317,19 +317,22 @@ const TimesheetUpload: React.FC<TimesheetUploadProps> = ({ onClose, onUploadComp
             </Label>
           </div>
           
-          <div className="p-3 bg-blue-50 rounded-md text-sm">
-            <p className="font-medium mb-2">Expected file format:</p>
+            <div className="p-3 bg-blue-50 rounded-md text-sm">
+            <p className="font-medium mb-2">Expected CSV/Excel columns:</p>
             <ul className="text-xs space-y-1 text-gray-600">
-              <li>• Name (Employee name)</li>
-              <li>• Clock in date (MM/DD/YYYY or similar)</li>
-              <li>• Clock in time (HH:MM AM/PM)</li>
-              <li>• Clock out date (MM/DD/YYYY or similar)</li>
-              <li>• Clock out time (HH:MM AM/PM)</li>
-              <li>• Payroll ID (optional - auto-generated if missing)</li>
-              <li>• Actual hours (optional)</li>
+              <li>• <strong>Name</strong> (Employee name)</li>
+              <li>• <strong>Clock in date</strong> (June 29 2025, 06/29/2025, etc)</li>
+              <li>• <strong>Clock in time</strong> (6:56 PM, 18:56, etc)</li>
+              <li>• <strong>Clock out date</strong> (June 30 2025, 06/30/2025, etc)</li>
+              <li>• <strong>Clock out time</strong> (12:08 AM, 00:08, etc)</li>
+              <li>• <strong>Actual hours</strong> (Optional - calculated if missing)</li>
+              <li>• <strong>Payroll ID</strong> (Optional - auto-generated if missing)</li>
             </ul>
             <p className="text-xs text-green-600 mt-2 font-medium">
               ✨ New employees will be automatically created!
+            </p>
+            <p className="text-xs text-blue-600 mt-1">
+              💡 File format matches your Excel export exactly
             </p>
           </div>
           

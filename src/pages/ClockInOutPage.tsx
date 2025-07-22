@@ -167,40 +167,11 @@ const ClockInOutPage: React.FC = () => {
     const today = new Date().toISOString().split('T')[0];
     
     try {
-      // First, get the user's employee record to understand all possible identifiers
-      const { data: employeeData, error: employeeError } = await supabase
-        .from('employees')
-        .select('staff_id, full_name, username, email')
-        .or(`staff_id.eq.${user.username},full_name.eq.${user.full_name},username.eq.${user.username},email.eq.${user.email}`)
-        .limit(1);
-
-      if (employeeError) {
-        console.error('Error fetching employee data:', employeeError);
-      }
-
-      // Build a comprehensive list of possible identifiers for this user
+      // Build user identifiers for timesheet lookup
       const userIdentifiers = [
         user.username,
-        user.full_name,
-        user.email
+        user.full_name
       ];
-
-      // Add identifiers from employee record if found
-      if (employeeData && employeeData.length > 0) {
-        const emp = employeeData[0];
-        if (emp.staff_id && !userIdentifiers.includes(emp.staff_id)) {
-          userIdentifiers.push(emp.staff_id);
-        }
-        if (emp.full_name && !userIdentifiers.includes(emp.full_name)) {
-          userIdentifiers.push(emp.full_name);
-        }
-        if (emp.username && !userIdentifiers.includes(emp.username)) {
-          userIdentifiers.push(emp.username);
-        }
-        if (emp.email && !userIdentifiers.includes(emp.email)) {
-          userIdentifiers.push(emp.email);
-        }
-      }
 
       // Filter out null/undefined values
       const validIdentifiers = userIdentifiers.filter(id => id && id.trim() !== '');
@@ -233,7 +204,6 @@ const ClockInOutPage: React.FC = () => {
       console.log('User info:', { 
         username: user.username, 
         full_name: user.full_name, 
-        email: user.email,
         identifiers: validIdentifiers 
       });
       console.log('Today entries found:', data);
@@ -279,8 +249,8 @@ const ClockInOutPage: React.FC = () => {
       // Try to get the correct staff_id from the employee record
       const { data: employeeData } = await supabase
         .from('employees')
-        .select('staff_id, full_name, username')
-        .or(`staff_id.eq.${user.username},full_name.eq.${user.full_name},username.eq.${user.username}`)
+        .select('staff_id, full_name')
+        .or(`staff_id.eq.${user.username},full_name.eq.${user.full_name}`)
         .limit(1);
 
       // Use staff_id if found, otherwise fallback to username
@@ -301,23 +271,8 @@ const ClockInOutPage: React.FC = () => {
           // Refresh the data and check the result directly
           const today = new Date().toISOString().split('T')[0];
           try {
-            // Get the user's employee record for comprehensive search
-            const { data: employeeData } = await supabase
-              .from('employees')
-              .select('staff_id, full_name, username, email')
-              .or(`staff_id.eq.${user.username},full_name.eq.${user.full_name},username.eq.${user.username},email.eq.${user.email}`)
-              .limit(1);
-
             // Build comprehensive identifier list
-            const userIdentifiers = [user.username, user.full_name, user.email];
-            if (employeeData && employeeData.length > 0) {
-              const emp = employeeData[0];
-              [emp.staff_id, emp.full_name, emp.username, emp.email].forEach(id => {
-                if (id && !userIdentifiers.includes(id)) {
-                  userIdentifiers.push(id);
-                }
-              });
-            }
+            const userIdentifiers = [user.username, user.full_name];
 
             const validIdentifiers = userIdentifiers.filter(id => id && id.trim() !== '');
             const orQuery = validIdentifiers.map(id => `employee_name.eq.${id}`).join(',');
@@ -460,7 +415,6 @@ const ClockInOutPage: React.FC = () => {
                 <div>
                   <div>User: {user?.username}</div>
                   <div>Name: {user?.full_name}</div>
-                  <div>Email: {user?.email}</div>
                   <div>Role: {user?.role}</div>
                 </div>
                 <div>

@@ -50,138 +50,43 @@ const TimesheetsPage: React.FC = () => {
   const { data: timesheets, isLoading, refetch, error } = useQuery({
     queryKey: ['timesheets', dateRange, selectedEmployee],
     queryFn: async () => {
-      // Build query with filters
-      let query = supabase
-        .from('timesheet_entries')
-        .select('*');
+      try {
+        // Build query with filters
+        let query = supabase
+          .from('timesheet_entries')
+          .select('*');
 
-      // Apply date range filter
-      if (dateRange?.from && dateRange?.to) {
-        query = query
-          .gte('clock_in_date', dateRange.from.toISOString().split('T')[0])
-          .lte('clock_in_date', dateRange.to.toISOString().split('T')[0]);
-      }
-
-      // Apply employee filter
-      if (selectedEmployee && selectedEmployee !== 'all') {
-        query = query.eq('employee_id', selectedEmployee);
-      }
-
-      // Fetch timesheet entries, employees, and wage settings in parallel
-      const [timesheetResult, employeesResult, wageSettingsResult] = await Promise.all([
-        query.order('created_at', { ascending: false }),
-        supabase
-          .from('employees')
-          .select('staff_id, full_name, morning_wage_rate, night_wage_rate'),
-        supabase
-          .from('wage_settings')
-          .select('*')
-          .single()
-      ]);
-      
-      if (timesheetResult.error) throw timesheetResult.error;
-      if (employeesResult.error) throw employeesResult.error;
-      if (wageSettingsResult.error) throw wageSettingsResult.error;
-      
-      // Create employee mapping for names and rates
-      const employeeMap = new Map();
-      (employeesResult.data || []).forEach(emp => {
-        employeeMap.set(emp.staff_id, emp);
-        employeeMap.set(emp.full_name, emp); // Also map by name for lookup
-      });
-      
-      const wageSettings = wageSettingsResult.data;
-      
-      // Map employee IDs to names and auto-calculate split wages
-      const mappedData = await Promise.all((timesheetResult.data || []).map(async (entry) => {
-        const employee = employeeMap.get(entry.employee_name) || employeeMap.get(entry.employee_id);
-        const mappedEntry = {
-          ...entry,
-          employee_name: employee ? employee.full_name : entry.employee_name, // Use full name if found
-          employees: employee ? {
-            morning_wage_rate: employee.morning_wage_rate,
-            night_wage_rate: employee.night_wage_rate
-          } : null
-        };
-        
-        // Auto-calculate split wages if not already calculated
-        if (!entry.is_split_calculation && wageSettings) {
-          const clockInDateTime = new Date(`${entry.clock_in_date}T${entry.clock_in_time}`);
-          const clockOutDateTime = new Date(`${entry.clock_out_date}T${entry.clock_out_time}`);
-          
-          // Handle next day scenario
-          if (clockOutDateTime < clockInDateTime) {
-            clockOutDateTime.setDate(clockOutDateTime.getDate() + 1);
-          }
-
-          // Create time boundaries
-          const baseDate = new Date(entry.clock_in_date);
-          
-          const morningStart = new Date(baseDate);
-          const [morningStartHour, morningStartMin] = wageSettings.morning_start_time.split(':');
-          morningStart.setHours(parseInt(morningStartHour), parseInt(morningStartMin), 0, 0);
-          
-          const morningEnd = new Date(baseDate);
-          const [morningEndHour, morningEndMin] = wageSettings.morning_end_time.split(':');
-          morningEnd.setHours(parseInt(morningEndHour), parseInt(morningEndMin), 0, 0);
-          
-          const nightStart = new Date(baseDate);
-          const [nightStartHour, nightStartMin] = wageSettings.night_start_time.split(':');
-          nightStart.setHours(parseInt(nightStartHour), parseInt(nightStartMin), 0, 0);
-          
-          const nightEnd = new Date(baseDate);
-          const [nightEndHour, nightEndMin] = wageSettings.night_end_time.split(':');
-          nightEnd.setHours(parseInt(nightEndHour), parseInt(nightEndMin), 0, 0);
-          
-          if (nightEnd <= nightStart) {
-            nightEnd.setDate(nightEnd.getDate() + 1);
-          }
-
-          let morningHours = 0;
-          let nightHours = 0;
-
-          // Calculate morning hours overlap
-          const morningOverlapStart = new Date(Math.max(clockInDateTime.getTime(), morningStart.getTime()));
-          const morningOverlapEnd = new Date(Math.min(clockOutDateTime.getTime(), morningEnd.getTime()));
-          
-          if (morningOverlapEnd > morningOverlapStart) {
-            morningHours = (morningOverlapEnd.getTime() - morningOverlapStart.getTime()) / (1000 * 60 * 60);
-          }
-
-          // Calculate night hours overlap
-          const nightOverlapStart = new Date(Math.max(clockInDateTime.getTime(), nightStart.getTime()));
-          const nightOverlapEnd = new Date(Math.min(clockOutDateTime.getTime(), nightEnd.getTime()));
-          
-          if (nightOverlapEnd > nightOverlapStart) {
-            nightHours = (nightOverlapEnd.getTime() - nightOverlapStart.getTime()) / (1000 * 60 * 60);
-          }
-
-          // Ensure total hours don't exceed actual worked hours
-          const totalWorkedHours = (clockOutDateTime.getTime() - clockInDateTime.getTime()) / (1000 * 60 * 60);
-          const calculatedTotal = morningHours + nightHours;
-          
-          if (calculatedTotal > totalWorkedHours) {
-            const ratio = totalWorkedHours / calculatedTotal;
-            morningHours *= ratio;
-            nightHours *= ratio;
-          }
-
-          mappedEntry.morning_hours = morningHours;
-          mappedEntry.night_hours = nightHours;
-          
-          const morningWageRate = employee?.morning_wage_rate || wageSettings.morning_wage_rate;
-          const nightWageRate = employee?.night_wage_rate || wageSettings.night_wage_rate;
-          
-          mappedEntry.total_card_amount_split = (morningHours * morningWageRate) + (nightHours * nightWageRate);
+        // Apply date range filter
+        if (dateRange?.from && dateRange?.to) {
+          query = query
+            .gte('clock_in_date', dateRange.from.toISOString().split('T')[0])
+            .lte('clock_in_date', dateRange.to.toISOString().split('T')[0]);
         }
+
+        // Apply employee filter
+        if (selectedEmployee && selectedEmployee !== 'all') {
+          // Try both employee_id and employee_name for flexibility
+          query = query.or(`employee_id.eq.${selectedEmployee},employee_name.eq.${selectedEmployee}`);
+        }
+
+        // Execute query
+        const { data: timesheetData, error: timesheetError } = await query.order('clock_in_date', { ascending: false }).limit(500);
         
-        return mappedEntry;
-      }));
-      
-      return mappedData;
+        if (timesheetError) {
+          console.error('Timesheet query error:', timesheetError);
+          throw timesheetError;
+        }
+
+        console.log(`Loaded ${timesheetData?.length || 0} timesheet entries`);
+        return timesheetData || [];
+        
+      } catch (error) {
+        console.error('Error fetching timesheets:', error);
+        throw error;
+      }
     },
     refetchOnWindowFocus: false,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 30 * 1000, // 30 seconds
   });
 
   const handleEmployeeChange = useCallback((value: string) => {
