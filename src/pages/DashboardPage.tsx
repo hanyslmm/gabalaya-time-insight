@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Users, Clock, DollarSign, TrendingUp, Upload, Download, Settings } from 'lucide-react';
 import WeeklyHoursTrend from '@/components/WeeklyHoursTrend';
 import MonthlyShiftsActivity from '@/components/MonthlyShiftsActivity';
@@ -22,31 +21,22 @@ const DashboardPage: React.FC = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('current');
   const [selectedMonth, setSelectedMonth] = useState('');
 
-  // Pay period calculation (28th-based)
-  const calculatePayPeriod = (baseDate: Date, endDay: number = 28, offsetMonths: number = 0) => {
+  // Pay period calculation
+  const calculatePayPeriod = (baseDate: Date, offsetMonths: number = 0) => {
     const targetDate = new Date(baseDate);
     targetDate.setMonth(targetDate.getMonth() + offsetMonths);
-    
     const year = targetDate.getFullYear();
     const month = targetDate.getMonth();
-    
-    // For current period, use current month 1st to current date
-    if (offsetMonths === 0) {
+
+    if (offsetMonths === 0) { // Current period: 1st of month to today
       const startDate = new Date(year, month, 1);
       const endDate = new Date(); // Today
       return { from: startDate, to: endDate };
     }
     
-    // For previous period, use previous month full month
-    if (offsetMonths === -1) {
-      const startDate = new Date(year, month, 1);
-      const endDate = new Date(year, month + 1, 0); // Last day of the month
-      return { from: startDate, to: endDate };
-    }
-    
-    // For other periods, use full month
+    // Previous or custom periods: Full month
     const startDate = new Date(year, month, 1);
-    const endDate = new Date(year, month + 1, 0);
+    const endDate = new Date(year, month + 1, 0); // Last day of the month
     return { from: startDate, to: endDate };
   };
 
@@ -57,62 +47,6 @@ const DashboardPage: React.FC = () => {
     const endDate = new Date(today.getFullYear(), today.getMonth() + monthOffset + 1, 0);
     return { from: targetDate, to: endDate };
   };
-
-  // Calculate periods (memoized to prevent unnecessary re-renders)
-  const currentPeriod = React.useMemo(() => calculatePayPeriod(new Date()), []);
-  const previousPeriod = React.useMemo(() => calculatePayPeriod(new Date(), 28, -1), []);
-
-  // Determine which period to use based on selection (memoized)
-  const activePeriod = React.useMemo(() => {
-    if (selectedPeriod === 'current') return currentPeriod;
-    if (selectedPeriod === 'previous') return previousPeriod;
-    if (selectedMonth) {
-      const monthOffset = parseInt(selectedMonth);
-      return getMonthPeriod(monthOffset);
-    }
-    return currentPeriod;
-  }, [selectedPeriod, selectedMonth, currentPeriod, previousPeriod]);
-
-  // Fetch data for the active period
-  const { data: activeData, isLoading: activeLoading } = useDashboardData(activePeriod);
-
-  const quickActions = [
-    {
-      title: 'Import Timesheets',
-      description: 'Upload timesheet data from CSV or Excel files',
-      icon: Upload,
-      action: () => navigate('/timesheets'),
-      color: 'bg-blue-500'
-    },
-    {
-      title: 'Export Data',
-      description: 'Download timesheet reports and payroll data',
-      icon: Download,
-      action: () => navigate('/timesheets'),
-      color: 'bg-green-500'
-    },
-    {
-      title: 'Employee Monitor',
-      description: 'Real-time monitoring of employee clock-in/out status',
-      icon: Users,
-      action: () => navigate('/monitor'),
-      color: 'bg-purple-500'
-    },
-    {
-      title: 'Manage Employees',
-      description: 'Add, edit, or view employee information',
-      icon: Users,
-      action: () => navigate('/employees'),
-      color: 'bg-purple-500'
-    },
-    {
-      title: 'Settings',
-      description: 'Configure wage rates and system settings',
-      icon: Settings,
-      action: () => navigate('/settings'),
-      color: 'bg-gray-500'
-    }
-  ];
 
   const getPeriodLabel = () => {
     if (selectedPeriod === 'current') return 'Current';
@@ -125,13 +59,40 @@ const DashboardPage: React.FC = () => {
     return 'Total';
   };
 
+  // Memoize period calculations
+  const currentPeriod = useMemo(() => calculatePayPeriod(new Date()), []);
+  const previousPeriod = useMemo(() => calculatePayPeriod(new Date(), -1), []);
+
+  // Determine active period for data fetching
+  const activePeriod = useMemo(() => {
+    if (selectedPeriod === 'current') return currentPeriod;
+    if (selectedPeriod === 'previous') return previousPeriod;
+    if (selectedPeriod === 'custom' && selectedMonth) {
+      const monthOffset = parseInt(selectedMonth);
+      return getMonthPeriod(monthOffset);
+    }
+    return currentPeriod; // Default to current period
+  }, [selectedPeriod, selectedMonth, currentPeriod, previousPeriod]);
+
+  // Fetch data for the active period
+  const { data: activeData, isLoading: activeLoading } = useDashboardData(activePeriod);
+
+  const quickActions = [
+    { title: 'Import Timesheets', description: 'Upload CSV or Excel files', icon: Upload, action: () => navigate('/timesheets'), color: 'bg-blue-500' },
+    { title: 'Export Data', description: 'Download payroll reports', icon: Download, action: () => navigate('/timesheets'), color: 'bg-green-500' },
+    { title: 'Employee Monitor', description: 'Real-time clock-in status', icon: Users, action: () => navigate('/monitor'), color: 'bg-purple-500' },
+    { title: 'Manage Employees', description: 'Add, edit, or view employees', icon: Users, action: () => navigate('/employees'), color: 'bg-purple-500' },
+    { title: 'Settings', description: 'Configure wage rates', icon: Settings, action: () => navigate('/settings'), color: 'bg-gray-500' }
+  ];
+
   return (
     <PullToRefresh onRefresh={async () => window.location.reload()}>
       <div className="w-full px-2 sm:px-6 lg:px-8">
+        {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-8 space-y-3 sm:space-y-0">
           <div>
-            <h1 className="text-xl sm:text-3xl font-bold text-gray-900">{t('dashboard')}</h1>
-            <p className="mt-1 sm:mt-2 text-xs sm:text-base text-gray-600">Monitor your business performance</p>
+            <h1 className="text-xl sm:text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">{t('dashboard') || 'Dashboard'}</h1>
+            <p className="mt-1 sm:mt-2 text-sm sm:text-base text-muted-foreground">Overview of your HRM system</p>
           </div>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
             <div className="flex items-center gap-2">
@@ -167,82 +128,47 @@ const DashboardPage: React.FC = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
-          <Card>
-            <CardContent className="p-3 sm:p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">
-                    Active Employees
-                    <Badge variant="outline" className="ml-1 text-xs">
-                      {getPeriodLabel()}
-                    </Badge>
-                  </p>
-                  <p className="text-lg sm:text-2xl font-bold text-gray-900">
-                    {activeLoading ? '...' : activeData?.employeeCount || 0}
-                  </p>
-                </div>
-                <Users className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-3 sm:p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">
-                    Total Hours
-                    <Badge variant="outline" className="ml-1 text-xs">
-                      {getPeriodLabel()}
-                    </Badge>
-                  </p>
-                  <p className="text-lg sm:text-2xl font-bold text-gray-900">
-                    {activeLoading ? '...' : (activeData?.totalHours?.toFixed(1) || '0.0')}
-                  </p>
-                </div>
-                <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-3 sm:p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">
-                    Total Payroll
-                    <Badge variant="outline" className="ml-1 text-xs">
-                      {getPeriodLabel()}
-                    </Badge>
-                  </p>
-                  <p className="text-lg sm:text-2xl font-bold text-gray-900">
-                    ${activeLoading ? '...' : (activeData?.totalPayroll?.toFixed(2) || '0.00')}
-                  </p>
-                </div>
-                <DollarSign className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-3 sm:p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">
-                    Total Shifts
-                    <Badge variant="outline" className="ml-1 text-xs">
-                      {getPeriodLabel()}
-                    </Badge>
-                  </p>
-                  <p className="text-lg sm:text-2xl font-bold text-gray-900">
-                    {activeLoading ? '...' : activeData?.totalShifts || 0}
-                  </p>
-                </div>
-                <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-orange-600" />
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+            <Card className="group bg-gradient-to-br from-card via-card to-primary/5 border-primary/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
+                    <CardTitle className="text-sm font-semibold text-card-foreground/80">Total Employees</CardTitle>
+                    <div className="p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors"><Users className="h-4 w-4 text-primary" /></div>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6 pt-0">
+                    <div className="text-2xl sm:text-3xl font-bold text-primary mb-1">{activeLoading ? '...' : Math.round(activeData?.employeeCount || 0)}</div>
+                    <p className="text-xs text-muted-foreground">Active staff members</p>
+                </CardContent>
+            </Card>
+            <Card className="group bg-gradient-to-br from-card via-card to-secondary/5 border-secondary/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
+                    <CardTitle className="text-sm font-semibold text-card-foreground/80">Total Hours</CardTitle>
+                    <div className="p-2 bg-secondary/10 rounded-lg group-hover:bg-secondary/20 transition-colors"><Clock className="h-4 w-4 text-secondary" /></div>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6 pt-0">
+                    <div className="text-2xl sm:text-3xl font-bold text-secondary mb-1">{activeLoading ? '...' : (activeData?.totalHours?.toFixed(1) || '0.0')}</div>
+                    <p className="text-xs text-muted-foreground">Hours worked</p>
+                </CardContent>
+            </Card>
+            <Card className="group bg-gradient-to-br from-card via-card to-accent/5 border-accent/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
+                    <CardTitle className="text-sm font-semibold text-card-foreground/80">Total Payroll</CardTitle>
+                    <div className="p-2 bg-accent/10 rounded-lg group-hover:bg-accent/20 transition-colors"><DollarSign className="h-4 w-4 text-accent" /></div>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6 pt-0">
+                    <div className="text-2xl sm:text-3xl font-bold text-accent mb-1">{activeLoading ? '...' : (activeData?.totalPayroll?.toFixed(2) || '0.00')} LE</div>
+                    <p className="text-xs text-muted-foreground">Total earnings</p>
+                </CardContent>
+            </Card>
+            <Card className="group bg-gradient-to-br from-card via-card to-success/5 border-success/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
+                    <CardTitle className="text-sm font-semibold text-card-foreground/80">Total Shifts</CardTitle>
+                    <div className="p-2 bg-success/10 rounded-lg group-hover:bg-success/20 transition-colors"><TrendingUp className="h-4 w-4 text-success" /></div>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6 pt-0">
+                    <div className="text-2xl sm:text-3xl font-bold text-success mb-1">{activeLoading ? '...' : Math.round(activeData?.totalShifts || 0)}</div>
+                    <p className="text-xs text-muted-foreground">Completed shifts</p>
+                </CardContent>
+            </Card>
         </div>
 
         {/* Charts */}
@@ -262,25 +188,22 @@ const DashboardPage: React.FC = () => {
           </CardHeader>
           <CardContent className="p-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-              {quickActions.map((action, index) => {
-                const Icon = action.icon;
-                return (
-                  <Button
-                    key={index}
-                    variant="outline"
-                    className="h-auto min-h-[120px] p-4 flex flex-col items-center justify-center space-y-3 hover:bg-accent/10 transition-all duration-300"
-                    onClick={action.action}
-                  >
-                    <div className={`p-3 rounded-xl ${action.color} text-white shadow-lg`}>
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <div className="space-y-1 text-center">
-                      <div className="font-semibold text-sm leading-tight">{action.title}</div>
-                      <div className="text-xs text-muted-foreground leading-tight">{action.description}</div>
-                    </div>
-                  </Button>
-                );
-              })}
+              {quickActions.map((action, index) => (
+                <Button
+                  key={index}
+                  variant="outline"
+                  className="h-auto min-h-[120px] p-4 flex flex-col items-center justify-center space-y-3 hover:bg-accent/10 transition-all duration-300"
+                  onClick={action.action}
+                >
+                  <div className={`p-3 rounded-xl ${action.color} text-white shadow-lg`}>
+                    <action.icon className="h-5 w-5" />
+                  </div>
+                  <div className="space-y-1 text-center">
+                    <div className="font-semibold text-sm leading-tight">{action.title}</div>
+                    <div className="text-xs text-muted-foreground leading-tight">{action.description}</div>
+                  </div>
+                </Button>
+              ))}
             </div>
           </CardContent>
         </Card>

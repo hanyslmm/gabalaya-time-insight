@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,11 +6,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload, Download, Split, Trash2, User } from 'lucide-react';
+import { Upload, Download, Split, Trash2, User, Filter, RefreshCw } from 'lucide-react';
 import TimesheetUpload from '@/components/TimesheetUpload';
 import TimesheetTable from '@/components/TimesheetTable';
 import TimesheetDateFilter from '@/components/TimesheetDateFilter';
 import TimesheetExport from '@/components/TimesheetExport';
+import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 
 interface DateRange {
   from: Date;
@@ -34,7 +35,7 @@ const TimesheetsPage: React.FC = () => {
   const [payPeriodEndDay, setPayPeriodEndDay] = useState(28);
 
   // Fetch employees for the filter dropdown
-  const { data: employees } = useQuery({
+  const { data: employees, isLoading: employeesLoading } = useQuery({
     queryKey: ['employees-filter'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -46,7 +47,7 @@ const TimesheetsPage: React.FC = () => {
     }
   });
 
-  const { data: timesheets, isLoading, refetch } = useQuery({
+  const { data: timesheets, isLoading, refetch, error } = useQuery({
     queryKey: ['timesheets', dateRange, selectedEmployee],
     queryFn: async () => {
       // Build query with filters
@@ -165,55 +166,111 @@ const TimesheetsPage: React.FC = () => {
             nightHours *= ratio;
           }
 
-          // Use individual employee rates or fall back to default
-          const employeeMorningRate = mappedEntry.employees?.morning_wage_rate || wageSettings.morning_wage_rate;
-          const employeeNightRate = mappedEntry.employees?.night_wage_rate || wageSettings.night_wage_rate;
-
-          const totalSplitAmount = (morningHours * employeeMorningRate) + (nightHours * employeeNightRate);
-
-          // Update the entry in database
-          const { error } = await supabase
-            .from('timesheet_entries')
-            .update({
-              morning_hours: Math.max(0, parseFloat(morningHours.toFixed(2))),
-              night_hours: Math.max(0, parseFloat(nightHours.toFixed(2))),
-              total_card_amount_split: Math.max(0, parseFloat(totalSplitAmount.toFixed(2))),
-              is_split_calculation: true
-            })
-            .eq('id', entry.id);
-
-          if (!error) {
-            mappedEntry.morning_hours = Math.max(0, parseFloat(morningHours.toFixed(2)));
-            mappedEntry.night_hours = Math.max(0, parseFloat(nightHours.toFixed(2)));
-            mappedEntry.total_card_amount_split = Math.max(0, parseFloat(totalSplitAmount.toFixed(2)));
-            mappedEntry.is_split_calculation = true;
-          }
+          mappedEntry.morning_hours = morningHours;
+          mappedEntry.night_hours = nightHours;
+          
+          const morningWageRate = employee?.morning_wage_rate || wageSettings.morning_wage_rate;
+          const nightWageRate = employee?.night_wage_rate || wageSettings.night_wage_rate;
+          
+          mappedEntry.total_card_amount_split = (morningHours * morningWageRate) + (nightHours * nightWageRate);
         }
         
         return mappedEntry;
       }));
       
       return mappedData;
-    }
+    },
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  return (
-    <div className="w-full px-2 sm:px-6 lg:px-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-8 space-y-3 sm:space-y-0">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('timesheets')}</h1>
-          <p className="mt-1 sm:mt-2 text-xs sm:text-sm text-gray-600">Manage timesheet data and wage calculations</p>
-        </div>
-        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full sm:w-auto">
-          <Button 
-            onClick={() => setShowUpload(true)} 
-            className="flex items-center justify-center space-x-2 w-full sm:w-auto h-9 text-sm"
-          >
-            <Upload className="h-3 w-3 sm:h-4 sm:w-4" />
-            <span>{t('uploadTimesheet')}</span>
+  const handleEmployeeChange = useCallback((value: string) => {
+    setSelectedEmployee(value);
+    setSelectedRows([]); // Clear selected rows when changing employee filter
+  }, []);
+
+  const handleDateRangeChange = useCallback((newDateRange: DateRange) => {
+    setDateRange(newDateRange);
+    setSelectedRows([]); // Clear selected rows when changing date range
+  }, []);
+
+  const clearAllFilters = useCallback(() => {
+    setSelectedEmployee('all');
+    const today = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    setDateRange({ from: thirtyDaysAgo, to: today });
+    setSelectedRows([]);
+    toast.success('All filters cleared');
+  }, []);
+
+  const handleRefresh = useCallback(() => {
+    refetch();
+    toast.success('Data refreshed');
+  }, [refetch]);
+
+  // Calculate filter stats
+  const totalEntries = timesheets?.length || 0;
+  const selectedEmployeeName = selectedEmployee === 'all' ? 'All Employees' : 
+    employees?.find(emp => emp.id === selectedEmployee)?.full_name || 'Unknown Employee';
+
+  const hasActiveFilters = selectedEmployee !== 'all' || (dateRange && dateRange.from && dateRange.to);
+
+  if (error) {
+    return (
+      <div className="w-full px-4 sm:px-6 lg:px-8">
+        <div className="text-center py-12">
+          <div className="text-red-600 text-lg mb-2">Error loading timesheets</div>
+          <div className="text-muted-foreground text-sm mb-4">
+            {error.message || 'An error occurred while loading the data'}
+          </div>
+          <Button onClick={handleRefresh} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Retry
           </Button>
-          <div className="w-full sm:w-auto">
-            <TimesheetExport selectedRows={selectedRows} />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full px-4 sm:px-6 lg:px-8">
+      <div className="mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0 mb-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('timesheets')}</h1>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-sm text-muted-foreground">
+                {totalEntries} total entries
+              </span>
+              {hasActiveFilters && (
+                <Badge variant="secondary" className="text-xs">
+                  Filtered
+                </Badge>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              onClick={handleRefresh}
+              variant="outline"
+              size="sm"
+              disabled={isLoading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            <Button
+              onClick={() => setShowUpload(true)}
+              className="bg-blue-600 hover:bg-blue-700"
+              size="sm"
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              {t('import')}
+            </Button>
+            <div className="w-full sm:w-auto">
+              <TimesheetExport selectedRows={selectedRows} />
+            </div>
           </div>
         </div>
       </div>
@@ -222,30 +279,46 @@ const TimesheetsPage: React.FC = () => {
       <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
         <TimesheetDateFilter
           dateRange={dateRange}
-          onDateRangeChange={setDateRange}
+          onDateRangeChange={handleDateRangeChange}
           payPeriodEndDay={payPeriodEndDay}
           onPayPeriodEndDayChange={setPayPeriodEndDay}
         />
         
         {/* Employee Filter - Only show for admins */}
-        {user?.role === 'admin' && employees && (
+        {user?.role === 'admin' && (
           <Card>
             <CardContent className="p-4">
-              <div className="flex items-center space-x-4">
-                <User className="h-4 w-4 text-muted-foreground" />
-                <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                  <SelectTrigger className="w-64">
-                    <SelectValue placeholder="Filter by employee" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Employees</SelectItem>
-                    {employees.map((employee) => (
-                      <SelectItem key={employee.id} value={employee.id}>
-                        {employee.full_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4 flex-1">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <Select value={selectedEmployee} onValueChange={handleEmployeeChange} disabled={employeesLoading}>
+                    <SelectTrigger className="w-64">
+                      <SelectValue placeholder="Filter by employee" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Employees</SelectItem>
+                      {employees?.map((employee) => (
+                        <SelectItem key={employee.id} value={employee.id}>
+                          {employee.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="text-sm text-muted-foreground">
+                    Current: {selectedEmployeeName}
+                  </div>
+                </div>
+                {hasActiveFilters && (
+                  <Button
+                    onClick={clearAllFilters}
+                    variant="outline"
+                    size="sm"
+                    className="ml-4"
+                  >
+                    <Filter className="h-4 w-4 mr-2" />
+                    Clear Filters
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -255,7 +328,14 @@ const TimesheetsPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
         <Card className="lg:col-span-4 xl:col-span-3">
           <CardHeader>
-            <CardTitle>Timesheet Entries</CardTitle>
+            <CardTitle className="flex items-center justify-between">
+              <span>Timesheet Entries</span>
+              {hasActiveFilters && (
+                <Badge variant="outline" className="text-xs">
+                  Filtered View
+                </Badge>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
