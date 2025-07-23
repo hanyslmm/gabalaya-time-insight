@@ -28,18 +28,31 @@ const TimesheetDateFilter: React.FC<TimesheetDateFilterProps> = ({
   onPayPeriodEndDayChange
 }) => {
   const calculatePayPeriod = (baseDate: Date, endDay: number, offsetMonths: number = 0) => {
-    const targetDate = new Date(baseDate);
-    targetDate.setMonth(targetDate.getMonth() + offsetMonths);
+    const today = new Date(baseDate);
+    const currentDay = today.getDate();
     
-    const year = targetDate.getFullYear();
-    const month = targetDate.getMonth();
+    // Determine which pay period we're in
+    let endDate: Date;
     
-    // Calculate the end date of the pay period
-    let endDate = new Date(year, month, endDay);
-    
-    // For current period, if end day hasn't passed this month, use previous month's period
-    if (offsetMonths === 0 && endDate > baseDate) {
-      endDate.setMonth(month - 1);
+    if (offsetMonths === 0) {
+      // Current period logic
+      if (currentDay <= endDay) {
+        // We're still in the current month's pay period
+        endDate = new Date(today.getFullYear(), today.getMonth(), endDay);
+      } else {
+        // We've passed the end day, so we're in next month's pay period
+        endDate = new Date(today.getFullYear(), today.getMonth() + 1, endDay);
+      }
+    } else {
+      // For previous periods
+      const targetMonth = today.getMonth() + offsetMonths;
+      if (currentDay <= endDay) {
+        // Current period hasn't ended, so previous period is last month
+        endDate = new Date(today.getFullYear(), targetMonth, endDay);
+      } else {
+        // Current period has ended, so previous period is this month - 1
+        endDate = new Date(today.getFullYear(), targetMonth + 1, endDay);
+      }
     }
     
     // Start date is the day after the previous period's end
