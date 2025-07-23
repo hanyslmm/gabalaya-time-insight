@@ -21,22 +21,7 @@ export const useDashboardData = (dateRange: DateRange, enabled: boolean = true) 
       const fromDate = format(dateRange.from, 'yyyy-MM-dd');
       const toDate = format(dateRange.to, 'yyyy-MM-dd');
 
-      // Get employee count for employees who worked in the period
-      const { data: employeeData, error: employeeError } = await supabase
-        .from('timesheet_entries')
-        .select('employee_id')
-        .gte('clock_in_date', fromDate)
-        .lte('clock_in_date', toDate);
-
-      if (employeeError) {
-        console.error('Error fetching employee data:', employeeError);
-        throw new Error('Failed to fetch employee data.');
-      }
-
-      const uniqueEmployees = new Set(employeeData?.map(entry => entry.employee_id) || []);
-      const employeeCount = uniqueEmployees.size;
-
-      // Call the dashboard stats function for other metrics
+      // Call the dashboard stats function for all metrics including employee count
       const { data, error } = await supabase.rpc('get_dashboard_stats', {
         from_date: fromDate,
         to_date: toDate,
@@ -49,7 +34,7 @@ export const useDashboardData = (dateRange: DateRange, enabled: boolean = true) 
 
       const stats = data as any;
       return {
-        employeeCount,
+        employeeCount: stats?.employeeCount || 0,
         totalHours: stats?.totalHours || 0,
         totalPayroll: stats?.totalPayroll || 0,
         totalShifts: stats?.totalShifts || 0
