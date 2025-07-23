@@ -3,6 +3,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CalendarIcon, Settings } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -63,14 +64,14 @@ const TimesheetDateFilter: React.FC<TimesheetDateFilterProps> = ({
     return { from: startDate, to: endDate };
   };
 
-  const handlePreviousPeriod = () => {
-    const previousPeriod = calculatePayPeriod(new Date(), payPeriodEndDay, -1);
-    onDateRangeChange(previousPeriod);
-  };
-
-  const handleCurrentPeriod = () => {
-    const currentPeriod = calculatePayPeriod(new Date(), payPeriodEndDay, 0);
-    onDateRangeChange(currentPeriod);
+  const handlePeriodChange = (value: string) => {
+    if (value === 'previous') {
+      const previousPeriod = calculatePayPeriod(new Date(), payPeriodEndDay, -1);
+      onDateRangeChange(previousPeriod);
+    } else if (value === 'current') {
+      const currentPeriod = calculatePayPeriod(new Date(), payPeriodEndDay, 0);
+      onDateRangeChange(currentPeriod);
+    }
   };
 
   const handleCustomDateChange = (field: 'from' | 'to', date: Date | undefined) => {
@@ -80,6 +81,21 @@ const TimesheetDateFilter: React.FC<TimesheetDateFilterProps> = ({
         [field]: date
       });
     }
+  };
+
+  // Determine which period is currently selected
+  const getCurrentPeriodType = () => {
+    const currentPeriod = calculatePayPeriod(new Date(), payPeriodEndDay, 0);
+    const previousPeriod = calculatePayPeriod(new Date(), payPeriodEndDay, -1);
+    
+    const isCurrent = dateRange.from.getTime() === currentPeriod.from.getTime() && 
+                     dateRange.to.getTime() === currentPeriod.to.getTime();
+    const isPrevious = dateRange.from.getTime() === previousPeriod.from.getTime() && 
+                      dateRange.to.getTime() === previousPeriod.to.getTime();
+    
+    if (isCurrent) return 'current';
+    if (isPrevious) return 'previous';
+    return 'custom';
   };
 
   return (
@@ -118,21 +134,18 @@ const TimesheetDateFilter: React.FC<TimesheetDateFilterProps> = ({
         </Popover>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant="outline"
-          onClick={handlePreviousPeriod}
-          className="flex-1 sm:flex-none"
-        >
-          Previous Period
-        </Button>
-        <Button
-          variant="default"
-          onClick={handleCurrentPeriod}
-          className="flex-1 sm:flex-none"
-        >
-          Current Period
-        </Button>
+      <div className="space-y-2">
+        <Label>Pay Period</Label>
+        <Select value={getCurrentPeriodType()} onValueChange={handlePeriodChange}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select period" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="current">Current Period</SelectItem>
+            <SelectItem value="previous">Previous Period</SelectItem>
+            <SelectItem value="custom">Custom Range</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

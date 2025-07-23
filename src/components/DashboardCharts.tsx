@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -10,7 +9,6 @@ import { format, subMonths, subDays, startOfMonth, endOfMonth, startOfWeek, endO
 import { Trophy, Medal, Award, Star, Calendar, TrendingUp, BarChart3, LineChart as LineChartIcon, Activity, Zap, Target, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import InteractiveChart from './InteractiveChart';
 
 interface MonthlyData {
@@ -29,124 +27,129 @@ interface EmployeeData {
 }
 
 interface DashboardChartsProps {
-  timePeriod?: string;
+  timePeriod?: 'week' | 'month' | 'quarter' | 'year';
   dateRange?: {
     from: Date;
     to: Date;
-    label: string;
   };
 }
 
 const DashboardCharts: React.FC<DashboardChartsProps> = ({ 
-  timePeriod = '30days',
+  timePeriod = 'month',
   dateRange 
 }) => {
-  const [chartView, setChartView] = useState('overview');
+  const [chartView, setChartView] = useState<'overview' | 'performance' | 'activity'>('overview');
 
-  const effectiveDateRange = dateRange || {
-    from: subDays(new Date(), 30),
-    to: new Date(),
-    label: 'Last 30 Days'
+  const calculateDateRange = () => {
+    if (dateRange) {
+      return {
+        from: dateRange.from,
+        to: dateRange.to,
+        label: `${format(dateRange.from, 'MMM dd')} - ${format(dateRange.to, 'MMM dd, yyyy')}`
+      };
+    }
+
+    const today = new Date();
+    
+    switch (timePeriod) {
+      case 'week':
+        return {
+          from: startOfWeek(today),
+          to: endOfWeek(today),
+          label: 'This Week'
+        };
+      case 'quarter':
+        return {
+          from: subMonths(today, 3),
+          to: today,
+          label: 'Last 3 Months'
+        };
+      case 'year':
+        return {
+          from: subMonths(today, 12),
+          to: today,
+          label: 'Last Year'
+        };
+      default:
+        return {
+          from: startOfMonth(today),
+          to: endOfMonth(today),
+          label: 'This Month'
+        };
+    }
   };
 
-  // Determine grouping format based on date range
-  const daysDifference = Math.ceil((effectiveDateRange.to.getTime() - effectiveDateRange.from.getTime()) / (1000 * 60 * 60 * 24));
-  let groupingFormat = 'MMM dd';
-  
-  if (daysDifference > 60) {
-    groupingFormat = 'MMM yyyy';
-  } else if (daysDifference <= 7) {
-    groupingFormat = 'EEE';
-  }
+  const effectiveDateRange = calculateDateRange();
 
   const { data: chartData, isLoading } = useQuery({
-    queryKey: ['dashboard-charts', timePeriod, effectiveDateRange],
+    queryKey: ['dashboard-charts', effectiveDateRange.from, effectiveDateRange.to, timePeriod],
     queryFn: async () => {
-      let query = supabase.from('timesheet_entries').select('*');
-      
-      query = query
-        .gte('clock_in_date', format(effectiveDateRange.from, 'yyyy-MM-dd'))
-        .lte('clock_in_date', format(effectiveDateRange.to, 'yyyy-MM-dd'));
-      
-      const { data: timesheets, error } = await query;
-      
+      const fromDate = format(effectiveDateRange.from, 'yyyy-MM-dd');
+      const toDate = format(effectiveDateRange.to, 'yyyy-MM-dd');
+
+      const { data: timesheetData, error } = await supabase
+        .from('timesheet_entries')
+        .select('*')
+        .gte('clock_in_date', fromDate)
+        .lte('clock_in_date', toDate)
+        .order('clock_in_date');
+
       if (error) throw error;
-      
-      // Use the pre-calculated grouping format based on actual date range
 
-      const timeData: Record<string, MonthlyData> = {};
-      const employeeData: Record<string, EmployeeData> = {};
-      const hourlyData: Array<{ hour: number; activity: number }> = Array.from({ length: 24 }, (_, i) => ({ hour: i, activity: 0 }));
-      
-      timesheets?.forEach(entry => {
-        const date = new Date(entry.clock_in_date);
-        const timeKey = format(date, groupingFormat);
-        
-        // Time-based data with enhanced metrics
-        if (!timeData[timeKey]) {
-          timeData[timeKey] = { month: timeKey, hours: 0, amount: 0, shifts: 0 };
-        }
-        timeData[timeKey].hours += entry.total_hours || 0;
-        // Use split amount if available, otherwise flat amount
-        timeData[timeKey].amount += Math.round(entry.total_card_amount_split || entry.total_card_amount_flat || 0);
-        timeData[timeKey].shifts += 1;
-        
-        // Employee performance data
-        if (!employeeData[entry.employee_name]) {
-          employeeData[entry.employee_name] = { 
-            name: entry.employee_name, 
-            hours: 0, 
-            amount: 0, 
-            shifts: 0,
-            avgHours: 0 
-          };
-        }
-        employeeData[entry.employee_name].hours += entry.total_hours || 0;
-        // Use split amount if available, otherwise flat amount
-        employeeData[entry.employee_name].amount += Math.round(entry.total_card_amount_split || entry.total_card_amount_flat || 0);
-        employeeData[entry.employee_name].shifts += 1;
+      // Process data for different chart types
+      const monthlyDataMap = new Map<string, { hours: number; amount: number; shifts: number }>();
+      const employeeDataMap = new Map<string, { hours: number; amount: number; shifts: number }>();
+      const hourlyDataMap = new Map<number, number>();
 
-        // Hourly activity tracking
+      timesheetData?.forEach(entry => {
+        // Monthly data
+        const monthKey = format(new Date(entry.clock_in_date), 'MMM yyyy');
+        if (!monthlyDataMap.has(monthKey)) {
+          monthlyDataMap.set(monthKey, { hours: 0, amount: 0, shifts: 0 });
+        }
+        const monthData = monthlyDataMap.get(monthKey)!;
+        monthData.hours += entry.total_hours || 0;
+        monthData.amount += entry.total_card_amount_split || entry.total_card_amount_flat || 0;
+        monthData.shifts += 1;
+
+        // Employee data
+        if (!employeeDataMap.has(entry.employee_name)) {
+          employeeDataMap.set(entry.employee_name, { hours: 0, amount: 0, shifts: 0 });
+        }
+        const empData = employeeDataMap.get(entry.employee_name)!;
+        empData.hours += entry.total_hours || 0;
+        empData.amount += entry.total_card_amount_split || entry.total_card_amount_flat || 0;
+        empData.shifts += 1;
+
+        // Hourly data
         if (entry.clock_in_time) {
           const hour = parseInt(entry.clock_in_time.split(':')[0]);
-          if (hour >= 0 && hour < 24) {
-            hourlyData[hour].activity += 1;
-          }
+          hourlyDataMap.set(hour, (hourlyDataMap.get(hour) || 0) + 1);
         }
       });
-      
-      // Calculate metrics and sort data
-      const sortedEmployees = Object.values(employeeData)
-        .map((emp: EmployeeData) => ({
-          ...emp,
-          avgHours: emp.shifts > 0 ? emp.hours / emp.shifts : 0,
-          efficiency: emp.shifts > 0 ? (emp.amount / emp.hours) : 0
+
+      const monthlyData: MonthlyData[] = Array.from(monthlyDataMap.entries()).map(([month, data]) => ({
+        month,
+        ...data
+      }));
+
+      const employeeData: EmployeeData[] = Array.from(employeeDataMap.entries())
+        .map(([name, data]) => ({
+          name,
+          ...data,
+          avgHours: data.shifts > 0 ? data.hours / data.shifts : 0
         }))
-        .sort((a, b) => b.hours - a.hours)
-        .slice(0, 8);
+        .sort((a, b) => b.hours - a.hours);
 
-      const sortedTimeData = Object.values(timeData)
-        .sort((a, b) => {
-          if (timePeriod === '6months' || timePeriod === '1year' || timePeriod === 'alltime') {
-            return new Date(a.month).getTime() - new Date(b.month).getTime();
-          }
-          return a.month.localeCompare(b.month);
-        });
-
-      // Performance metrics
-      const totalMetrics = {
-        totalHours: sortedTimeData.reduce((sum, d) => sum + d.hours, 0),
-        totalAmount: sortedTimeData.reduce((sum, d) => sum + d.amount, 0),
-        totalShifts: sortedTimeData.reduce((sum, d) => sum + d.shifts, 0),
-        avgHoursPerShift: sortedTimeData.reduce((sum, d) => sum + d.hours, 0) / Math.max(sortedTimeData.reduce((sum, d) => sum + d.shifts, 0), 1),
-        peakHour: hourlyData.reduce((max, curr) => curr.activity > max.activity ? curr : max, hourlyData[0])
-      };
+      const hourlyData = Array.from({ length: 24 }, (_, hour) => ({
+        hour,
+        activity: hourlyDataMap.get(hour) || 0
+      }));
 
       return {
-        timeData: sortedTimeData,
-        employeeData: sortedEmployees,
-        hourlyData: hourlyData.filter(h => h.activity > 0),
-        metrics: totalMetrics
+        monthlyData,
+        employeeData,
+        hourlyData
       };
     }
   });
@@ -186,23 +189,37 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Enhanced Charts Grid */}
-      <Tabs value={chartView} onValueChange={setChartView} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 bg-background/50 backdrop-blur border border-border/50">
-          <TabsTrigger value="overview" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="performance" className="flex items-center gap-2">
-            <LineChartIcon className="h-4 w-4" />
-            Performance
-          </TabsTrigger>
-          <TabsTrigger value="activity" className="flex items-center gap-2">
-            <Activity className="h-4 w-4" />
-            Activity
-          </TabsTrigger>
-        </TabsList>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold">Analytics Dashboard</h3>
+          <Select value={chartView} onValueChange={(value) => setChartView(value as 'overview' | 'performance' | 'activity')}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Select view" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="overview">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  Overview
+                </div>
+              </SelectItem>
+              <SelectItem value="performance">
+                <div className="flex items-center gap-2">
+                  <LineChartIcon className="h-4 w-4" />
+                  Performance
+                </div>
+              </SelectItem>
+              <SelectItem value="activity">
+                <div className="flex items-center gap-2">
+                  <Activity className="h-4 w-4" />
+                  Activity
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-        <TabsContent value="overview" className="space-y-6">
+        {chartView === 'overview' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card className="h-full bg-gradient-to-br from-card via-card/95 to-primary/5 border-border/50 shadow-lg hover:shadow-xl transition-all duration-300 group">
               <CardHeader className="border-b border-border/20">
@@ -218,12 +235,11 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
               <CardContent className="p-6">
                 <ChartContainer config={chartConfig}>
                   <ResponsiveContainer width="100%" height={300}>
-                    <AreaChart data={chartData?.timeData} margin={{ top: 10, right: 30, left: 0, bottom: 40 }}>
+                    <AreaChart data={chartData?.monthlyData} margin={{ top: 10, right: 30, left: 0, bottom: 40 }}>
                       <defs>
                         <linearGradient id="colorHours" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4}/>
-                          <stop offset="50%" stopColor="hsl(var(--primary))" stopOpacity={0.2}/>
-                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.8}/>
+                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.1}/>
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
@@ -232,10 +248,6 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
                         stroke="hsl(var(--muted-foreground))" 
                         fontSize={11}
                         tick={{ fontSize: 11 }}
-                        angle={-45}
-                        textAnchor="end"
-                        height={60}
-                        interval={0}
                       />
                       <YAxis 
                         stroke="hsl(var(--muted-foreground))" 
@@ -243,18 +255,16 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
                         tick={{ fontSize: 11 }}
                       />
                       <ChartTooltip 
-                        content={<ChartTooltipContent />} 
+                        content={<ChartTooltipContent />}
                         cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '3 3' }}
                       />
                       <Area 
                         type="monotone" 
                         dataKey="hours" 
                         stroke="hsl(var(--primary))" 
-                        fillOpacity={1} 
-                        fill="url(#colorHours)"
                         strokeWidth={3}
-                        dot={{ r: 4, fill: 'hsl(var(--primary))', strokeWidth: 2, stroke: 'hsl(var(--background))' }}
-                        activeDot={{ r: 6, fill: 'hsl(var(--primary))', strokeWidth: 2, stroke: 'hsl(var(--background))' }}
+                        fillOpacity={1} 
+                        fill="url(#colorHours)" 
                       />
                     </AreaChart>
                   </ResponsiveContainer>
@@ -268,31 +278,21 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
                   <div className="p-2 bg-secondary/10 rounded-lg group-hover:bg-secondary/20 transition-colors">
                     <BarChart3 className="h-5 w-5 text-secondary" />
                   </div>
-                   <span className="bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent">
-                     Daily Cost Analysis
-                   </span>
+                  <span className="bg-gradient-to-r from-secondary to-primary bg-clip-text text-transparent">
+                    Monthly Shifts & Revenue
+                  </span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
                 <ChartContainer config={chartConfig}>
                   <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={chartData?.timeData} margin={{ top: 10, right: 30, left: 0, bottom: 40 }}>
-                      <defs>
-                        <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--secondary))" stopOpacity={0.8}/>
-                          <stop offset="95%" stopColor="hsl(var(--secondary))" stopOpacity={0.3}/>
-                        </linearGradient>
-                      </defs>
+                    <BarChart data={chartData?.monthlyData} margin={{ top: 10, right: 30, left: 0, bottom: 40 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
                       <XAxis 
                         dataKey="month" 
                         stroke="hsl(var(--muted-foreground))" 
                         fontSize={11}
                         tick={{ fontSize: 11 }}
-                        angle={-45}
-                        textAnchor="end"
-                        height={60}
-                        interval={0}
                       />
                       <YAxis 
                         stroke="hsl(var(--muted-foreground))" 
@@ -301,13 +301,12 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
                       />
                       <ChartTooltip 
                         content={<ChartTooltipContent />}
-                        cursor={{ fill: 'hsl(var(--secondary) / 0.1)' }}
+                        cursor={{ fill: 'hsl(var(--secondary))', fillOpacity: 0.1 }}
                       />
                       <Bar 
-                        dataKey="amount" 
-                        fill="url(#colorAmount)" 
-                        radius={[6, 6, 0, 0]}
-                        stroke="hsl(var(--secondary))"
+                        dataKey="shifts" 
+                        fill="hsl(var(--secondary))" 
+                        radius={[4, 4, 0, 0]}
                         strokeWidth={1}
                       />
                     </BarChart>
@@ -316,9 +315,9 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
+        )}
 
-        <TabsContent value="performance" className="space-y-6">
+        {chartView === 'performance' && (
           <div className="grid grid-cols-1 gap-6">
             <Card className="bg-gradient-to-br from-card via-card/95 to-accent/5 border-border/50 shadow-lg hover:shadow-xl transition-all duration-300">
               <CardHeader className="border-b border-border/20">
@@ -371,9 +370,9 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
+        )}
 
-        <TabsContent value="activity" className="space-y-6">
+        {chartView === 'activity' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card className="h-full bg-gradient-to-br from-card via-card/95 to-success/5 border-border/50 shadow-lg hover:shadow-xl transition-all duration-300 group">
               <CardHeader className="border-b border-border/20">
@@ -461,8 +460,8 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
-      </Tabs>
+        )}
+      </div>
     </div>
   );
 };
