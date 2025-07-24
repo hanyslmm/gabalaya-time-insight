@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Clock, LogIn, LogOut, MapPin, AlertCircle, RefreshCw, Users, Eye, EyeOff } from 'lucide-react';
-import { format, differenceInMinutes } from 'date-fns';
+import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
+import { Clock, LogIn, LogOut, MapPin, AlertCircle, RefreshCw, Users, Eye, EyeOff, Coffee, Target, Zap, Calendar, Timer } from 'lucide-react';
+import { format, differenceInMinutes, startOfDay, addHours } from 'date-fns';
 import { toast } from 'sonner';
 import ProfileAvatar from '@/components/ProfileAvatar';
 
@@ -34,14 +36,18 @@ interface TeamMemberStatus {
 
 const ClockInOutPage: React.FC = () => {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true); // For initial page load
-  const [actionLoading, setActionLoading] = useState(false); // For button clicks
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
   const [currentEntry, setCurrentEntry] = useState<ClockEntry | null>(null);
   const [todayEntries, setTodayEntries] = useState<ClockEntry[]>([]);
   const [teamStatus, setTeamStatus] = useState<TeamMemberStatus[]>([]);
   const [showTeamStatus, setShowTeamStatus] = useState(false);
   const [location, setLocation] = useState<string | null>(null);
   const [motivationalMessage, setMotivationalMessage] = useState('');
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [workedHours, setWorkedHours] = useState(0);
+  const [targetHours] = useState(8); // Default 8-hour workday
+  const [showDebug, setShowDebug] = useState(false);
 
   // Fetch motivational message on component mount
   useEffect(() => {
@@ -218,6 +224,22 @@ const ClockInOutPage: React.FC = () => {
     }
   };
 
+  // Update current time and worked hours every minute
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+      
+      // Calculate worked hours if clocked in
+      if (currentEntry) {
+        const clockInDateTime = new Date(`${currentEntry.clock_in_date}T${currentEntry.clock_in_time}`);
+        const minutesWorked = differenceInMinutes(new Date(), clockInDateTime);
+        setWorkedHours(minutesWorked / 60);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [currentEntry]);
+
   useEffect(() => {
     if (user) {
       fetchTodayEntries();
@@ -360,57 +382,223 @@ const ClockInOutPage: React.FC = () => {
     await fetchTeamStatus();
   };
 
+  const getWorkDayProgress = () => {
+    if (!currentEntry) return 0;
+    return Math.min((workedHours / targetHours) * 100, 100);
+  };
+
+  const getTimeUntilTarget = () => {
+    if (!currentEntry) return null;
+    const remainingHours = Math.max(targetHours - workedHours, 0);
+    const remainingMinutes = remainingHours * 60;
+    return formatDuration(remainingMinutes);
+  };
+
+  const getGreeting = () => {
+    const hour = currentTime.getHours();
+    if (hour < 12) return "Good Morning";
+    if (hour < 17) return "Good Afternoon";
+    return "Good Evening";
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex flex-col items-center justify-center h-64 space-y-4">
         <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
+        <p className="text-muted-foreground animate-pulse">Loading your workspace...</p>
       </div>
     );
   }
 
   return (
-    <div className="w-full px-1 sm:px-2 lg:px-4 pb-safe min-h-screen">
-      <div className="max-w-md mx-auto space-y-2 sm:space-y-4">
+    <div className="w-full px-1 sm:px-2 lg:px-4 pb-safe min-h-screen animate-fade-in">
+      <div className="max-w-md mx-auto space-y-3 sm:space-y-4">
+        {/* Greeting Card */}
+        <Card className="bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/10 animate-scale-in">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">
+                  {getGreeting()}, {user?.full_name?.split(' ')[0] || user?.username}!
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  {format(currentTime, 'eeee, MMMM dd • h:mm:ss a')}
+                </p>
+              </div>
+              <div className="text-2xl">
+                {currentEntry ? '🎯' : '☀️'}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {motivationalMessage && (
-          <Alert variant="default" className="bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20 rounded-2xl p-4">
-            <AlertCircle className="h-4 w-4 text-primary" />
+          <Alert variant="default" className="bg-gradient-to-r from-accent/10 to-secondary/10 border-accent/20 rounded-2xl animate-slide-in-right">
+            <Zap className="h-4 w-4 text-accent" />
             <AlertDescription className="text-foreground font-medium">
               {motivationalMessage}
             </AlertDescription>
           </Alert>
         )}
 
-        <Card className="shadow-xl border-border/20 bg-gradient-to-br from-card to-card/90 rounded-2xl overflow-hidden">
-          <CardHeader className="text-center pb-3 px-4 pt-6">
-            <div className="flex justify-end mb-2">
+        {/* Main Clock In/Out Card */}
+        <Card className="shadow-2xl border-border/20 bg-gradient-to-br from-card via-card/95 to-card/90 rounded-3xl overflow-hidden animate-scale-in">
+          <CardHeader className="text-center pb-4 px-6 pt-8 relative">
+            <div className="flex justify-between items-center mb-4">
+              <Badge variant={currentEntry ? "default" : "secondary"} className="animate-pulse">
+                {currentEntry ? "🟢 Active" : "⚪ Offline"}
+              </Badge>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={refreshData}
                 disabled={loading}
-                className="h-8 w-8 p-0 opacity-60 hover:opacity-100"
+                className="h-8 w-8 p-0 opacity-60 hover:opacity-100 hover:scale-110 transition-all"
                 title="Refresh status"
               >
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               </Button>
             </div>
-            <div className="relative mb-4">
-              <div className="w-16 h-16 mx-auto bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center shadow-lg">
-                <Clock className="h-8 w-8 text-primary-foreground" />
+            
+            <div className="relative mb-6">
+              <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center shadow-2xl transition-all duration-500 ${
+                currentEntry 
+                  ? 'bg-gradient-to-br from-success to-success/80 animate-pulse' 
+                  : 'bg-gradient-to-br from-primary to-primary/80'
+              }`}>
+                <Clock className="h-10 w-10 text-white" />
               </div>
               {currentEntry && (
-                <div className="absolute -top-1 -right-1 w-5 h-5 bg-success rounded-full border-2 border-card animate-pulse"></div>
+                <div className="absolute -top-2 -right-2 w-6 h-6 bg-success rounded-full border-3 border-card animate-bounce">
+                  <span className="block w-full h-full rounded-full bg-success animate-ping"></span>
+                </div>
               )}
             </div>
-            <CardTitle className="text-lg sm:text-2xl lg:text-3xl font-bold mb-2">
-              {currentEntry ? 'You are Clocked In' : 'Ready to Work?'}
+
+            <CardTitle className="text-xl sm:text-3xl font-bold mb-3 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text">
+              {currentEntry ? '🎯 You\'re Working!' : '🚀 Ready to Start?'}
             </CardTitle>
-            <CardDescription className="text-sm sm:text-base text-muted-foreground">
-              {format(new Date(), 'eeee, MMMM dd, yyyy')}
-            </CardDescription>
-            
-            {/* Debug info - remove in production */}
-            <div className="text-xs text-muted-foreground mt-2 p-2 bg-muted/20 rounded">
+
+            {/* Work Progress for Clocked In Users */}
+            {currentEntry && (
+              <div className="space-y-4 mb-6">
+                <div className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl p-4 border border-primary/20">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-muted-foreground">Daily Progress</span>
+                    <span className="text-sm font-bold text-primary">{workedHours.toFixed(1)}/{targetHours}h</span>
+                  </div>
+                  <Progress value={getWorkDayProgress()} className="h-2 mb-2" />
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <div className="flex items-center space-x-1">
+                      <Timer className="h-3 w-3" />
+                      <span>Since {currentEntry.clock_in_time}</span>
+                    </div>
+                    {getTimeUntilTarget() && (
+                      <div className="flex items-center space-x-1">
+                        <Target className="h-3 w-3" />
+                        <span>{getTimeUntilTarget()} remaining</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!currentEntry && (
+              <CardDescription className="text-base text-muted-foreground mb-6">
+                Tap the button below to start your workday
+              </CardDescription>
+            )}
+          </CardHeader>
+
+          <CardContent className="px-6 pb-8">
+            {currentEntry ? (
+              <div className="space-y-4">
+                <div className="bg-gradient-to-r from-success/10 to-primary/10 rounded-2xl p-4 border border-success/20">
+                  <div className="text-center space-y-2">
+                    <p className="text-lg font-semibold text-success">
+                      ⏰ Working for {formatDuration(workedHours * 60)}
+                    </p>
+                    {currentEntry.clock_in_location && (
+                      <div className="flex items-center justify-center space-x-2 text-sm text-muted-foreground">
+                        <MapPin className="h-4 w-4" />
+                        <span className="truncate max-w-48">📍 Clock-in location recorded</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <Button
+                  onClick={handleClockOut}
+                  disabled={actionLoading}
+                  size="lg"
+                  className="w-full h-16 bg-gradient-to-r from-destructive via-destructive/90 to-destructive/80 hover:from-destructive/80 hover:to-destructive/70 text-xl font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  {actionLoading ? (
+                    <>
+                      <RefreshCw className="mr-3 h-6 w-6 animate-spin" />
+                      Clocking Out...
+                    </>
+                  ) : (
+                    <>
+                      <LogOut className="mr-3 h-6 w-6" />
+                      Clock Out & Finish
+                    </>
+                  )}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="bg-gradient-to-r from-primary/5 to-secondary/5 rounded-2xl p-4 border border-primary/10">
+                  <div className="text-center space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      💡 Your location will be recorded for attendance tracking
+                    </p>
+                  </div>
+                </div>
+                
+                <Button
+                  onClick={handleClockIn}
+                  disabled={actionLoading}
+                  size="lg"
+                  className="w-full h-16 bg-gradient-to-r from-primary via-primary/90 to-primary/80 hover:from-primary/80 hover:to-primary/70 text-xl font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  {actionLoading ? (
+                    <>
+                      <RefreshCw className="mr-3 h-6 w-6 animate-spin" />
+                      Starting Work...
+                    </>
+                  ) : (
+                    <>
+                      <LogIn className="mr-3 h-6 w-6" />
+                      Start My Workday
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Debug toggle */}
+        <div className="flex justify-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowDebug(!showDebug)}
+            className="text-xs opacity-30 hover:opacity-60"
+          >
+            {showDebug ? 'Hide Debug' : 'Show Debug'}
+          </Button>
+        </div>
+
+        {/* Debug info - hidden by default */}
+        {showDebug && (
+          <Card className="bg-muted/20 border-muted animate-fade-in">
+            <CardHeader>
+              <CardTitle className="text-sm">Debug Information</CardTitle>
+            </CardHeader>
+            <CardContent className="text-xs space-y-2">
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <div>User: {user?.username}</div>
@@ -418,97 +606,44 @@ const ClockInOutPage: React.FC = () => {
                   <div>Role: {user?.role}</div>
                 </div>
                 <div>
-                  <div>Current Entry: {currentEntry ? 'YES' : 'NO'}</div>
+                  <div>Active Entry: {currentEntry ? 'YES' : 'NO'}</div>
                   <div>Today Entries: {todayEntries.length}</div>
-                  {currentEntry && (
-                    <>
-                      <div>Entry ID: {currentEntry.id}</div>
-                      <div>Clock In: {currentEntry.clock_in_time}</div>
-                      <div>Clock Out: {currentEntry.clock_out_time || 'N/A'}</div>
-                      <div>Employee Name: {currentEntry.employee_name}</div>
-                    </>
-                  )}
+                  <div>Worked Hours: {workedHours.toFixed(2)}h</div>
                 </div>
               </div>
-              <div className="mt-2 pt-2 border-t border-muted-foreground/20">
-                <div className="text-xs">All Today's Entries:</div>
-                {todayEntries.map((entry, index) => (
-                  <div key={index} className="ml-2 text-xs">
-                    {index + 1}. {entry.employee_name} | In: {entry.clock_in_time} | Out: {entry.clock_out_time || 'Active'}
-                  </div>
-                ))}
-              </div>
-              <div className="mt-2 pt-2 border-t border-muted-foreground/20 flex justify-between items-center">
-                <span className="text-xs">Having issues? Try manual refresh:</span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={refreshData}
-                  disabled={loading}
-                  className="h-6 px-2 text-xs"
-                >
-                  <RefreshCw className={`h-3 w-3 mr-1 ${loading ? 'animate-spin' : ''}`} />
-                  Force Refresh
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="px-4 pb-6">
-            {currentEntry ? (
-              <div className="text-center space-y-6">
-                <div className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl p-4 border border-primary/20">
-                  <p className="text-lg font-medium mb-2">
-                    Clocked in at <span className="font-bold text-primary text-xl">{currentEntry.clock_in_time}</span>
-                  </p>
-                  {currentEntry.clock_in_location && (
-                    <div className="flex items-center justify-center space-x-2 text-sm text-muted-foreground">
-                      <MapPin className="h-4 w-4" />
-                      <span className="truncate max-w-48">{currentEntry.clock_in_location}</span>
-                    </div>
-                  )}
+              {currentEntry && (
+                <div className="pt-2 border-t">
+                  <div>Entry ID: {currentEntry.id}</div>
+                  <div>Clock In: {currentEntry.clock_in_time}</div>
+                  <div>Employee Name: {currentEntry.employee_name}</div>
                 </div>
-                <Button
-                  onClick={handleClockOut}
-                  disabled={actionLoading}
-                  size="lg"
-                  className="w-full h-14 bg-gradient-to-r from-destructive to-destructive/90 hover:from-destructive/90 hover:to-destructive/80 text-lg font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
-                >
-                  <LogOut className="mr-3 h-5 w-5" />
-                  {actionLoading ? 'Clocking Out...' : 'Clock Out'}
-                </Button>
-              </div>
-            ) : (
-              <Button
-                onClick={handleClockIn}
-                disabled={actionLoading}
-                size="lg"
-                className="w-full h-14 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 text-lg font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
-              >
-                <LogIn className="mr-3 h-5 w-5" />
-                {actionLoading ? 'Clocking In...' : 'Clock In'}
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
-        {/* Team Status Section */}
-        <Card className="shadow-xl border-border/20 bg-gradient-to-br from-card to-card/90 rounded-2xl overflow-hidden">
-          <CardHeader className="px-4 py-4">
+        {/* Enhanced Team Status Section */}
+        <Card className="shadow-xl border-border/20 bg-gradient-to-br from-card to-card/90 rounded-3xl overflow-hidden animate-scale-in">
+          <CardHeader className="px-6 py-4">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg font-bold flex items-center space-x-2">
-                <Users className="h-5 w-5 text-primary" />
-                <span>Team Status</span>
-                {teamStatus.length > 0 && (
-                  <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
-                    {teamStatus.length} active
-                  </Badge>
-                )}
-              </CardTitle>
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-secondary/20 to-accent/20 rounded-xl flex items-center justify-center">
+                  <Users className="h-5 w-5 text-secondary" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg font-bold">👥 Team Activity</CardTitle>
+                  {teamStatus.length > 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      {teamStatus.length} colleague{teamStatus.length !== 1 ? 's' : ''} working
+                    </p>
+                  )}
+                </div>
+              </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowTeamStatus(!showTeamStatus)}
-                className="h-8 px-2"
+                className="h-9 px-3 hover:scale-105 transition-transform"
               >
                 {showTeamStatus ? (
                   <EyeOff className="h-4 w-4" />
@@ -518,33 +653,46 @@ const ClockInOutPage: React.FC = () => {
               </Button>
             </div>
           </CardHeader>
+          
           {showTeamStatus && (
-            <CardContent className="px-4 pb-4">
+            <CardContent className="px-6 pb-6 animate-fade-in">
               {teamStatus.length === 0 ? (
-                <div className="text-center py-4">
-                  <Users className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-muted/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Coffee className="h-8 w-8 text-muted-foreground opacity-50" />
+                  </div>
                   <p className="text-sm text-muted-foreground">
-                    No team members currently active
+                    🏠 You're the first one here today!
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Team members will appear here when they clock in
                   </p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {teamStatus.map((member, index) => (
-                    <div key={index} className="bg-gradient-to-r from-muted/30 to-muted/20 rounded-xl p-3 border border-border/30">
+                    <div 
+                      key={index} 
+                      className="bg-gradient-to-r from-success/5 to-primary/5 rounded-2xl p-4 border border-success/10 hover:shadow-md transition-all duration-200 animate-fade-in"
+                      style={{ animationDelay: `${index * 100}ms` }}
+                    >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <ProfileAvatar employeeName={member.employee_name} size="sm" />
+                        <div className="flex items-center space-x-4">
+                          <div className="relative">
+                            <ProfileAvatar employeeName={member.employee_name} size="md" />
+                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-success rounded-full border-2 border-card animate-pulse"></div>
+                          </div>
                           <div>
-                            <p className="font-medium text-sm">{member.employee_name}</p>
-                            <div className="flex items-center space-x-1 text-xs text-muted-foreground">
+                            <p className="font-semibold text-sm">{member.employee_name}</p>
+                            <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                               <Clock className="h-3 w-3" />
-                              <span>Since {member.clock_in_time}</span>
+                              <span>Started at {member.clock_in_time}</span>
                             </div>
                           </div>
                         </div>
                         <div className="text-right">
-                          <Badge variant="outline" className="bg-success/10 text-success border-success/20 text-xs">
-                            {formatDuration(member.duration_minutes)}
+                          <Badge variant="outline" className="bg-success/10 text-success border-success/30 font-semibold">
+                            ⏱️ {formatDuration(member.duration_minutes)}
                           </Badge>
                         </div>
                       </div>
@@ -556,43 +704,113 @@ const ClockInOutPage: React.FC = () => {
           )}
         </Card>
 
-        <Card className="shadow-xl border-border/20 bg-gradient-to-br from-card to-card/90 rounded-3xl overflow-hidden">
-          <CardHeader className="px-6 py-4">
-            <CardTitle className="text-xl font-bold">Today's Entries</CardTitle>
+        {/* Enhanced Today's Activity */}
+        <Card className="shadow-xl border-border/20 bg-gradient-to-br from-card to-card/90 rounded-3xl overflow-hidden animate-scale-in">
+          <CardHeader className="px-6 py-5">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-xl flex items-center justify-center">
+                <Calendar className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-xl font-bold">📊 Today's Activity</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  {todayEntries.length} session{todayEntries.length !== 1 ? 's' : ''} recorded
+                </p>
+              </div>
+            </div>
           </CardHeader>
+          
           <CardContent className="px-6 pb-6">
             {todayEntries.length === 0 ? (
               <div className="text-center py-8">
-                <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-                <p className="text-muted-foreground">
-                  No entries for today yet
+                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Clock className="h-8 w-8 text-primary opacity-50" />
+                </div>
+                <p className="text-muted-foreground mb-2">
+                  🎯 Ready to start your productive day?
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Your work sessions will be tracked here
                 </p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {todayEntries.map((entry) => (
-                  <div key={entry.id} className="bg-gradient-to-r from-muted/30 to-muted/20 rounded-2xl p-4 border border-border/30">
-                    <div className="flex justify-between items-start">
-                      <div className="space-y-1 flex-1">
-                        <div className="flex items-center space-x-2">
-                          <LogIn className="h-4 w-4 text-success" />
-                          <span className="text-sm font-medium">In: {entry.clock_in_time}</span>
+              <div className="space-y-4">
+                {todayEntries.map((entry, index) => (
+                  <div 
+                    key={entry.id} 
+                    className="bg-gradient-to-r from-muted/10 to-muted/5 rounded-2xl p-4 border border-border/20 hover:shadow-md transition-all duration-200 animate-fade-in"
+                    style={{ animationDelay: `${index * 100}ms` }}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div className="space-y-2 flex-1">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-success/10 rounded-lg flex items-center justify-center">
+                            <LogIn className="h-4 w-4 text-success" />
+                          </div>
+                          <div>
+                            <span className="text-sm font-semibold">Clock In</span>
+                            <p className="text-lg font-bold text-success">{entry.clock_in_time}</p>
+                          </div>
                         </div>
+                        
                         {entry.clock_out_time && (
-                          <div className="flex items-center space-x-2">
-                            <LogOut className="h-4 w-4 text-destructive" />
-                            <span className="text-sm font-medium">Out: {entry.clock_out_time}</span>
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-destructive/10 rounded-lg flex items-center justify-center">
+                              <LogOut className="h-4 w-4 text-destructive" />
+                            </div>
+                            <div>
+                              <span className="text-sm font-semibold">Clock Out</span>
+                              <p className="text-lg font-bold text-destructive">{entry.clock_out_time}</p>
+                            </div>
                           </div>
                         )}
                       </div>
-                      {entry.total_hours !== null && (
-                        <Badge variant="secondary" className="bg-gradient-to-r from-primary/10 to-secondary/10 text-primary border-primary/20 font-semibold">
-                          {entry.total_hours.toFixed(2)}h
-                        </Badge>
-                      )}
+                      
+                      <div className="text-right">
+                        {entry.total_hours !== null ? (
+                          <div className="space-y-1">
+                            <Badge variant="secondary" className="bg-gradient-to-r from-primary/10 to-secondary/10 text-primary border-primary/20 font-bold text-lg px-3 py-1">
+                              {entry.total_hours.toFixed(1)}h
+                            </Badge>
+                            <p className="text-xs text-muted-foreground">Total worked</p>
+                          </div>
+                        ) : (
+                          <Badge variant="outline" className="bg-success/10 text-success border-success/30 animate-pulse">
+                            🔄 Active
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
+                
+                {/* Daily Summary */}
+                {todayEntries.length > 0 && (
+                  <Separator className="my-4" />
+                )}
+                {todayEntries.some(entry => entry.total_hours !== null) && (
+                  <div className="bg-gradient-to-r from-primary/5 to-secondary/5 rounded-2xl p-4 border border-primary/10">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                          <Target className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-semibold">📈 Daily Total</p>
+                          <p className="text-xs text-muted-foreground">Your productivity today</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <Badge variant="default" className="bg-gradient-to-r from-primary to-secondary text-primary-foreground font-bold text-lg px-4 py-2">
+                          {todayEntries
+                            .filter(entry => entry.total_hours !== null)
+                            .reduce((total, entry) => total + (entry.total_hours || 0), 0)
+                            .toFixed(1)}h
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
