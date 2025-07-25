@@ -131,7 +131,7 @@ const DashboardPage: React.FC = () => {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
             <Card className="group bg-gradient-to-br from-card via-card to-primary/5 border-primary/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
-                    <CardTitle className="text-sm font-semibold text-card-foreground/80">Total Employees</CardTitle>
+                    <CardTitle className="text-sm font-semibold text-card-foreground/80">{getPeriodLabel()} Employees</CardTitle>
                     <div className="p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors"><Users className="h-4 w-4 text-primary" /></div>
                 </CardHeader>
                 <CardContent className="p-4 sm:p-6 pt-0">
@@ -141,7 +141,7 @@ const DashboardPage: React.FC = () => {
             </Card>
             <Card className="group bg-gradient-to-br from-card via-card to-secondary/5 border-secondary/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
-                    <CardTitle className="text-sm font-semibold text-card-foreground/80">Total Hours</CardTitle>
+                    <CardTitle className="text-sm font-semibold text-card-foreground/80">{getPeriodLabel()} Hours</CardTitle>
                     <div className="p-2 bg-secondary/10 rounded-lg group-hover:bg-secondary/20 transition-colors"><Clock className="h-4 w-4 text-secondary" /></div>
                 </CardHeader>
                 <CardContent className="p-4 sm:p-6 pt-0">
@@ -151,7 +151,7 @@ const DashboardPage: React.FC = () => {
             </Card>
             <Card className="group bg-gradient-to-br from-card via-card to-accent/5 border-accent/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
-                    <CardTitle className="text-sm font-semibold text-card-foreground/80">Total Payroll</CardTitle>
+                    <CardTitle className="text-sm font-semibold text-card-foreground/80">{getPeriodLabel()} Payroll</CardTitle>
                     <div className="p-2 bg-accent/10 rounded-lg group-hover:bg-accent/20 transition-colors"><DollarSign className="h-4 w-4 text-accent" /></div>
                 </CardHeader>
                 <CardContent className="p-4 sm:p-6 pt-0">
@@ -161,7 +161,7 @@ const DashboardPage: React.FC = () => {
             </Card>
             <Card className="group bg-gradient-to-br from-card via-card to-success/5 border-success/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
-                    <CardTitle className="text-sm font-semibold text-card-foreground/80">Total Shifts</CardTitle>
+                    <CardTitle className="text-sm font-semibold text-card-foreground/80">{getPeriodLabel()} Shifts</CardTitle>
                     <div className="p-2 bg-success/10 rounded-lg group-hover:bg-success/20 transition-colors"><TrendingUp className="h-4 w-4 text-success" /></div>
                 </CardHeader>
                 <CardContent className="p-4 sm:p-6 pt-0">
