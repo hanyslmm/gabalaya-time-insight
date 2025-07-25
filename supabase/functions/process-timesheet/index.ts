@@ -23,10 +23,7 @@ interface ProcessTimesheetRequest {
   data: TimesheetData[];
   validateOnly?: boolean;
   overwriteExisting?: boolean;
-  deletePeriod?: {
-    fromDate: string;
-    toDate: string;
-  } | null;
+  deleteExistingData?: boolean;
 }
 
 // Enhanced date/time formatting functions
@@ -116,7 +113,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json()
-    const { data: rawData, validateOnly = false, overwriteExisting = false, deletePeriod }: ProcessTimesheetRequest = body
+    const { data: rawData, validateOnly = false, overwriteExisting = false, deleteExistingData = false }: ProcessTimesheetRequest = body
 
     console.log(`Processing ${rawData.length} timesheet entries (validate only: ${validateOnly})`);
 
@@ -126,26 +123,6 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Handle period deletion if requested
-    if (deletePeriod && deletePeriod.fromDate && deletePeriod.toDate && !validateOnly) {
-      console.log(`Deleting existing timesheets from ${deletePeriod.fromDate} to ${deletePeriod.toDate}`);
-      
-      const { error: deleteError, count } = await supabaseAdmin
-        .from('timesheet_entries')
-        .delete()
-        .gte('clock_in_date', deletePeriod.fromDate)
-        .lte('clock_in_date', deletePeriod.toDate);
-
-      if (deleteError) {
-        console.error('Error deleting existing timesheets:', deleteError);
-        return new Response(
-          JSON.stringify({ success: false, error: 'Failed to delete existing timesheets', details: deleteError.message }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-        );
-      }
-
-      console.log(`Successfully deleted ${count || 0} existing timesheet entries`);
-    }
 
     // Fetch all employees for name mapping
     const { data: employees, error: employeesError } = await supabaseAdmin
@@ -287,10 +264,36 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Handle auto-deletion of existing data if requested
+    if (deleteExistingData && processedData.length > 0 && !validateOnly) {
+      console.log('Auto-deleting existing timesheets for import dates...');
+      
+      // Get unique dates from processed data
+      const importDates = [...new Set(processedData.map(entry => entry.clock_in_date))];
+      console.log('Deleting existing entries for dates:', importDates);
+      
+      for (const date of importDates) {
+        const { error: deleteError, count } = await supabaseAdmin
+          .from('timesheet_entries')
+          .delete()
+          .eq('clock_in_date', date);
+
+        if (deleteError) {
+          console.error(`Error deleting existing timesheets for ${date}:`, deleteError);
+          return new Response(
+            JSON.stringify({ success: false, error: `Failed to delete existing timesheets for ${date}`, details: deleteError.message }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+          );
+        }
+        
+        console.log(`Deleted ${count || 0} existing entries for ${date}`);
+      }
+    }
+
     // Insert processed data into database
     if (processedData.length > 0) {
-      // If overwriting, delete existing entries first
-      if (overwriteExisting) {
+      // If overwriting, delete existing entries first (alternative method - less used now)
+      if (overwriteExisting && !deleteExistingData) {
         for (const entry of processedData) {
           await supabaseAdmin
             .from('timesheet_entries')
