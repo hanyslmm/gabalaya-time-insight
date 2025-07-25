@@ -5,13 +5,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Upload, X, Eye, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Upload, X, Eye, AlertTriangle, CheckCircle, Calendar, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { parseFile } from '@/utils/fileParser';
 import { supabase } from '@/integrations/supabase/client';
 import { useTimesheetUpload } from '@/hooks/useTimesheetUpload';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format } from 'date-fns';
 
 interface TimesheetUploadProps {
   onClose: () => void;
@@ -32,6 +35,9 @@ const TimesheetUpload: React.FC<TimesheetUploadProps> = ({ onClose, onUploadComp
   const [previewData, setPreviewData] = useState<PreviewRow[]>([]);
   const [processedData, setProcessedData] = useState<any[]>([]);
   const [overwriteExisting, setOverwriteExisting] = useState(false);
+  const [deletePeriodEnabled, setDeletePeriodEnabled] = useState(false);
+  const [deleteFromDate, setDeleteFromDate] = useState<Date | undefined>();
+  const [deleteToDate, setDeleteToDate] = useState<Date | undefined>();
 
   const uploadMutation = useTimesheetUpload(onUploadComplete, onClose);
 
@@ -145,7 +151,11 @@ const TimesheetUpload: React.FC<TimesheetUploadProps> = ({ onClose, onUploadComp
         body: {
           data: rawData,
           validateOnly: false, // Actually process and insert
-          overwriteExisting: overwriteExisting // Pass the overwrite setting
+          overwriteExisting: overwriteExisting, // Pass the overwrite setting
+          deletePeriod: deletePeriodEnabled && deleteFromDate && deleteToDate ? {
+            fromDate: format(deleteFromDate, 'yyyy-MM-dd'),
+            toDate: format(deleteToDate, 'yyyy-MM-dd')
+          } : null
         }
       });
 
@@ -306,15 +316,90 @@ const TimesheetUpload: React.FC<TimesheetUploadProps> = ({ onClose, onUploadComp
             />
           </div>
           
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="overwrite" 
-              checked={overwriteExisting}
-              onCheckedChange={(checked) => setOverwriteExisting(checked as boolean)}
-            />
-            <Label htmlFor="overwrite" className="text-sm">
-              Overwrite existing timecards with same date (otherwise skip duplicates)
-            </Label>
+          <div className="space-y-3">
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="overwrite" 
+                checked={overwriteExisting}
+                onCheckedChange={(checked) => setOverwriteExisting(checked as boolean)}
+              />
+              <Label htmlFor="overwrite" className="text-sm">
+                Overwrite existing timecards with same date (otherwise skip duplicates)
+              </Label>
+            </div>
+            
+            <div className="border-t pt-3 space-y-3">
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="deletePeriod" 
+                  checked={deletePeriodEnabled}
+                  onCheckedChange={(checked) => setDeletePeriodEnabled(checked as boolean)}
+                />
+                <Label htmlFor="deletePeriod" className="text-sm font-medium text-red-600">
+                  Delete existing timesheets for specific period before import
+                </Label>
+              </div>
+              
+              {deletePeriodEnabled && (
+                <div className="ml-6 space-y-2 p-3 bg-red-50 border border-red-200 rounded-md">
+                  <div className="flex items-center gap-2 text-red-700 text-sm font-medium">
+                    <Trash2 className="h-4 w-4" />
+                    Select date range to delete
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs text-red-600">From Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start text-left font-normal"
+                            size="sm"
+                          >
+                            <Calendar className="mr-2 h-3 w-3" />
+                            {deleteFromDate ? format(deleteFromDate, "PPP") : "Pick a date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <CalendarComponent
+                            mode="single"
+                            selected={deleteFromDate}
+                            onSelect={setDeleteFromDate}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-red-600">To Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start text-left font-normal"
+                            size="sm"
+                          >
+                            <Calendar className="mr-2 h-3 w-3" />
+                            {deleteToDate ? format(deleteToDate, "PPP") : "Pick a date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <CalendarComponent
+                            mode="single"
+                            selected={deleteToDate}
+                            onSelect={setDeleteToDate}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                  <p className="text-xs text-red-600">
+                    ⚠️ This will permanently delete all timesheet entries between these dates
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
           
             <div className="p-3 bg-blue-50 rounded-md text-sm">
@@ -350,7 +435,7 @@ const TimesheetUpload: React.FC<TimesheetUploadProps> = ({ onClose, onUploadComp
           <div className="flex space-x-2">
             <Button
               onClick={handleFilePreview}
-              disabled={!file || uploading}
+              disabled={!file || uploading || (deletePeriodEnabled && (!deleteFromDate || !deleteToDate))}
               className="flex-1 flex items-center space-x-2"
             >
               <Eye className="h-4 w-4" />
