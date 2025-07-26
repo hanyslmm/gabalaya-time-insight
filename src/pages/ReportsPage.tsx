@@ -73,7 +73,10 @@ const ReportsPage: React.FC = () => {
           employee_name,
           employee_id,
           total_hours,
+          morning_hours,
+          night_hours,
           total_card_amount_flat,
+          total_card_amount_split,
           clock_in_date,
           clock_out_date
         `)
@@ -241,10 +244,17 @@ const ReportsPage: React.FC = () => {
     let fileName = '';
     
     if (type === 'attendance' && attendanceReport) {
-      headers = ['Employee Name', 'Date', 'Total Hours', 'Amount'];
+      headers = ['Employee Name', 'Date', 'Total Hours', 'Morning Hours', 'Night Hours', 'Amount'];
       data = attendanceReport.map(row => {
         const employeeName = (row as any).display_name || row.employee_name;
-        return [employeeName, row.clock_in_date, row.total_hours, Math.round(row.total_card_amount_flat)];
+        return [
+          employeeName, 
+          row.clock_in_date, 
+          row.total_hours, 
+          row.morning_hours || 0, 
+          row.night_hours || 0, 
+          Math.round((row.total_card_amount_split || row.total_card_amount_flat) || 0)
+        ];
       });
       fileName = `attendance-report-${exportFormat === 'csv' ? 'csv' : 'xlsx'}`;
     } else if (type === 'payroll' && payrollSummary) {
@@ -366,39 +376,47 @@ const ReportsPage: React.FC = () => {
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/30">
-                      <TableHead className="font-semibold text-left">
-                        Employee
-                      </TableHead>
-                      <TableHead className="font-semibold text-left">
-                        Date
-                      </TableHead>
-                      <TableHead className="font-semibold text-left">
-                        Hours
-                      </TableHead>
-                      <TableHead className="font-semibold text-left">
-                        Amount (LE)
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                     {attendanceReport?.map((entry, index) => {
-                      const employeeName = (entry as any).display_name || entry.employee_name;
-                      return (
-                        <TableRow key={index} className="hover:bg-muted/20 transition-colors duration-150">
-                          <TableCell className="font-medium">
-                            {employeeName}
-                          </TableCell>
-                          <TableCell>{entry.clock_in_date}</TableCell>
-                          <TableCell>{entry.total_hours?.toFixed(2)}</TableCell>
-                          <TableCell>{Math.round(entry.total_card_amount_flat || 0)}</TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/30">
+                        <TableHead className="font-semibold text-left">
+                          Employee
+                        </TableHead>
+                        <TableHead className="font-semibold text-left">
+                          Date
+                        </TableHead>
+                        <TableHead className="font-semibold text-left">
+                          Total Hours
+                        </TableHead>
+                        <TableHead className="font-semibold text-left">
+                          Morning
+                        </TableHead>
+                        <TableHead className="font-semibold text-left">
+                          Night
+                        </TableHead>
+                        <TableHead className="font-semibold text-left">
+                          Amount (LE)
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                       {attendanceReport?.map((entry, index) => {
+                        const employeeName = (entry as any).display_name || entry.employee_name;
+                        return (
+                          <TableRow key={index} className="hover:bg-muted/20 transition-colors duration-150">
+                            <TableCell className="font-medium">
+                              {employeeName}
+                            </TableCell>
+                            <TableCell>{entry.clock_in_date}</TableCell>
+                            <TableCell>{entry.total_hours?.toFixed(2)}h</TableCell>
+                            <TableCell>{(entry.morning_hours || 0).toFixed(2)}h</TableCell>
+                            <TableCell>{(entry.night_hours || 0).toFixed(2)}h</TableCell>
+                            <TableCell>{Math.round((entry.total_card_amount_split || entry.total_card_amount_flat) || 0)}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
               </div>
             </CardContent>
           </Card>

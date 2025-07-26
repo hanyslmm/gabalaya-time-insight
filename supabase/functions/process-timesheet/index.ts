@@ -320,7 +320,7 @@ Deno.serve(async (req) => {
       console.log('Deleting existing entries for dates:', importDates);
       
       for (const date of importDates) {
-        const { error: deleteError, count } = await supabaseAdmin
+        const { error: deleteError } = await supabaseAdmin
           .from('timesheet_entries')
           .delete()
           .eq('clock_in_date', date);
@@ -333,7 +333,7 @@ Deno.serve(async (req) => {
           );
         }
         
-        console.log(`Deleted ${count || 0} existing entries for ${date}`);
+        console.log(`Deleted existing entries for ${date}`);
       }
     }
 
