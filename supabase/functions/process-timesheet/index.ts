@@ -230,34 +230,96 @@ Deno.serve(async (req) => {
           const nightStart = wageSettings.night_start_time || '17:00:00';
           const nightEnd = wageSettings.night_end_time || '01:00:00';
           
-          // Helper function to calculate overlap between shift and period
-          const calculateOverlap = (shiftStart: Date, shiftEnd: Date, periodStart: string, periodEnd: string): number => {
-            const periodStartTime = new Date(`${shiftStart.toISOString().split('T')[0]}T${periodStart}`);
-            let periodEndTime = new Date(`${shiftStart.toISOString().split('T')[0]}T${periodEnd}`);
-            
-            // Handle night period that crosses midnight
-            if (periodEnd < periodStart) {
-              periodEndTime.setDate(periodEndTime.getDate() + 1);
-            }
-            
-            const overlapStart = new Date(Math.max(shiftStart.getTime(), periodStartTime.getTime()));
-            const overlapEnd = new Date(Math.min(shiftEnd.getTime(), periodEndTime.getTime()));
-            
-            if (overlapStart < overlapEnd) {
-              return (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60);
-            }
-            return 0;
+          console.log(`Calculating hours for shift ${clockInTimeFormatted} to ${clockOutTimeFormatted}`);
+          console.log(`Morning period: ${morningStart} to ${morningEnd}`);
+          console.log(`Night period: ${nightStart} to ${nightEnd}`);
+          
+          // Helper function to convert time string to minutes from midnight
+          const timeToMinutes = (timeStr: string): number => {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            return hours * 60 + minutes;
           };
           
-          morningHours = calculateOverlap(clockInDateTime, clockOutDateTime, morningStart, morningEnd);
-          nightHours = calculateOverlap(clockInDateTime, clockOutDateTime, nightStart, nightEnd);
+          // Convert shift times to minutes from midnight
+          const shiftStartMinutes = timeToMinutes(clockInTimeFormatted);
+          const shiftEndMinutes = timeToMinutes(clockOutTimeFormatted);
           
-          // Ensure total doesn't exceed actual hours
+          // Convert period times to minutes
+          const morningStartMinutes = timeToMinutes(morningStart);
+          const morningEndMinutes = timeToMinutes(morningEnd);
+          const nightStartMinutes = timeToMinutes(nightStart);
+          let nightEndMinutes = timeToMinutes(nightEnd);
+          
+          // Handle overnight shifts and night periods that cross midnight
+          let actualShiftEndMinutes = shiftEndMinutes;
+          if (shiftEndMinutes < shiftStartMinutes) {
+            actualShiftEndMinutes = shiftEndMinutes + (24 * 60); // Add 24 hours
+          }
+          
+          // If night period crosses midnight (e.g., 17:00 to 01:00)
+          if (nightEndMinutes < nightStartMinutes) {
+            nightEndMinutes = nightEndMinutes + (24 * 60); // Add 24 hours
+          }
+          
+          // Calculate morning hours overlap
+          const morningOverlapStart = Math.max(shiftStartMinutes, morningStartMinutes);
+          const morningOverlapEnd = Math.min(actualShiftEndMinutes, morningEndMinutes);
+          if (morningOverlapStart < morningOverlapEnd) {
+            morningHours = (morningOverlapEnd - morningOverlapStart) / 60;
+          }
+          
+          // Calculate night hours overlap (handling overnight periods)
+          let nightOverlapStart = Math.max(shiftStartMinutes, nightStartMinutes);
+          let nightOverlapEnd = Math.min(actualShiftEndMinutes, nightEndMinutes);
+          
+          // Handle the case where shift spans midnight and night period also spans midnight
+          if (nightEndMinutes > (24 * 60)) {
+            // Night period crosses midnight
+            if (actualShiftEndMinutes > (24 * 60)) {
+              // Shift also crosses midnight - calculate overlap
+              if (nightOverlapStart < nightOverlapEnd) {
+                nightHours = (nightOverlapEnd - nightOverlapStart) / 60;
+              }
+            } else {
+              // Shift doesn't cross midnight but night period does
+              // Check overlap before midnight
+              const beforeMidnightEnd = Math.min(actualShiftEndMinutes, 24 * 60);
+              if (nightOverlapStart < beforeMidnightEnd) {
+                nightHours += (beforeMidnightEnd - nightOverlapStart) / 60;
+              }
+              // Check overlap after midnight (if shift extends past midnight)
+              if (actualShiftEndMinutes > (24 * 60)) {
+                const afterMidnightStart = Math.max(0, shiftStartMinutes - (24 * 60));
+                const afterMidnightEnd = Math.min(actualShiftEndMinutes - (24 * 60), nightEndMinutes - (24 * 60));
+                if (afterMidnightStart < afterMidnightEnd) {
+                  nightHours += (afterMidnightEnd - afterMidnightStart) / 60;
+                }
+              }
+            }
+          } else {
+            // Night period doesn't cross midnight
+            if (nightOverlapStart < nightOverlapEnd) {
+              nightHours = (nightOverlapEnd - nightOverlapStart) / 60;
+            }
+          }
+          
+          console.log(`Calculated morning hours: ${morningHours}`);
+          console.log(`Calculated night hours: ${nightHours}`);
+          
+          // Ensure we don't exceed total hours and handle any remaining hours
           const totalCalculated = morningHours + nightHours;
           if (totalCalculated > finalHours) {
             const ratio = finalHours / totalCalculated;
             morningHours *= ratio;
             nightHours *= ratio;
+          } else if (totalCalculated < finalHours) {
+            // Assign remaining hours to the appropriate period based on when most of the shift occurred
+            const remainingHours = finalHours - totalCalculated;
+            if (morningHours > nightHours) {
+              morningHours += remainingHours;
+            } else {
+              nightHours += remainingHours;
+            }
           }
         }
 
@@ -319,22 +381,21 @@ Deno.serve(async (req) => {
       const importDates = [...new Set(processedData.map(entry => entry.clock_in_date))];
       console.log('Deleting existing entries for dates:', importDates);
       
-      for (const date of importDates) {
-        const { error: deleteError } = await supabaseAdmin
-          .from('timesheet_entries')
-          .delete()
-          .eq('clock_in_date', date);
+      // Delete all existing entries for the import dates at once
+      const { error: deleteError } = await supabaseAdmin
+        .from('timesheet_entries')
+        .delete()
+        .in('clock_in_date', importDates);
 
-        if (deleteError) {
-          console.error(`Error deleting existing timesheets for ${date}:`, deleteError);
-          return new Response(
-            JSON.stringify({ success: false, error: `Failed to delete existing timesheets for ${date}`, details: deleteError.message }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-          );
-        }
-        
-        console.log(`Deleted existing entries for ${date}`);
+      if (deleteError) {
+        console.error('Error deleting existing timesheets:', deleteError);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Failed to delete existing timesheets', details: deleteError.message }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        );
       }
+      
+      console.log(`Deleted existing entries for dates: ${importDates.join(', ')}`);
     }
 
     // Insert processed data into database

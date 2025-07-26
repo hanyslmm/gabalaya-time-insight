@@ -120,19 +120,17 @@ const TimesheetMobileCard: React.FC<TimesheetMobileCardProps> = ({
             </div>
           </div>
 
-          {/* Split Hours Details */}
-          {(entry.morning_hours || entry.night_hours) && (
-            <div className="grid grid-cols-2 gap-3 p-3 bg-muted/20 rounded-lg border border-border/30">
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground font-medium">🌅 Morning</p>
-                <p className="text-fluid-sm font-semibold text-secondary line-clamp-1">{entry.morning_hours?.toFixed(2) || '0.00'}</p>
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground font-medium">🌙 Night</p>
-                <p className="text-fluid-sm font-semibold text-secondary line-clamp-1">{entry.night_hours?.toFixed(2) || '0.00'}</p>
-              </div>
+          {/* Split Hours Details - Always show */}
+          <div className="grid grid-cols-2 gap-3 p-3 bg-muted/20 rounded-lg border border-border/30">
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground font-medium">🌅 Morning</p>
+              <p className="text-fluid-sm font-semibold text-secondary line-clamp-1">{entry.morning_hours?.toFixed(2) || '0.00'}h</p>
             </div>
-          )}
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground font-medium">🌙 Night</p>
+              <p className="text-fluid-sm font-semibold text-secondary line-clamp-1">{entry.night_hours?.toFixed(2) || '0.00'}h</p>
+            </div>
+          </div>
 
           {/* Split Amount */}
           {entry.total_card_amount_split && (
