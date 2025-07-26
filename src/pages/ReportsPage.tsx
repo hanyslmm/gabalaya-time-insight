@@ -69,23 +69,15 @@ const ReportsPage: React.FC = () => {
       });
 
       // Now get timesheet entries
+      const fromDate = dateRange.from.toISOString().split('T')[0];
+      const toDate = dateRange.to.toISOString().split('T')[0];
+      console.log('Querying timesheet entries with date range:', { fromDate, toDate });
+      
       const { data, error } = await supabase
         .from('timesheet_entries')
-        .select(`
-          employee_name,
-          employee_id,
-          total_hours,
-          morning_hours,
-          night_hours,
-          total_card_amount_flat,
-          total_card_amount_split,
-          clock_in_date,
-          clock_out_date,
-          clock_in_time,
-          clock_out_time
-        `)
-        .gte('clock_in_date', format(dateRange.from, 'yyyy-MM-dd'))
-        .lte('clock_out_date', format(dateRange.to, 'yyyy-MM-dd'))
+        .select('*')
+        .gte('clock_in_date', fromDate)
+        .lte('clock_in_date', toDate)
         .order('clock_in_date', { ascending: false });
       
       if (error) {
@@ -96,121 +88,17 @@ const ReportsPage: React.FC = () => {
       console.log('Raw timesheet data:', data);
       console.log('Wage settings:', wageSettings);
       
-      // Map employee names properly and calculate morning/night hours
+            // Map employee names properly and calculate morning/night hours
       const processedData = data?.map(entry => {
         let morningHours = entry.morning_hours || 0;
         let nightHours = entry.night_hours || 0;
 
-        // Calculate morning/night hours if they're missing or zero
-        if ((!entry.morning_hours && !entry.night_hours) || (entry.morning_hours === 0 && entry.night_hours === 0)) {
-          try {
-            // Check if required time fields are present
-            if (!entry.clock_in_time || !entry.clock_out_time || !entry.clock_in_date || !entry.clock_out_date) {
-              console.log('Missing time data for entry:', {
-                clock_in_date: entry.clock_in_date,
-                clock_in_time: entry.clock_in_time,
-                clock_out_date: entry.clock_out_date,
-                clock_out_time: entry.clock_out_time
-              });
-              // Fallback: assign all hours to morning if we can't calculate
-              if (entry.total_hours > 0) {
-                morningHours = entry.total_hours;
-                nightHours = 0;
-              }
-            } else {
-              const clockInDateTime = new Date(`${entry.clock_in_date}T${entry.clock_in_time}`);
-              const clockOutDateTime = new Date(`${entry.clock_out_date}T${entry.clock_out_time}`);
-            
-            // Handle overnight shifts
-            if (clockOutDateTime < clockInDateTime) {
-              clockOutDateTime.setDate(clockOutDateTime.getDate() + 1);
-            }
-
-            const baseDate = new Date(entry.clock_in_date);
-            
-            // Create morning period
-            const morningStart = new Date(baseDate);
-            const [morningStartHour, morningStartMin] = wageSettings.morning_start_time.split(':');
-            morningStart.setHours(parseInt(morningStartHour), parseInt(morningStartMin), 0, 0);
-            
-            const morningEnd = new Date(baseDate);
-            const [morningEndHour, morningEndMin] = wageSettings.morning_end_time.split(':');
-            morningEnd.setHours(parseInt(morningEndHour), parseInt(morningEndMin), 0, 0);
-            
-            // Create night period
-            const nightStart = new Date(baseDate);
-            const [nightStartHour, nightStartMin] = wageSettings.night_start_time.split(':');
-            nightStart.setHours(parseInt(nightStartHour), parseInt(nightStartMin), 0, 0);
-            
-            const nightEnd = new Date(baseDate);
-            const [nightEndHour, nightEndMin] = wageSettings.night_end_time.split(':');
-            nightEnd.setHours(parseInt(nightEndHour), parseInt(nightEndMin), 0, 0);
-            
-            // Handle overnight night shifts
-            if (nightEnd <= nightStart) {
-              nightEnd.setDate(nightEnd.getDate() + 1);
-            }
-
-            // Calculate morning overlap
-            const morningOverlapStart = new Date(Math.max(clockInDateTime.getTime(), morningStart.getTime()));
-            const morningOverlapEnd = new Date(Math.min(clockOutDateTime.getTime(), morningEnd.getTime()));
-            
-            if (morningOverlapEnd > morningOverlapStart) {
-              morningHours = (morningOverlapEnd.getTime() - morningOverlapStart.getTime()) / (1000 * 60 * 60);
-            }
-
-            // Calculate night overlap
-            const nightOverlapStart = new Date(Math.max(clockInDateTime.getTime(), nightStart.getTime()));
-            const nightOverlapEnd = new Date(Math.min(clockOutDateTime.getTime(), nightEnd.getTime()));
-            
-            if (nightOverlapEnd > nightOverlapStart) {
-              nightHours = (nightOverlapEnd.getTime() - nightOverlapStart.getTime()) / (1000 * 60 * 60);
-            }
-
-            // If no morning/night hours calculated, assume all hours are regular (non-premium) hours
-            // This handles cases where work hours don't overlap with defined morning/night periods
-            if (morningHours === 0 && nightHours === 0 && entry.total_hours > 0) {
-              // Check which period the work time falls into by checking the start time
-              const workStartHour = clockInDateTime.getHours();
-              const workStartTime = workStartHour * 100 + clockInDateTime.getMinutes();
-              
-              const morningStartTime = parseInt(morningStartHour) * 100 + parseInt(morningStartMin);
-              const morningEndTime = parseInt(morningEndHour) * 100 + parseInt(morningEndMin);
-              const nightStartTime = parseInt(nightStartHour) * 100 + parseInt(nightStartMin);
-              const nightEndTime = parseInt(nightEndHour) * 100 + parseInt(nightEndMin);
-              
-              // If work starts during morning hours, assign to morning
-              if (workStartTime >= morningStartTime && workStartTime < morningEndTime) {
-                morningHours = entry.total_hours;
-              }
-              // If work starts during night hours, assign to night
-              else if ((nightEndTime > nightStartTime && workStartTime >= nightStartTime && workStartTime < nightEndTime) ||
-                       (nightEndTime < nightStartTime && (workStartTime >= nightStartTime || workStartTime < nightEndTime))) {
-                nightHours = entry.total_hours;
-              }
-              // Otherwise, distribute based on which period has more overlap or default to morning
-              else {
-                morningHours = entry.total_hours;
-              }
-            }
-
-            // Ensure calculated hours don't exceed total worked hours
-            const totalWorkedHours = (clockOutDateTime.getTime() - clockInDateTime.getTime()) / (1000 * 60 * 60);
-            const calculatedTotal = morningHours + nightHours;
-            
-                         if (calculatedTotal > totalWorkedHours) {
-               const ratio = totalWorkedHours / calculatedTotal;
-               morningHours *= ratio;
-               nightHours *= ratio;
-             }
-            }
-           } catch (error) {
-            console.error('Error calculating morning/night hours for entry:', entry, error);
-            // Fallback: if calculation fails, distribute total hours based on assumption
-            if (entry.total_hours > 0) {
-              morningHours = entry.total_hours;
-              nightHours = 0;
-            }
+        // For testing: if original morning/night hours are 0, assign total to morning
+        if ((!entry.morning_hours || entry.morning_hours === 0) && (!entry.night_hours || entry.night_hours === 0)) {
+          if (entry.total_hours && entry.total_hours > 0) {
+            // Simple assignment for testing - assign all to morning
+            morningHours = entry.total_hours;
+            nightHours = 0;
           }
         }
 
