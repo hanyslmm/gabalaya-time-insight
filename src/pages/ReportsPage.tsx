@@ -46,10 +46,12 @@ const ReportsPage: React.FC = () => {
     }
   });
 
-  // Employee Attendance Report - Properly map employee names
+  // Employee Attendance Report - Properly map employee names with calculated morning/night hours
   const { data: attendanceReport } = useQuery({
-    queryKey: ['attendance-report', dateRange],
+    queryKey: ['attendance-report', dateRange, wageSettings],
     queryFn: async () => {
+      if (!wageSettings) return [];
+
       // First get all employees to create a mapping
       const { data: employeesData, error: employeesError } = await supabase
         .from('employees')
@@ -78,7 +80,9 @@ const ReportsPage: React.FC = () => {
           total_card_amount_flat,
           total_card_amount_split,
           clock_in_date,
-          clock_out_date
+          clock_out_date,
+          clock_in_time,
+          clock_out_time
         `)
         .gte('clock_in_date', format(dateRange.from, 'yyyy-MM-dd'))
         .lte('clock_out_date', format(dateRange.to, 'yyyy-MM-dd'))
@@ -89,15 +93,85 @@ const ReportsPage: React.FC = () => {
         throw error;
       }
       
-      // Map employee names properly
-      const processedData = data?.map(entry => ({
-        ...entry,
-        display_name: employeeMap.get(entry.employee_name) || entry.employee_name,
-        total_card_amount_flat: Math.round(entry.total_card_amount_flat || 0)
-      }));
+      // Map employee names properly and calculate morning/night hours
+      const processedData = data?.map(entry => {
+        let morningHours = entry.morning_hours || 0;
+        let nightHours = entry.night_hours || 0;
+
+        // Calculate morning/night hours if they're missing or zero
+        if ((!entry.morning_hours && !entry.night_hours) || (entry.morning_hours === 0 && entry.night_hours === 0)) {
+          const clockInDateTime = new Date(`${entry.clock_in_date}T${entry.clock_in_time}`);
+          const clockOutDateTime = new Date(`${entry.clock_out_date}T${entry.clock_out_time}`);
+          
+          // Handle overnight shifts
+          if (clockOutDateTime < clockInDateTime) {
+            clockOutDateTime.setDate(clockOutDateTime.getDate() + 1);
+          }
+
+          const baseDate = new Date(entry.clock_in_date);
+          
+          // Create morning period
+          const morningStart = new Date(baseDate);
+          const [morningStartHour, morningStartMin] = wageSettings.morning_start_time.split(':');
+          morningStart.setHours(parseInt(morningStartHour), parseInt(morningStartMin), 0, 0);
+          
+          const morningEnd = new Date(baseDate);
+          const [morningEndHour, morningEndMin] = wageSettings.morning_end_time.split(':');
+          morningEnd.setHours(parseInt(morningEndHour), parseInt(morningEndMin), 0, 0);
+          
+          // Create night period
+          const nightStart = new Date(baseDate);
+          const [nightStartHour, nightStartMin] = wageSettings.night_start_time.split(':');
+          nightStart.setHours(parseInt(nightStartHour), parseInt(nightStartMin), 0, 0);
+          
+          const nightEnd = new Date(baseDate);
+          const [nightEndHour, nightEndMin] = wageSettings.night_end_time.split(':');
+          nightEnd.setHours(parseInt(nightEndHour), parseInt(nightEndMin), 0, 0);
+          
+          // Handle overnight night shifts
+          if (nightEnd <= nightStart) {
+            nightEnd.setDate(nightEnd.getDate() + 1);
+          }
+
+          // Calculate morning overlap
+          const morningOverlapStart = new Date(Math.max(clockInDateTime.getTime(), morningStart.getTime()));
+          const morningOverlapEnd = new Date(Math.min(clockOutDateTime.getTime(), morningEnd.getTime()));
+          
+          if (morningOverlapEnd > morningOverlapStart) {
+            morningHours = (morningOverlapEnd.getTime() - morningOverlapStart.getTime()) / (1000 * 60 * 60);
+          }
+
+          // Calculate night overlap
+          const nightOverlapStart = new Date(Math.max(clockInDateTime.getTime(), nightStart.getTime()));
+          const nightOverlapEnd = new Date(Math.min(clockOutDateTime.getTime(), nightEnd.getTime()));
+          
+          if (nightOverlapEnd > nightOverlapStart) {
+            nightHours = (nightOverlapEnd.getTime() - nightOverlapStart.getTime()) / (1000 * 60 * 60);
+          }
+
+          // Ensure calculated hours don't exceed total worked hours
+          const totalWorkedHours = (clockOutDateTime.getTime() - clockInDateTime.getTime()) / (1000 * 60 * 60);
+          const calculatedTotal = morningHours + nightHours;
+          
+          if (calculatedTotal > totalWorkedHours) {
+            const ratio = totalWorkedHours / calculatedTotal;
+            morningHours *= ratio;
+            nightHours *= ratio;
+          }
+        }
+
+        return {
+          ...entry,
+          display_name: employeeMap.get(entry.employee_name) || entry.employee_name,
+          total_card_amount_flat: Math.round(entry.total_card_amount_flat || 0),
+          calculated_morning_hours: Math.max(0, morningHours),
+          calculated_night_hours: Math.max(0, nightHours)
+        };
+      });
       
       return processedData || [];
-    }
+    },
+    enabled: !!wageSettings
   });
 
   // Payroll Summary Report with automatic morning/night hours calculation
@@ -251,8 +325,8 @@ const ReportsPage: React.FC = () => {
           employeeName, 
           row.clock_in_date, 
           row.total_hours, 
-          row.morning_hours || 0, 
-          row.night_hours || 0, 
+          (row as any).calculated_morning_hours || 0, 
+          (row as any).calculated_night_hours || 0, 
           Math.round((row.total_card_amount_split || row.total_card_amount_flat) || 0)
         ];
       });
@@ -409,8 +483,8 @@ const ReportsPage: React.FC = () => {
                             </TableCell>
                             <TableCell>{entry.clock_in_date}</TableCell>
                             <TableCell>{entry.total_hours?.toFixed(2)}h</TableCell>
-                            <TableCell>{(entry.morning_hours || 0).toFixed(2)}h</TableCell>
-                            <TableCell>{(entry.night_hours || 0).toFixed(2)}h</TableCell>
+                            <TableCell>{((entry as any).calculated_morning_hours || 0).toFixed(2)}h</TableCell>
+                            <TableCell>{((entry as any).calculated_night_hours || 0).toFixed(2)}h</TableCell>
                             <TableCell>{Math.round((entry.total_card_amount_split || entry.total_card_amount_flat) || 0)}</TableCell>
                           </TableRow>
                         );
