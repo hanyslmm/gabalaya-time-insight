@@ -220,8 +220,52 @@ Deno.serve(async (req) => {
         // Use actual hours if provided, otherwise use calculated
         const finalHours = actualHours ? parseFloat(actualHours.toString()) : totalHours;
         
-        // Calculate wage amount
+        // Calculate morning and night hours using wage settings
+        let morningHours = 0;
+        let nightHours = 0;
+        
+        if (wageSettings && finalHours > 0) {
+          const morningStart = wageSettings.morning_start_time || '08:00:00';
+          const morningEnd = wageSettings.morning_end_time || '17:00:00';
+          const nightStart = wageSettings.night_start_time || '17:00:00';
+          const nightEnd = wageSettings.night_end_time || '01:00:00';
+          
+          // Helper function to calculate overlap between shift and period
+          const calculateOverlap = (shiftStart: Date, shiftEnd: Date, periodStart: string, periodEnd: string): number => {
+            const periodStartTime = new Date(`${shiftStart.toISOString().split('T')[0]}T${periodStart}`);
+            let periodEndTime = new Date(`${shiftStart.toISOString().split('T')[0]}T${periodEnd}`);
+            
+            // Handle night period that crosses midnight
+            if (periodEnd < periodStart) {
+              periodEndTime.setDate(periodEndTime.getDate() + 1);
+            }
+            
+            const overlapStart = new Date(Math.max(shiftStart.getTime(), periodStartTime.getTime()));
+            const overlapEnd = new Date(Math.min(shiftEnd.getTime(), periodEndTime.getTime()));
+            
+            if (overlapStart < overlapEnd) {
+              return (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60);
+            }
+            return 0;
+          };
+          
+          morningHours = calculateOverlap(clockInDateTime, clockOutDateTime, morningStart, morningEnd);
+          nightHours = calculateOverlap(clockInDateTime, clockOutDateTime, nightStart, nightEnd);
+          
+          // Ensure total doesn't exceed actual hours
+          const totalCalculated = morningHours + nightHours;
+          if (totalCalculated > finalHours) {
+            const ratio = finalHours / totalCalculated;
+            morningHours *= ratio;
+            nightHours *= ratio;
+          }
+        }
+
+        // Calculate wage amounts
         const totalCardAmountFlat = Math.max(0, finalHours) * defaultWageRate;
+        const morningWageRate = wageSettings?.morning_wage_rate || 17;
+        const nightWageRate = wageSettings?.night_wage_rate || 20;
+        const totalCardAmountSplit = (morningHours * morningWageRate) + (nightHours * nightWageRate);
 
         const processedEntry = {
           employee_name: employeeIdentifier, // Keep original ID for database consistency
@@ -230,7 +274,10 @@ Deno.serve(async (req) => {
           clock_out_date: clockOutDateFormatted,
           clock_out_time: clockOutTimeFormatted,
           total_hours: Math.max(0, finalHours),
+          morning_hours: Math.max(0, morningHours),
+          night_hours: Math.max(0, nightHours),
           total_card_amount_flat: totalCardAmountFlat,
+          total_card_amount_split: totalCardAmountSplit,
           break_start: null,
           break_end: null,
           break_length: null,
@@ -240,7 +287,7 @@ Deno.serve(async (req) => {
           no_show_reason: null,
           employee_note: null,
           manager_note: null,
-          is_split_calculation: false
+          is_split_calculation: true
         };
 
         processedData.push(processedEntry);
@@ -292,7 +339,8 @@ Deno.serve(async (req) => {
 
     // Insert processed data into database
     if (processedData.length > 0) {
-      // If overwriting, delete existing entries first (alternative method - less used now)
+      // If deleteExistingData was used, we already deleted by date, so insert directly
+      // If overwriteExisting, delete by employee+date combination
       if (overwriteExisting && !deleteExistingData) {
         for (const entry of processedData) {
           await supabaseAdmin
@@ -301,8 +349,8 @@ Deno.serve(async (req) => {
             .eq('employee_name', entry.employee_name)
             .eq('clock_in_date', entry.clock_in_date);
         }
-      } else {
-        // Check for duplicates and skip them
+      } else if (!deleteExistingData) {
+        // Only check for duplicates if we didn't already delete by date
         const filteredData = [];
         for (const entry of processedData) {
           const { data: existing } = await supabaseAdmin
@@ -310,7 +358,7 @@ Deno.serve(async (req) => {
             .select('id')
             .eq('employee_name', entry.employee_name)
             .eq('clock_in_date', entry.clock_in_date)
-            .single();
+            .maybeSingle();
 
           if (!existing) {
             filteredData.push(entry);
