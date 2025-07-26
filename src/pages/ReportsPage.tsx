@@ -93,6 +93,9 @@ const ReportsPage: React.FC = () => {
         throw error;
       }
       
+      console.log('Raw timesheet data:', data);
+      console.log('Wage settings:', wageSettings);
+      
       // Map employee names properly and calculate morning/night hours
       const processedData = data?.map(entry => {
         let morningHours = entry.morning_hours || 0;
@@ -101,8 +104,22 @@ const ReportsPage: React.FC = () => {
         // Calculate morning/night hours if they're missing or zero
         if ((!entry.morning_hours && !entry.night_hours) || (entry.morning_hours === 0 && entry.night_hours === 0)) {
           try {
-            const clockInDateTime = new Date(`${entry.clock_in_date}T${entry.clock_in_time}`);
-            const clockOutDateTime = new Date(`${entry.clock_out_date}T${entry.clock_out_time}`);
+            // Check if required time fields are present
+            if (!entry.clock_in_time || !entry.clock_out_time || !entry.clock_in_date || !entry.clock_out_date) {
+              console.log('Missing time data for entry:', {
+                clock_in_date: entry.clock_in_date,
+                clock_in_time: entry.clock_in_time,
+                clock_out_date: entry.clock_out_date,
+                clock_out_time: entry.clock_out_time
+              });
+              // Fallback: assign all hours to morning if we can't calculate
+              if (entry.total_hours > 0) {
+                morningHours = entry.total_hours;
+                nightHours = 0;
+              }
+            } else {
+              const clockInDateTime = new Date(`${entry.clock_in_date}T${entry.clock_in_time}`);
+              const clockOutDateTime = new Date(`${entry.clock_out_date}T${entry.clock_out_time}`);
             
             // Handle overnight shifts
             if (clockOutDateTime < clockInDateTime) {
@@ -181,12 +198,13 @@ const ReportsPage: React.FC = () => {
             const totalWorkedHours = (clockOutDateTime.getTime() - clockInDateTime.getTime()) / (1000 * 60 * 60);
             const calculatedTotal = morningHours + nightHours;
             
-            if (calculatedTotal > totalWorkedHours) {
-              const ratio = totalWorkedHours / calculatedTotal;
-              morningHours *= ratio;
-              nightHours *= ratio;
+                         if (calculatedTotal > totalWorkedHours) {
+               const ratio = totalWorkedHours / calculatedTotal;
+               morningHours *= ratio;
+               nightHours *= ratio;
+             }
             }
-          } catch (error) {
+           } catch (error) {
             console.error('Error calculating morning/night hours for entry:', entry, error);
             // Fallback: if calculation fails, distribute total hours based on assumption
             if (entry.total_hours > 0) {
@@ -196,13 +214,27 @@ const ReportsPage: React.FC = () => {
           }
         }
 
-        return {
+        const result = {
           ...entry,
           display_name: employeeMap.get(entry.employee_name) || entry.employee_name,
           total_card_amount_flat: Math.round(entry.total_card_amount_flat || 0),
           calculated_morning_hours: Math.max(0, morningHours),
           calculated_night_hours: Math.max(0, nightHours)
         };
+        
+        console.log('Processing entry:', {
+          employee: entry.employee_name,
+          date: entry.clock_in_date,
+          clock_in_time: entry.clock_in_time,
+          clock_out_time: entry.clock_out_time,
+          total_hours: entry.total_hours,
+          original_morning: entry.morning_hours,
+          original_night: entry.night_hours,
+          calculated_morning: result.calculated_morning_hours,
+          calculated_night: result.calculated_night_hours
+        });
+        
+        return result;
       });
       
       return processedData || [];
