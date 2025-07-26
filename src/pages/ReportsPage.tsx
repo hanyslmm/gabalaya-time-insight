@@ -100,73 +100,124 @@ const ReportsPage: React.FC = () => {
 
         // Calculate morning/night hours if they're missing or zero
         if ((!entry.morning_hours && !entry.night_hours) || (entry.morning_hours === 0 && entry.night_hours === 0)) {
-          const clockInDateTime = new Date(`${entry.clock_in_date}T${entry.clock_in_time}`);
-          const clockOutDateTime = new Date(`${entry.clock_out_date}T${entry.clock_out_time}`);
-          
-          // Handle overnight shifts
-          if (clockOutDateTime < clockInDateTime) {
-            clockOutDateTime.setDate(clockOutDateTime.getDate() + 1);
-          }
+          try {
+            const clockInDateTime = new Date(`${entry.clock_in_date}T${entry.clock_in_time}`);
+            const clockOutDateTime = new Date(`${entry.clock_out_date}T${entry.clock_out_time}`);
+            
+            // Handle overnight shifts
+            if (clockOutDateTime < clockInDateTime) {
+              clockOutDateTime.setDate(clockOutDateTime.getDate() + 1);
+            }
 
-          const baseDate = new Date(entry.clock_in_date);
-          
-          // Create morning period
-          const morningStart = new Date(baseDate);
-          const [morningStartHour, morningStartMin] = wageSettings.morning_start_time.split(':');
-          morningStart.setHours(parseInt(morningStartHour), parseInt(morningStartMin), 0, 0);
-          
-          const morningEnd = new Date(baseDate);
-          const [morningEndHour, morningEndMin] = wageSettings.morning_end_time.split(':');
-          morningEnd.setHours(parseInt(morningEndHour), parseInt(morningEndMin), 0, 0);
-          
-          // Create night period
-          const nightStart = new Date(baseDate);
-          const [nightStartHour, nightStartMin] = wageSettings.night_start_time.split(':');
-          nightStart.setHours(parseInt(nightStartHour), parseInt(nightStartMin), 0, 0);
-          
-          const nightEnd = new Date(baseDate);
-          const [nightEndHour, nightEndMin] = wageSettings.night_end_time.split(':');
-          nightEnd.setHours(parseInt(nightEndHour), parseInt(nightEndMin), 0, 0);
-          
-          // Handle overnight night shifts
-          if (nightEnd <= nightStart) {
-            nightEnd.setDate(nightEnd.getDate() + 1);
-          }
+            const baseDate = new Date(entry.clock_in_date);
+            
+            // Create morning period
+            const morningStart = new Date(baseDate);
+            const [morningStartHour, morningStartMin] = wageSettings.morning_start_time.split(':');
+            morningStart.setHours(parseInt(morningStartHour), parseInt(morningStartMin), 0, 0);
+            
+            const morningEnd = new Date(baseDate);
+            const [morningEndHour, morningEndMin] = wageSettings.morning_end_time.split(':');
+            morningEnd.setHours(parseInt(morningEndHour), parseInt(morningEndMin), 0, 0);
+            
+            // Create night period
+            const nightStart = new Date(baseDate);
+            const [nightStartHour, nightStartMin] = wageSettings.night_start_time.split(':');
+            nightStart.setHours(parseInt(nightStartHour), parseInt(nightStartMin), 0, 0);
+            
+            const nightEnd = new Date(baseDate);
+            const [nightEndHour, nightEndMin] = wageSettings.night_end_time.split(':');
+            nightEnd.setHours(parseInt(nightEndHour), parseInt(nightEndMin), 0, 0);
+            
+            // Handle overnight night shifts
+            if (nightEnd <= nightStart) {
+              nightEnd.setDate(nightEnd.getDate() + 1);
+            }
 
-          // Calculate morning overlap
-          const morningOverlapStart = new Date(Math.max(clockInDateTime.getTime(), morningStart.getTime()));
-          const morningOverlapEnd = new Date(Math.min(clockOutDateTime.getTime(), morningEnd.getTime()));
-          
-          if (morningOverlapEnd > morningOverlapStart) {
-            morningHours = (morningOverlapEnd.getTime() - morningOverlapStart.getTime()) / (1000 * 60 * 60);
-          }
+            // Calculate morning overlap
+            const morningOverlapStart = new Date(Math.max(clockInDateTime.getTime(), morningStart.getTime()));
+            const morningOverlapEnd = new Date(Math.min(clockOutDateTime.getTime(), morningEnd.getTime()));
+            
+            if (morningOverlapEnd > morningOverlapStart) {
+              morningHours = (morningOverlapEnd.getTime() - morningOverlapStart.getTime()) / (1000 * 60 * 60);
+            }
 
-          // Calculate night overlap
-          const nightOverlapStart = new Date(Math.max(clockInDateTime.getTime(), nightStart.getTime()));
-          const nightOverlapEnd = new Date(Math.min(clockOutDateTime.getTime(), nightEnd.getTime()));
-          
-          if (nightOverlapEnd > nightOverlapStart) {
-            nightHours = (nightOverlapEnd.getTime() - nightOverlapStart.getTime()) / (1000 * 60 * 60);
-          }
+            // Calculate night overlap
+            const nightOverlapStart = new Date(Math.max(clockInDateTime.getTime(), nightStart.getTime()));
+            const nightOverlapEnd = new Date(Math.min(clockOutDateTime.getTime(), nightEnd.getTime()));
+            
+            if (nightOverlapEnd > nightOverlapStart) {
+              nightHours = (nightOverlapEnd.getTime() - nightOverlapStart.getTime()) / (1000 * 60 * 60);
+            }
 
-          // Ensure calculated hours don't exceed total worked hours
-          const totalWorkedHours = (clockOutDateTime.getTime() - clockInDateTime.getTime()) / (1000 * 60 * 60);
-          const calculatedTotal = morningHours + nightHours;
-          
-          if (calculatedTotal > totalWorkedHours) {
-            const ratio = totalWorkedHours / calculatedTotal;
-            morningHours *= ratio;
-            nightHours *= ratio;
+            // If no morning/night hours calculated, assume all hours are regular (non-premium) hours
+            // This handles cases where work hours don't overlap with defined morning/night periods
+            if (morningHours === 0 && nightHours === 0 && entry.total_hours > 0) {
+              // Check which period the work time falls into by checking the start time
+              const workStartHour = clockInDateTime.getHours();
+              const workStartTime = workStartHour * 100 + clockInDateTime.getMinutes();
+              
+              const morningStartTime = parseInt(morningStartHour) * 100 + parseInt(morningStartMin);
+              const morningEndTime = parseInt(morningEndHour) * 100 + parseInt(morningEndMin);
+              const nightStartTime = parseInt(nightStartHour) * 100 + parseInt(nightStartMin);
+              const nightEndTime = parseInt(nightEndHour) * 100 + parseInt(nightEndMin);
+              
+              // If work starts during morning hours, assign to morning
+              if (workStartTime >= morningStartTime && workStartTime < morningEndTime) {
+                morningHours = entry.total_hours;
+              }
+              // If work starts during night hours, assign to night
+              else if ((nightEndTime > nightStartTime && workStartTime >= nightStartTime && workStartTime < nightEndTime) ||
+                       (nightEndTime < nightStartTime && (workStartTime >= nightStartTime || workStartTime < nightEndTime))) {
+                nightHours = entry.total_hours;
+              }
+              // Otherwise, distribute based on which period has more overlap or default to morning
+              else {
+                morningHours = entry.total_hours;
+              }
+            }
+
+            // Ensure calculated hours don't exceed total worked hours
+            const totalWorkedHours = (clockOutDateTime.getTime() - clockInDateTime.getTime()) / (1000 * 60 * 60);
+            const calculatedTotal = morningHours + nightHours;
+            
+            if (calculatedTotal > totalWorkedHours) {
+              const ratio = totalWorkedHours / calculatedTotal;
+              morningHours *= ratio;
+              nightHours *= ratio;
+            }
+          } catch (error) {
+            console.error('Error calculating morning/night hours for entry:', entry, error);
+            // Fallback: if calculation fails, distribute total hours based on assumption
+            if (entry.total_hours > 0) {
+              morningHours = entry.total_hours;
+              nightHours = 0;
+            }
           }
         }
 
-        return {
+        const result = {
           ...entry,
           display_name: employeeMap.get(entry.employee_name) || entry.employee_name,
           total_card_amount_flat: Math.round(entry.total_card_amount_flat || 0),
           calculated_morning_hours: Math.max(0, morningHours),
           calculated_night_hours: Math.max(0, nightHours)
         };
+        
+        // Debug logging to help troubleshoot
+        console.log('Attendance entry processed:', {
+          employee: result.display_name,
+          date: entry.clock_in_date,
+          total_hours: entry.total_hours,
+          original_morning: entry.morning_hours,
+          original_night: entry.night_hours,
+          calculated_morning: result.calculated_morning_hours,
+          calculated_night: result.calculated_night_hours,
+          clock_in: entry.clock_in_time,
+          clock_out: entry.clock_out_time
+        });
+        
+        return result;
       });
       
       return processedData || [];
@@ -449,6 +500,39 @@ const ReportsPage: React.FC = () => {
               </div>
             </CardHeader>
             <CardContent className="p-0">
+              {/* Summary Section */}
+              {attendanceReport && attendanceReport.length > 0 && (
+                <div className="p-6 border-b border-border/50 bg-muted/20">
+                  <h3 className="text-lg font-semibold mb-4 text-primary">Period Summary</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-card rounded-lg p-4 border border-border/50 shadow-sm">
+                      <div className="text-sm text-muted-foreground">Total Shifts</div>
+                      <div className="text-2xl font-bold text-primary">
+                        {attendanceReport.length}
+                      </div>
+                    </div>
+                    <div className="bg-card rounded-lg p-4 border border-border/50 shadow-sm">
+                      <div className="text-sm text-muted-foreground">Total Hours</div>
+                      <div className="text-2xl font-bold text-blue-600">
+                        {Number(attendanceReport.reduce((sum: number, entry: any) => sum + (entry.total_hours || 0), 0)).toFixed(1)}h
+                      </div>
+                    </div>
+                    <div className="bg-card rounded-lg p-4 border border-border/50 shadow-sm">
+                      <div className="text-sm text-muted-foreground">Morning Hours</div>
+                      <div className="text-2xl font-bold text-orange-600">
+                        {Number(attendanceReport.reduce((sum: number, entry: any) => sum + (entry.calculated_morning_hours || 0), 0)).toFixed(1)}h
+                      </div>
+                    </div>
+                    <div className="bg-card rounded-lg p-4 border border-border/50 shadow-sm">
+                      <div className="text-sm text-muted-foreground">Night Hours</div>
+                      <div className="text-2xl font-bold text-purple-600">
+                        {Number(attendanceReport.reduce((sum: number, entry: any) => sum + (entry.calculated_night_hours || 0), 0)).toFixed(1)}h
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
