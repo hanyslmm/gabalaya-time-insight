@@ -196,28 +196,13 @@ const ReportsPage: React.FC = () => {
           }
         }
 
-        const result = {
+        return {
           ...entry,
           display_name: employeeMap.get(entry.employee_name) || entry.employee_name,
           total_card_amount_flat: Math.round(entry.total_card_amount_flat || 0),
           calculated_morning_hours: Math.max(0, morningHours),
           calculated_night_hours: Math.max(0, nightHours)
         };
-        
-        // Debug logging to help troubleshoot
-        console.log('Attendance entry processed:', {
-          employee: result.display_name,
-          date: entry.clock_in_date,
-          total_hours: entry.total_hours,
-          original_morning: entry.morning_hours,
-          original_night: entry.night_hours,
-          calculated_morning: result.calculated_morning_hours,
-          calculated_night: result.calculated_night_hours,
-          clock_in: entry.clock_in_time,
-          clock_out: entry.clock_out_time
-        });
-        
-        return result;
       });
       
       return processedData || [];
