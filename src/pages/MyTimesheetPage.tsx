@@ -172,15 +172,15 @@ const MyTimesheetPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">My Timesheet</h1>
-          <p className="text-muted-foreground">View your attendance and earnings summary</p>
+    <div className="space-y-3 p-2 sm:p-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">My Timesheet</h1>
+          <p className="text-sm text-muted-foreground hidden sm:block">View your attendance and earnings summary</p>
         </div>
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-1 sm:gap-2">
           <Select value={filterType} onValueChange={(value: 'month' | 'payPeriod') => setFilterType(value)}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-28 sm:w-40 h-8 sm:h-10">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -192,7 +192,7 @@ const MyTimesheetPage: React.FC = () => {
           {filterType === 'month' && (
             <>
               <Select value={selectedMonth.toString()} onValueChange={(value) => setSelectedMonth(parseInt(value))}>
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="w-24 sm:w-32 h-8 sm:h-10">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -204,7 +204,7 @@ const MyTimesheetPage: React.FC = () => {
                 </SelectContent>
               </Select>
               <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(parseInt(value))}>
-                <SelectTrigger className="w-20">
+                <SelectTrigger className="w-16 sm:w-20 h-8 sm:h-10">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -220,7 +220,7 @@ const MyTimesheetPage: React.FC = () => {
           
           {filterType === 'payPeriod' && (
             <Select value={payPeriodType} onValueChange={(value: 'current' | 'previous') => setPayPeriodType(value)}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-36 sm:w-48 h-8 sm:h-10">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -233,54 +233,54 @@ const MyTimesheetPage: React.FC = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Hours</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2">
+            <CardTitle className="text-xs sm:text-sm font-medium">Total Hours</CardTitle>
+            <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatHours(totalHours)}</div>
-            <p className="text-xs text-muted-foreground">
+          <CardContent className="pt-1 sm:pt-2">
+            <div className="text-lg sm:text-2xl font-bold">{formatHours(totalHours)}</div>
+            <p className="text-xs text-muted-foreground hidden sm:block">
               This period
             </p>
           </CardContent>
         </Card>
         
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Morning Hours</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2">
+            <CardTitle className="text-xs sm:text-sm font-medium">Morning Hours</CardTitle>
+            <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{formatHours(totalMorningHours)}</div>
-            <p className="text-xs text-muted-foreground">
+          <CardContent className="pt-1 sm:pt-2">
+            <div className="text-lg sm:text-2xl font-bold text-blue-600">{formatHours(totalMorningHours)}</div>
+            <p className="text-xs text-muted-foreground hidden sm:block">
               LE {morningWageRate}/hour
             </p>
           </CardContent>
         </Card>
         
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Night Hours</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2">
+            <CardTitle className="text-xs sm:text-sm font-medium">Night Hours</CardTitle>
+            <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-600">{formatHours(totalNightHours)}</div>
-            <p className="text-xs text-muted-foreground">
+          <CardContent className="pt-1 sm:pt-2">
+            <div className="text-lg sm:text-2xl font-bold text-purple-600">{formatHours(totalNightHours)}</div>
+            <p className="text-xs text-muted-foreground hidden sm:block">
               LE {nightWageRate}/hour
             </p>
           </CardContent>
         </Card>
         
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Earnings</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2">
+            <CardTitle className="text-xs sm:text-sm font-medium">Total Earnings</CardTitle>
+            <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">LE {totalEarnings.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">
+          <CardContent className="pt-1 sm:pt-2">
+            <div className="text-lg sm:text-2xl font-bold text-green-600">LE {totalEarnings.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground hidden sm:block">
               This period
             </p>
           </CardContent>
@@ -289,38 +289,38 @@ const MyTimesheetPage: React.FC = () => {
 
       {/* Timesheet Entries */}
       <Card>
-        <CardHeader>
-          <CardTitle>Timesheet Entries</CardTitle>
+        <CardHeader className="pb-2 sm:pb-6">
+          <CardTitle className="text-lg sm:text-xl">Timesheet Entries</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0 sm:pt-6">
           {timesheetData && timesheetData.length > 0 ? (
-            <div className="space-y-4">
+            <div className="space-y-2 sm:space-y-4">
               {timesheetData.map((entry) => (
-                <div key={entry.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">{new Date(entry.clock_in_date).toLocaleDateString()}</span>
+                <div key={entry.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-4 border rounded-lg space-y-2 sm:space-y-0">
+                  <div className="flex items-center space-x-2 sm:space-x-4">
+                    <div className="flex items-center space-x-1 sm:space-x-2">
+                      <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                      <span className="text-sm sm:text-base font-medium">{new Date(entry.clock_in_date).toLocaleDateString()}</span>
                     </div>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-xs sm:text-sm text-muted-foreground">
                       {entry.clock_in_time} - {entry.clock_out_time}
                     </div>
                   </div>
-                  <div className="flex items-center space-x-4">
-                    <Badge variant="outline">
-                      {formatHours(entry.total_hours)} hours
+                  <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+                    <Badge variant="outline" className="text-xs">
+                      {formatHours(entry.total_hours)}h
                     </Badge>
                     {entry.morning_hours > 0 && (
-                      <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                        Morning: {formatHours(entry.morning_hours)}
+                      <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
+                        M: {formatHours(entry.morning_hours)}
                       </Badge>
                     )}
                     {entry.night_hours > 0 && (
-                      <Badge variant="secondary" className="bg-purple-100 text-purple-800">
-                        Night: {formatHours(entry.night_hours)}
+                      <Badge variant="secondary" className="bg-purple-100 text-purple-800 text-xs">
+                        N: {formatHours(entry.night_hours)}
                       </Badge>
                     )}
-                    <div className="text-sm font-medium text-green-600">
+                    <div className="text-xs sm:text-sm font-medium text-green-600">
                       LE {entry.total_card_amount_split || entry.total_card_amount_flat}
                     </div>
                   </div>
@@ -328,9 +328,9 @@ const MyTimesheetPage: React.FC = () => {
               ))}
             </div>
           ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No timesheet entries found for the selected period.</p>
+            <div className="text-center py-4 sm:py-8 text-muted-foreground">
+              <Calendar className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 sm:mb-4 opacity-50" />
+              <p className="text-sm sm:text-base">No timesheet entries found for the selected period.</p>
             </div>
           )}
         </CardContent>

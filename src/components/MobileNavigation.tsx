@@ -96,7 +96,7 @@ const MobileNavigation: React.FC = () => {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/98 backdrop-blur-lg border-t border-border/30 md:hidden">
       <div 
-        className="flex items-center justify-around px-1 py-1 w-full"
+        className="flex items-center justify-around px-0.5 py-0.5 w-full"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -111,7 +111,7 @@ const MobileNavigation: React.FC = () => {
               variant="ghost"
               size="sm"
               className={cn(
-                "flex flex-col items-center justify-center min-h-[56px] px-1 py-1 relative transition-all duration-300 flex-1",
+                "flex flex-col items-center justify-center min-h-[44px] px-0.5 py-0.5 relative transition-all duration-300 flex-1",
                 "hover:bg-accent/10 active:bg-accent/20 active:scale-95",
                 isActive && "text-primary bg-primary/10"
               )}
@@ -119,26 +119,26 @@ const MobileNavigation: React.FC = () => {
             >
               <div className="relative">
                 <Icon className={cn(
-                  "h-5 w-5 mb-1 transition-all duration-300",
+                  "h-4 w-4 mb-0.5 transition-all duration-300",
                   isActive && "scale-110"
                 )} />
                 {item.badge && (
                   <Badge 
                     variant="destructive" 
-                    className="absolute -top-2 -right-2 h-4 w-4 p-0 text-xs flex items-center justify-center"
+                    className="absolute -top-1 -right-1 h-3 w-3 p-0 text-xs flex items-center justify-center"
                   >
                     {item.badge}
                   </Badge>
                 )}
               </div>
               <span className={cn(
-                "text-xs font-medium transition-all duration-300 text-center truncate max-w-full",
+                "text-xs font-medium transition-all duration-300 text-center truncate max-w-full leading-tight",
                 isActive ? "text-primary" : "text-muted-foreground"
               )}>
                 {item.name}
               </span>
               {isActive && (
-                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-8 h-0.5 bg-primary rounded-full" />
+                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-6 h-0.5 bg-primary rounded-full" />
               )}
             </Button>
           );

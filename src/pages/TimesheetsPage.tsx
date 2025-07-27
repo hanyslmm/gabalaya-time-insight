@@ -159,13 +159,13 @@ const TimesheetsPage: React.FC = () => {
   }
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-8">
-      <div className="mb-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0 mb-4">
+    <div className="w-full px-2 sm:px-4">
+      <div className="mb-3 sm:mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0 mb-2 sm:mb-4">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('timesheets')}</h1>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-sm text-muted-foreground">
+            <h1 className="text-lg sm:text-2xl font-bold text-gray-900">{t('timesheets')}</h1>
+            <div className="flex items-center gap-2 mt-0.5 sm:mt-1">
+              <span className="text-xs sm:text-sm text-muted-foreground">
                 {totalEntries} total entries
               </span>
               {hasActiveFilters && (
