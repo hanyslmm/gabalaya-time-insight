@@ -65,8 +65,28 @@ const TimesheetsPage: React.FC = () => {
 
         // Apply employee filter
         if (selectedEmployee && selectedEmployee !== 'all') {
-          // Try both employee_id and employee_name for flexibility
-          query = query.or(`employee_id.eq.${selectedEmployee},employee_name.eq.${selectedEmployee}`);
+          // Get the selected employee's details for proper filtering
+          const selectedEmp = employees?.find(emp => emp.id === selectedEmployee);
+          
+          console.log('Employee filter debug:', {
+            selectedEmployee,
+            selectedEmp,
+            allEmployees: employees
+          });
+          
+          if (selectedEmp) {
+            // Build OR conditions to match various ways employee data might be stored
+            const conditions = [
+              `employee_id.eq.${selectedEmployee}`, // Match by UUID
+              `employee_name.eq.${selectedEmp.staff_id}`, // Match by staff_id (like EMP085382)
+              `employee_name.eq.${selectedEmp.full_name}` // Match by full name (like Donia Amal)
+            ];
+            
+            console.log('Using filter conditions:', conditions);
+            query = query.or(conditions.join(','));
+          } else {
+            console.log('Selected employee not found in employees list');
+          }
         }
 
         // Execute query
