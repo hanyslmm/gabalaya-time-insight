@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Clock, DollarSign, Calendar, TrendingUp } from 'lucide-react';
+import MobilePageWrapper, { MobileSection, MobileCard, MobileHeader } from '@/components/MobilePageWrapper';
 // Simple format function for hours display
 const formatHours = (hours: number) => hours.toFixed(2);
 
@@ -172,170 +173,156 @@ const MyTimesheetPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-2 p-1 sm:p-4 border-l-4 border-l-blue-500 sm:border-l-0 min-h-screen sm:min-h-0">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 sm:gap-4">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-lg sm:text-2xl font-bold text-foreground">My Timesheet</h1>
-          <p className="text-xs text-muted-foreground hidden sm:block">View your attendance and earnings summary</p>
-        </div>
-        <div className="flex flex-wrap gap-1 sm:gap-2">
-          <Select value={filterType} onValueChange={(value: 'month' | 'payPeriod') => setFilterType(value)}>
-            <SelectTrigger className="w-28 sm:w-40 h-8 sm:h-10">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="month">By Month</SelectItem>
-              <SelectItem value="payPeriod">Pay Period</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          {filterType === 'month' && (
-            <>
-              <Select value={selectedMonth.toString()} onValueChange={(value) => setSelectedMonth(parseInt(value))}>
-                <SelectTrigger className="w-24 sm:w-32 h-8 sm:h-10">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {months.map((month) => (
-                    <SelectItem key={month.value} value={month.value.toString()}>
-                      {month.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(parseInt(value))}>
-                <SelectTrigger className="w-16 sm:w-20 h-8 sm:h-10">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {years.map((year) => (
-                    <SelectItem key={year} value={year.toString()}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </>
-          )}
-          
-          {filterType === 'payPeriod' && (
-            <Select value={payPeriodType} onValueChange={(value: 'current' | 'previous') => setPayPeriodType(value)}>
-              <SelectTrigger className="w-36 sm:w-48 h-8 sm:h-10">
+    <MobilePageWrapper showMobileIndicator>
+      <MobileHeader 
+        title="My Timesheet" 
+        subtitle="View your attendance and earnings summary"
+        actions={
+          <div className="flex flex-wrap gap-0.5 sm:gap-1">
+            <Select value={filterType} onValueChange={(value: 'month' | 'payPeriod') => setFilterType(value)}>
+              <SelectTrigger className="w-20 sm:w-32 h-7 sm:h-9 text-xs sm:text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="current">Current Pay Period</SelectItem>
-                <SelectItem value="previous">Previous Pay Period</SelectItem>
+                <SelectItem value="month">Month</SelectItem>
+                <SelectItem value="payPeriod">Pay Period</SelectItem>
               </SelectContent>
             </Select>
-          )}
+            
+            {filterType === 'month' && (
+              <>
+                <Select value={selectedMonth.toString()} onValueChange={(value) => setSelectedMonth(parseInt(value))}>
+                  <SelectTrigger className="w-16 sm:w-24 h-7 sm:h-9 text-xs sm:text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {months.map((month) => (
+                      <SelectItem key={month.value} value={month.value.toString()}>
+                        {month.label.slice(0, 3)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(parseInt(value))}>
+                  <SelectTrigger className="w-14 sm:w-16 h-7 sm:h-9 text-xs sm:text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {years.map((year) => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </>
+            )}
+            
+            {filterType === 'payPeriod' && (
+              <Select value={payPeriodType} onValueChange={(value: 'current' | 'previous') => setPayPeriodType(value)}>
+                <SelectTrigger className="w-20 sm:w-32 h-7 sm:h-9 text-xs sm:text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="current">Current</SelectItem>
+                  <SelectItem value="previous">Previous</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        }
+      />
+
+      <MobileSection spacing="tight">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-0.5 sm:gap-2">
+          {/* Total Hours */}
+          <div className="bg-card border rounded p-1 sm:p-3 shadow-sm">
+            <div className="flex items-center justify-between mb-0.5 sm:mb-1">
+              <span className="text-xs font-medium text-muted-foreground">Hours</span>
+              <Clock className="h-3 w-3 text-muted-foreground" />
+            </div>
+            <div className="text-sm sm:text-xl font-bold">{formatHours(totalHours)}</div>
+            <div className="text-xs text-muted-foreground hidden sm:block">Total</div>
+          </div>
+
+          {/* Morning Hours */}
+          <div className="bg-card border rounded p-1 sm:p-3 shadow-sm">
+            <div className="flex items-center justify-between mb-0.5 sm:mb-1">
+              <span className="text-xs font-medium text-muted-foreground">Morning</span>
+              <TrendingUp className="h-3 w-3 text-blue-600" />
+            </div>
+            <div className="text-sm sm:text-xl font-bold text-blue-600">{formatHours(totalMorningHours)}</div>
+            <div className="text-xs text-muted-foreground hidden sm:block">LE {morningWageRate}/h</div>
+          </div>
+
+          {/* Night Hours */}
+          <div className="bg-card border rounded p-1 sm:p-3 shadow-sm">
+            <div className="flex items-center justify-between mb-0.5 sm:mb-1">
+              <span className="text-xs font-medium text-muted-foreground">Night</span>
+              <TrendingUp className="h-3 w-3 text-purple-600" />
+            </div>
+            <div className="text-sm sm:text-xl font-bold text-purple-600">{formatHours(totalNightHours)}</div>
+            <div className="text-xs text-muted-foreground hidden sm:block">LE {nightWageRate}/h</div>
+          </div>
+
+          {/* Total Earnings */}
+          <div className="bg-card border rounded p-1 sm:p-3 shadow-sm">
+            <div className="flex items-center justify-between mb-0.5 sm:mb-1">
+              <span className="text-xs font-medium text-muted-foreground">Earnings</span>
+              <DollarSign className="h-3 w-3 text-green-600" />
+            </div>
+            <div className="text-sm sm:text-xl font-bold text-green-600">LE {totalEarnings.toFixed(0)}</div>
+            <div className="text-xs text-muted-foreground hidden sm:block">Total</div>
+          </div>
         </div>
-      </div>
+      </MobileSection>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-1 sm:gap-3">
-        <Card className="border-0 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0.5 sm:pb-2 px-2 sm:px-6 pt-2 sm:pt-6">
-            <CardTitle className="text-xs sm:text-sm font-medium">Total Hours</CardTitle>
-            <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="pt-0 sm:pt-2 px-2 sm:px-6 pb-2 sm:pb-6">
-            <div className="text-base sm:text-2xl font-bold">{formatHours(totalHours)}</div>
-            <p className="text-xs text-muted-foreground hidden sm:block">
-              This period
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card className="border-0 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0.5 sm:pb-2 px-2 sm:px-6 pt-2 sm:pt-6">
-            <CardTitle className="text-xs sm:text-sm font-medium">Morning Hours</CardTitle>
-            <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="pt-0 sm:pt-2 px-2 sm:px-6 pb-2 sm:pb-6">
-            <div className="text-base sm:text-2xl font-bold text-blue-600">{formatHours(totalMorningHours)}</div>
-            <p className="text-xs text-muted-foreground hidden sm:block">
-              LE {morningWageRate}/hour
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card className="border-0 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0.5 sm:pb-2 px-2 sm:px-6 pt-2 sm:pt-6">
-            <CardTitle className="text-xs sm:text-sm font-medium">Night Hours</CardTitle>
-            <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="pt-0 sm:pt-2 px-2 sm:px-6 pb-2 sm:pb-6">
-            <div className="text-base sm:text-2xl font-bold text-purple-600">{formatHours(totalNightHours)}</div>
-            <p className="text-xs text-muted-foreground hidden sm:block">
-              LE {nightWageRate}/hour
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card className="border-0 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0.5 sm:pb-2 px-2 sm:px-6 pt-2 sm:pt-6">
-            <CardTitle className="text-xs sm:text-sm font-medium">Total Earnings</CardTitle>
-            <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="pt-0 sm:pt-2 px-2 sm:px-6 pb-2 sm:pb-6">
-            <div className="text-base sm:text-2xl font-bold text-green-600">LE {totalEarnings.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground hidden sm:block">
-              This period
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Timesheet Entries */}
-      <Card className="border-0 shadow-sm">
-        <CardHeader className="pb-1 sm:pb-4 px-2 sm:px-6 pt-2 sm:pt-6">
-          <CardTitle className="text-base sm:text-xl">Timesheet Entries</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0 sm:pt-2 px-2 sm:px-6 pb-2 sm:pb-6">
+      <MobileSection>
+        <MobileCard className="border">
+          <div className="mb-1 sm:mb-2">
+            <h3 className="text-sm sm:text-lg font-semibold">Timesheet Entries</h3>
+          </div>
           {timesheetData && timesheetData.length > 0 ? (
-            <div className="space-y-1 sm:space-y-3">
+            <div className="space-y-0.5 sm:space-y-2">
               {timesheetData.map((entry) => (
-                <div key={entry.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-1.5 sm:p-3 border rounded-md space-y-1 sm:space-y-0">
-                  <div className="flex items-center space-x-2 sm:space-x-4">
-                    <div className="flex items-center space-x-1 sm:space-x-2">
-                      <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-                      <span className="text-sm sm:text-base font-medium">{new Date(entry.clock_in_date).toLocaleDateString()}</span>
-                    </div>
-                    <div className="text-xs sm:text-sm text-muted-foreground">
+                <div key={entry.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-1 sm:p-2 border rounded text-xs sm:text-sm space-y-0.5 sm:space-y-0">
+                  <div className="flex items-center space-x-1 sm:space-x-2">
+                    <Calendar className="h-3 w-3 text-muted-foreground" />
+                    <span className="font-medium">{new Date(entry.clock_in_date).toLocaleDateString()}</span>
+                    <span className="text-muted-foreground">
                       {entry.clock_in_time} - {entry.clock_out_time}
-                    </div>
+                    </span>
                   </div>
-                  <div className="flex flex-wrap items-center gap-1 sm:gap-2">
-                    <Badge variant="outline" className="text-xs">
+                  <div className="flex flex-wrap items-center gap-0.5 sm:gap-1">
+                    <Badge variant="outline" className="text-xs h-4">
                       {formatHours(entry.total_hours)}h
                     </Badge>
                     {entry.morning_hours > 0 && (
-                      <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
-                        M: {formatHours(entry.morning_hours)}
+                      <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs h-4">
+                        M:{formatHours(entry.morning_hours)}
                       </Badge>
                     )}
                     {entry.night_hours > 0 && (
-                      <Badge variant="secondary" className="bg-purple-100 text-purple-800 text-xs">
-                        N: {formatHours(entry.night_hours)}
+                      <Badge variant="secondary" className="bg-purple-100 text-purple-800 text-xs h-4">
+                        N:{formatHours(entry.night_hours)}
                       </Badge>
                     )}
-                    <div className="text-xs sm:text-sm font-medium text-green-600">
-                      LE {entry.total_card_amount_split || entry.total_card_amount_flat}
-                    </div>
+                    <span className="text-xs font-medium text-green-600">
+                      LE{entry.total_card_amount_split || entry.total_card_amount_flat}
+                    </span>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-4 sm:py-8 text-muted-foreground">
-              <Calendar className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 sm:mb-4 opacity-50" />
-              <p className="text-sm sm:text-base">No timesheet entries found for the selected period.</p>
+            <div className="text-center py-2 sm:py-4 text-muted-foreground">
+              <Calendar className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-1 sm:mb-2 opacity-50" />
+              <p className="text-xs sm:text-sm">No entries found</p>
             </div>
           )}
-        </CardContent>
-      </Card>
-    </div>
+        </MobileCard>
+      </MobileSection>
+    </MobilePageWrapper>
   );
 };
 

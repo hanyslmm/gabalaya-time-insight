@@ -75,11 +75,11 @@ const Layout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="flex h-screen">
-        {/* Sidebar */}
-        <div className="hidden md:flex md:w-64 md:flex-col">
-          <div className="flex flex-col flex-grow pt-5 bg-card border-r overflow-y-auto">
+    <div className="min-h-screen bg-background overflow-hidden">
+      <div className="flex h-screen max-h-screen">
+        {/* Sidebar - More compact */}
+        <div className="hidden md:flex md:w-56 md:flex-col">
+          <div className="flex flex-col flex-grow pt-3 bg-card border-r overflow-y-auto">
             <div className="flex items-center flex-shrink-0 px-4">
             <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center shadow-lg">
@@ -91,8 +91,8 @@ const Layout = () => {
                 </div>
               </div>
             </div>
-            <div className="mt-8 flex-grow flex flex-col">
-              <nav className="flex-1 px-2 space-y-1">
+            <div className="mt-4 flex-grow flex flex-col">
+              <nav className="flex-1 px-2 space-y-0.5">
                 {visibleNavigation.map((item) => {
                   const isActive = location.pathname === item.href;
                   return (
@@ -100,10 +100,10 @@ const Layout = () => {
                       key={item.name}
                       to={item.href}
                       className={cn(
-                        "group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ease-in-out",
+                        "group flex items-center px-2 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ease-in-out",
                         isActive
-                          ? "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-md transform scale-[1.02]"
-                          : "text-muted-foreground hover:text-foreground hover:bg-accent/80 hover:scale-[1.01] hover:shadow-sm"
+                          ? "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-sm transform scale-[1.01]"
+                          : "text-muted-foreground hover:text-foreground hover:bg-accent/80 hover:scale-[1.005]"
                       )}
                     >
                       <item.icon
@@ -121,12 +121,12 @@ const Layout = () => {
           </div>
         </div>
 
-        {/* Main content */}
-        <div className="flex flex-col flex-1 overflow-hidden">
-          {/* Top navigation */}
-          <header className="bg-card/95 backdrop-blur-sm border-b border-border/50 px-2 py-1 sm:px-4 sm:py-2 sticky top-0 z-40">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2 sm:space-x-4">
+        {/* Main content - Mobile optimized */}
+        <div className="flex flex-col flex-1 overflow-hidden w-full">
+          {/* Top navigation - Ultra compact on mobile */}
+          <header className="bg-card/95 backdrop-blur-sm border-b border-border/50 px-1 py-0.5 sm:px-3 sm:py-1.5 sticky top-0 z-40 shrink-0">
+            <div className="flex items-center justify-between h-10 sm:h-12">
+              <div className="flex items-center space-x-1 sm:space-x-3 min-w-0 flex-1">
                 {/* Mobile menu trigger */}
                 <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                   <SheetTrigger asChild>
@@ -175,23 +175,23 @@ const Layout = () => {
                   </SheetContent>
                 </Sheet>
 
-                <h2 className="text-sm sm:text-lg font-semibold text-foreground capitalize tracking-tight">
+                <h2 className="text-xs sm:text-lg font-semibold text-foreground capitalize tracking-tight truncate">
                   {location.pathname.split('/').pop()?.replace('-', ' ') || 'Dashboard'}
                 </h2>
-                <div className="hidden sm:block">
-                  <div className="h-4 w-px bg-border/50"></div>
+                <div className="hidden md:block">
+                  <div className="h-3 w-px bg-border/50"></div>
                 </div>
-                <p className="hidden sm:block text-sm text-muted-foreground">
+                <p className="hidden md:block text-xs text-muted-foreground truncate">
                   Welcome back, {user?.full_name || user?.username}
                 </p>
               </div>
 
-              {/* Global Search */}
-              <div className="flex-1 max-w-md mx-2 sm:mx-4 hidden md:block">
+              {/* Global Search - Hidden on mobile/tablet */}
+              <div className="flex-1 max-w-sm mx-1 hidden lg:block">
                 <GlobalSearch />
               </div>
               
-              <div className="flex items-center space-x-2 sm:space-x-4">
+              <div className="flex items-center space-x-1 sm:space-x-3">
                 <NotificationSystem />
                 <ThemeToggle />
                 
@@ -237,9 +237,9 @@ const Layout = () => {
             </div>
           </header>
 
-          {/* Page content */}
-          <main className="flex-1 overflow-y-auto bg-gradient-to-br from-background to-background/95">
-            <div className="p-0 sm:p-2 min-h-full pb-14 md:pb-2 w-full">
+          {/* Page content - Zero padding mobile */}
+          <main className="flex-1 overflow-y-auto bg-gradient-to-br from-background to-background/95 w-full">
+            <div className="min-h-full pb-12 md:pb-1 w-full">
               <Outlet />
             </div>
           </main>
