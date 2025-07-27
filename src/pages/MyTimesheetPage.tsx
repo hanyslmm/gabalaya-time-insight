@@ -35,7 +35,7 @@ const MyTimesheetPage: React.FC = () => {
     }
   };
 
-  const { data: timesheetData, isLoading } = useQuery({
+    const { data: timesheetData, isLoading } = useQuery({
     queryKey: ['my-timesheet', user?.username, selectedMonth, selectedYear, filterType, payPeriodType],
     queryFn: async () => {
       if (!user?.username) return null;
@@ -46,17 +46,47 @@ const MyTimesheetPage: React.FC = () => {
         // Month-based filtering
         startDate = `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-01`;
         endDate = `${selectedYear}-${(selectedMonth + 1).toString().padStart(2, '0')}-01`;
-             } else {
-         // Pay period filtering
-         const { startDate: payStartDate, endDate: payEndDate } = getPayPeriodDates(payPeriodType);
-         startDate = payStartDate.toISOString().split('T')[0];
-         endDate = payEndDate.toISOString().split('T')[0];
-       }
+      } else {
+        // Pay period filtering
+        const { startDate: payStartDate, endDate: payEndDate } = getPayPeriodDates(payPeriodType);
+        startDate = payStartDate.toISOString().split('T')[0];
+        endDate = payEndDate.toISOString().split('T')[0];
+      }
+      
+      // First, try to get the employee's full name from the employees table
+      let employeeName = user.username;
+      
+      const { data: employeeData, error: employeeError } = await supabase
+        .from('employees')
+        .select('full_name')
+        .eq('staff_id', user.username)
+        .maybeSingle();
+      
+      if (employeeData?.full_name) {
+        employeeName = employeeData.full_name;
+      } else {
+        // If not found in employees table, try admin_users table
+        const { data: adminData, error: adminError } = await supabase
+          .from('admin_users')
+          .select('full_name')
+          .eq('username', user.username)
+          .maybeSingle();
+        
+        if (adminData?.full_name) {
+          employeeName = adminData.full_name;
+        }
+      }
+      
+      console.log('Searching for timesheet data:', {
+        username: user.username,
+        employeeName: employeeName,
+        dateRange: { startDate, endDate }
+      });
       
       const query = supabase
         .from('timesheet_entries')
         .select('*')
-        .eq('employee_name', user.username)
+        .or(`employee_name.eq.${user.username},employee_name.eq.${employeeName}`)
         .gte('clock_in_date', startDate)
         .order('clock_in_date', { ascending: false });
         
@@ -67,6 +97,8 @@ const MyTimesheetPage: React.FC = () => {
       }
 
       const { data, error } = await query;
+      
+      console.log('Timesheet query result:', { data, error });
 
       if (error) throw error;
       return data || [];
@@ -74,19 +106,33 @@ const MyTimesheetPage: React.FC = () => {
     enabled: !!user?.username
   });
 
-  const { data: employeeData } = useQuery({
+  const { data: employeeWageData } = useQuery({
     queryKey: ['employee-wage-rates', user?.username],
     queryFn: async () => {
       if (!user?.username) return null;
       
-      const { data, error } = await supabase
+      // Try to get wage rates from employees table first
+      const { data: empData, error: empError } = await supabase
         .from('employees')
         .select('morning_wage_rate, night_wage_rate, full_name')
         .eq('staff_id', user.username)
         .maybeSingle();
 
-      if (error) throw error;
-      return data;
+      if (empData) {
+        return empData;
+      }
+      
+      // If not found, get default wage rates from wage_settings
+      const { data: wageSettings, error: wageError } = await supabase
+        .from('wage_settings')
+        .select('morning_wage_rate, night_wage_rate')
+        .single();
+      
+      return {
+        morning_wage_rate: wageSettings?.morning_wage_rate || 17,
+        night_wage_rate: wageSettings?.night_wage_rate || 20,
+        full_name: user.username
+      };
     },
     enabled: !!user?.username
   });
@@ -95,8 +141,8 @@ const MyTimesheetPage: React.FC = () => {
   const totalMorningHours = timesheetData?.reduce((sum, entry) => sum + (entry.morning_hours || 0), 0) || 0;
   const totalNightHours = timesheetData?.reduce((sum, entry) => sum + (entry.night_hours || 0), 0) || 0;
   
-  const morningWageRate = employeeData?.morning_wage_rate || 17;
-  const nightWageRate = employeeData?.night_wage_rate || 20;
+  const morningWageRate = employeeWageData?.morning_wage_rate || 17;
+  const nightWageRate = employeeWageData?.night_wage_rate || 20;
   
   const totalEarnings = (totalMorningHours * morningWageRate) + (totalNightHours * nightWageRate);
 
