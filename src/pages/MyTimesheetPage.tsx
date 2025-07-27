@@ -172,11 +172,11 @@ const MyTimesheetPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-3 p-2 sm:p-4">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4">
+    <div className="space-y-2 p-1 sm:p-4 border-l-4 border-l-blue-500 sm:border-l-0 min-h-screen sm:min-h-0">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 sm:gap-4">
         <div className="min-w-0 flex-1">
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground">My Timesheet</h1>
-          <p className="text-sm text-muted-foreground hidden sm:block">View your attendance and earnings summary</p>
+          <h1 className="text-lg sm:text-2xl font-bold text-foreground">My Timesheet</h1>
+          <p className="text-xs text-muted-foreground hidden sm:block">View your attendance and earnings summary</p>
         </div>
         <div className="flex flex-wrap gap-1 sm:gap-2">
           <Select value={filterType} onValueChange={(value: 'month' | 'payPeriod') => setFilterType(value)}>
@@ -233,53 +233,53 @@ const MyTimesheetPage: React.FC = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-1 sm:gap-3">
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0.5 sm:pb-2 px-2 sm:px-6 pt-2 sm:pt-6">
             <CardTitle className="text-xs sm:text-sm font-medium">Total Hours</CardTitle>
             <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2">
-            <div className="text-lg sm:text-2xl font-bold">{formatHours(totalHours)}</div>
+          <CardContent className="pt-0 sm:pt-2 px-2 sm:px-6 pb-2 sm:pb-6">
+            <div className="text-base sm:text-2xl font-bold">{formatHours(totalHours)}</div>
             <p className="text-xs text-muted-foreground hidden sm:block">
               This period
             </p>
           </CardContent>
         </Card>
         
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2">
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0.5 sm:pb-2 px-2 sm:px-6 pt-2 sm:pt-6">
             <CardTitle className="text-xs sm:text-sm font-medium">Morning Hours</CardTitle>
             <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2">
-            <div className="text-lg sm:text-2xl font-bold text-blue-600">{formatHours(totalMorningHours)}</div>
+          <CardContent className="pt-0 sm:pt-2 px-2 sm:px-6 pb-2 sm:pb-6">
+            <div className="text-base sm:text-2xl font-bold text-blue-600">{formatHours(totalMorningHours)}</div>
             <p className="text-xs text-muted-foreground hidden sm:block">
               LE {morningWageRate}/hour
             </p>
           </CardContent>
         </Card>
         
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2">
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0.5 sm:pb-2 px-2 sm:px-6 pt-2 sm:pt-6">
             <CardTitle className="text-xs sm:text-sm font-medium">Night Hours</CardTitle>
             <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2">
-            <div className="text-lg sm:text-2xl font-bold text-purple-600">{formatHours(totalNightHours)}</div>
+          <CardContent className="pt-0 sm:pt-2 px-2 sm:px-6 pb-2 sm:pb-6">
+            <div className="text-base sm:text-2xl font-bold text-purple-600">{formatHours(totalNightHours)}</div>
             <p className="text-xs text-muted-foreground hidden sm:block">
               LE {nightWageRate}/hour
             </p>
           </CardContent>
         </Card>
         
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2">
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0.5 sm:pb-2 px-2 sm:px-6 pt-2 sm:pt-6">
             <CardTitle className="text-xs sm:text-sm font-medium">Total Earnings</CardTitle>
             <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent className="pt-1 sm:pt-2">
-            <div className="text-lg sm:text-2xl font-bold text-green-600">LE {totalEarnings.toFixed(2)}</div>
+          <CardContent className="pt-0 sm:pt-2 px-2 sm:px-6 pb-2 sm:pb-6">
+            <div className="text-base sm:text-2xl font-bold text-green-600">LE {totalEarnings.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground hidden sm:block">
               This period
             </p>
@@ -288,15 +288,15 @@ const MyTimesheetPage: React.FC = () => {
       </div>
 
       {/* Timesheet Entries */}
-      <Card>
-        <CardHeader className="pb-2 sm:pb-6">
-          <CardTitle className="text-lg sm:text-xl">Timesheet Entries</CardTitle>
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="pb-1 sm:pb-4 px-2 sm:px-6 pt-2 sm:pt-6">
+          <CardTitle className="text-base sm:text-xl">Timesheet Entries</CardTitle>
         </CardHeader>
-        <CardContent className="pt-0 sm:pt-6">
+        <CardContent className="pt-0 sm:pt-2 px-2 sm:px-6 pb-2 sm:pb-6">
           {timesheetData && timesheetData.length > 0 ? (
-            <div className="space-y-2 sm:space-y-4">
+            <div className="space-y-1 sm:space-y-3">
               {timesheetData.map((entry) => (
-                <div key={entry.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-4 border rounded-lg space-y-2 sm:space-y-0">
+                <div key={entry.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-1.5 sm:p-3 border rounded-md space-y-1 sm:space-y-0">
                   <div className="flex items-center space-x-2 sm:space-x-4">
                     <div className="flex items-center space-x-1 sm:space-x-2">
                       <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />

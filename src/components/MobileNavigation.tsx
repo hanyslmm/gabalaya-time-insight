@@ -111,9 +111,9 @@ const MobileNavigation: React.FC = () => {
               variant="ghost"
               size="sm"
               className={cn(
-                "flex flex-col items-center justify-center min-h-[44px] px-0.5 py-0.5 relative transition-all duration-300 flex-1",
+                "flex flex-col items-center justify-center min-h-[38px] px-0.5 py-0.5 relative transition-all duration-300 flex-1",
                 "hover:bg-accent/10 active:bg-accent/20 active:scale-95",
-                isActive && "text-primary bg-primary/10"
+                isActive && "text-primary bg-primary/10 border-t-2 border-t-primary"
               )}
               onClick={() => handleNavigation(item, index)}
             >
