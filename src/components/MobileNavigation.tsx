@@ -12,7 +12,9 @@ import {
   BarChart3,
   User,
   Home,
-  Calendar
+  Calendar,
+  Settings,
+  Building
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { vibrate } from '@/utils/pwa';
@@ -23,6 +25,7 @@ interface NavigationItem {
   icon: React.ComponentType<{ className?: string }>;
   adminOnly?: boolean;
   badge?: number;
+  shortName?: string;
 }
 
 const MobileNavigation: React.FC = () => {
@@ -36,26 +39,75 @@ const MobileNavigation: React.FC = () => {
   const isAdmin = user?.role === 'admin';
 
   const navigationItems: NavigationItem[] = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Clock', href: '/clock-in-out', icon: Clock },
-    { name: 'My Time', href: '/my-timesheet', icon: Calendar },
+    { 
+      name: 'Dashboard', 
+      shortName: 'Home',
+      href: '/dashboard', 
+      icon: LayoutDashboard 
+    },
+    { 
+      name: 'Clock In/Out', 
+      shortName: 'Clock',
+      href: '/clock-in-out', 
+      icon: Clock 
+    },
+    { 
+      name: 'My Timesheet', 
+      shortName: 'Time',
+      href: '/my-timesheet', 
+      icon: Calendar 
+    },
     ...(isAdmin ? [
-      { name: 'Employees', href: '/employees', icon: Users, adminOnly: true },
-      { name: 'Timesheets', href: '/timesheets', icon: FileText, adminOnly: true },
-      { name: 'Reports', href: '/reports', icon: BarChart3, adminOnly: true },
+      { 
+        name: 'Employees', 
+        shortName: 'Staff',
+        href: '/employees', 
+        icon: Users, 
+        adminOnly: true 
+      },
+      { 
+        name: 'Timesheets', 
+        shortName: 'Sheets',
+        href: '/timesheets', 
+        icon: FileText, 
+        adminOnly: true 
+      },
+      { 
+        name: 'Reports', 
+        shortName: 'Reports',
+        href: '/reports', 
+        icon: BarChart3, 
+        adminOnly: true 
+      },
     ] : []),
-    { name: 'Profile', href: '/profile', icon: User },
+    { 
+      name: 'Profile', 
+      shortName: 'Profile',
+      href: '/profile', 
+      icon: User 
+    },
   ];
 
   // Update active index based on current location
   useEffect(() => {
-    const currentIndex = navigationItems.findIndex(item => item.href === location.pathname);
+    const currentIndex = navigationItems.findIndex(item => {
+      if (item.href === '/dashboard') {
+        return location.pathname === '/' || location.pathname === '/dashboard';
+      }
+      return location.pathname.startsWith(item.href);
+    });
     if (currentIndex !== -1) {
       setActiveIndex(currentIndex);
     }
   }, [location.pathname, navigationItems]);
 
-  // Handle touch events for swipe navigation
+  const handleNavigation = (href: string, index: number) => {
+    vibrate(50); // Haptic feedback
+    setActiveIndex(index);
+    navigate(href);
+  };
+
+  // Swipe detection for better mobile UX
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchEnd(null);
     setTouchStart(e.targetTouches[0].clientX);
@@ -74,33 +126,23 @@ const MobileNavigation: React.FC = () => {
 
     if (isLeftSwipe && activeIndex < navigationItems.length - 1) {
       const nextIndex = activeIndex + 1;
-      setActiveIndex(nextIndex);
-      navigate(navigationItems[nextIndex].href);
-      vibrate(50); // Haptic feedback
+      handleNavigation(navigationItems[nextIndex].href, nextIndex);
     }
-
     if (isRightSwipe && activeIndex > 0) {
       const prevIndex = activeIndex - 1;
-      setActiveIndex(prevIndex);
-      navigate(navigationItems[prevIndex].href);
-      vibrate(50); // Haptic feedback
+      handleNavigation(navigationItems[prevIndex].href, prevIndex);
     }
-  };
-
-  const handleNavigation = (item: NavigationItem, index: number) => {
-    setActiveIndex(index);
-    navigate(item.href);
-    vibrate(30); // Light haptic feedback
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/98 backdrop-blur-lg border-t border-border/30 md:hidden">
-      <div 
-        className="flex items-center justify-around px-0.5 py-0.5 w-full"
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
+    <nav 
+      className="fixed bottom-0 left-0 right-0 z-50 mobile-nav-bottom bg-card/95 backdrop-blur-md border-t border-border/50 mobile-safe-bottom shadow-lg"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Navigation Items */}
+      <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 gap-0.5 sm:gap-1 h-full">
         {navigationItems.map((item, index) => {
           const isActive = index === activeIndex;
           const Icon = item.icon;
@@ -109,47 +151,64 @@ const MobileNavigation: React.FC = () => {
             <Button
               key={item.href}
               variant="ghost"
-              size="sm"
+              onClick={() => handleNavigation(item.href, index)}
               className={cn(
-                "flex flex-col items-center justify-center min-h-[38px] px-0.5 py-0.5 relative transition-all duration-300 flex-1",
-                "hover:bg-accent/10 active:bg-accent/20 active:scale-95",
-                isActive && "text-primary bg-primary/10 border-t-2 border-t-primary"
+                "relative flex flex-col items-center justify-center mobile-nav-item rounded-md transition-all duration-200 mobile-press mobile-touch-target mobile-focus-ring",
+                "hover:bg-accent/80 active:bg-accent/90",
+                isActive 
+                  ? "bg-primary/10 text-primary border-t-2 border-t-primary shadow-md mobile-gradient-primary/20" 
+                  : "text-muted-foreground hover:text-foreground"
               )}
-              onClick={() => handleNavigation(item, index)}
             >
+              {/* Icon */}
               <div className="relative">
                 <Icon className={cn(
-                  "h-4 w-4 mb-0.5 transition-all duration-300",
-                  isActive && "scale-110"
+                  "mobile-button-icon transition-all duration-200",
+                  isActive ? "text-primary scale-110" : "text-muted-foreground group-hover:text-foreground"
                 )} />
-                {item.badge && (
+                
+                {/* Badge for notifications */}
+                {item.badge && item.badge > 0 && (
                   <Badge 
                     variant="destructive" 
-                    className="absolute -top-1 -right-1 h-3 w-3 p-0 text-xs flex items-center justify-center"
+                    className="absolute -top-1 -right-1 mobile-badge min-w-0 px-1 rounded-full flex items-center justify-center"
                   >
-                    {item.badge}
+                    {item.badge > 99 ? '99+' : item.badge}
                   </Badge>
                 )}
               </div>
+
+              {/* Label */}
               <span className={cn(
-                "text-xs font-medium transition-all duration-300 text-center truncate max-w-full leading-tight",
-                isActive ? "text-primary" : "text-muted-foreground"
+                "mobile-text font-medium mt-0.5 truncate transition-all duration-200",
+                isActive ? "text-primary font-semibold" : "text-muted-foreground"
               )}>
-                {item.name}
+                {item.shortName || item.name}
               </span>
+
+              {/* Active Indicator */}
               {isActive && (
-                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-6 h-0.5 bg-primary rounded-full" />
+                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-6 h-0.5 bg-primary rounded-full" />
               )}
             </Button>
           );
         })}
       </div>
-      
-      {/* Swipe indicator */}
-      <div className="flex justify-center pb-1">
-        <div className="w-8 h-1 bg-border/50 rounded-full" />
+
+      {/* Admin Indicator */}
+      {isAdmin && (
+        <div className="absolute top-0 right-2 transform -translate-y-1/2">
+          <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-2 py-0.5 rounded-full shadow-lg">
+            <span className="text-[8px] font-bold">ADMIN</span>
+          </div>
+        </div>
+      )}
+
+      {/* Swipe Indicator */}
+      <div className="absolute top-1 left-1/2 transform -translate-x-1/2">
+        <div className="w-8 h-0.5 bg-muted-foreground/30 rounded-full" />
       </div>
-    </div>
+    </nav>
   );
 };
 
