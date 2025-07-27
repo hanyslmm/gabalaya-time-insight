@@ -356,20 +356,20 @@ const ReportsPage: React.FC = () => {
   };
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 space-y-4 sm:space-y-0">
+    <div className="w-full px-2 sm:px-4 lg:px-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 space-y-2 sm:space-y-0">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             Reports
           </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="mt-1 text-xs sm:text-sm text-muted-foreground hidden sm:block">
             Generate and export attendance and payroll reports
           </p>
         </div>
       </div>
 
       {/* Date Filter */}
-      <div className="mb-6">
+      <div className="mb-3 sm:mb-6">
         <TimesheetDateFilter
           dateRange={dateRange}
           onDateRangeChange={setDateRange}
@@ -407,30 +407,30 @@ const ReportsPage: React.FC = () => {
             <CardContent className="p-0">
               {/* Summary Section */}
               {attendanceReport && attendanceReport.length > 0 && (
-                <div className="p-6 border-b border-border/50 bg-muted/20">
-                  <h3 className="text-lg font-semibold mb-4 text-primary">Period Summary</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-card rounded-lg p-4 border border-border/50 shadow-sm">
-                      <div className="text-sm text-muted-foreground">Total Shifts</div>
-                      <div className="text-2xl font-bold text-primary">
+                <div className="p-3 sm:p-6 border-b border-border/50 bg-muted/20">
+                  <h3 className="text-base sm:text-lg font-semibold mb-2 sm:mb-4 text-primary">Period Summary</h3>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+                    <div className="bg-card rounded-lg p-2 sm:p-4 border border-border/50 shadow-sm">
+                      <div className="text-xs sm:text-sm text-muted-foreground">Total Shifts</div>
+                      <div className="text-lg sm:text-2xl font-bold text-primary">
                         {attendanceReport.length}
                       </div>
                     </div>
-                    <div className="bg-card rounded-lg p-4 border border-border/50 shadow-sm">
-                      <div className="text-sm text-muted-foreground">Total Hours</div>
-                      <div className="text-2xl font-bold text-blue-600">
+                    <div className="bg-card rounded-lg p-2 sm:p-4 border border-border/50 shadow-sm">
+                      <div className="text-xs sm:text-sm text-muted-foreground">Total Hours</div>
+                      <div className="text-lg sm:text-2xl font-bold text-blue-600">
                         {Number(attendanceReport.reduce((sum: number, entry: any) => sum + (entry.total_hours || 0), 0)).toFixed(1)}h
                       </div>
                     </div>
-                    <div className="bg-card rounded-lg p-4 border border-border/50 shadow-sm">
-                      <div className="text-sm text-muted-foreground">Morning Hours</div>
-                      <div className="text-2xl font-bold text-orange-600">
+                    <div className="bg-card rounded-lg p-2 sm:p-4 border border-border/50 shadow-sm">
+                      <div className="text-xs sm:text-sm text-muted-foreground">Morning Hours</div>
+                      <div className="text-lg sm:text-2xl font-bold text-orange-600">
                         {Number(attendanceReport.reduce((sum: number, entry: any) => sum + (entry.calculated_morning_hours || 0), 0)).toFixed(1)}h
                       </div>
                     </div>
-                    <div className="bg-card rounded-lg p-4 border border-border/50 shadow-sm">
-                      <div className="text-sm text-muted-foreground">Night Hours</div>
-                      <div className="text-2xl font-bold text-purple-600">
+                    <div className="bg-card rounded-lg p-2 sm:p-4 border border-border/50 shadow-sm">
+                      <div className="text-xs sm:text-sm text-muted-foreground">Night Hours</div>
+                      <div className="text-lg sm:text-2xl font-bold text-purple-600">
                         {Number(attendanceReport.reduce((sum: number, entry: any) => sum + (entry.calculated_night_hours || 0), 0)).toFixed(1)}h
                       </div>
                     </div>

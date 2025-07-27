@@ -124,7 +124,7 @@ const Layout = () => {
         {/* Main content */}
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Top navigation */}
-          <header className="bg-card/95 backdrop-blur-sm border-b border-border/50 px-2 py-2 sm:px-6 sm:py-3 sticky top-0 z-40">
+          <header className="bg-card/95 backdrop-blur-sm border-b border-border/50 px-2 py-1.5 sm:px-4 sm:py-2.5 sticky top-0 z-40">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2 sm:space-x-4">
                 {/* Mobile menu trigger */}
@@ -239,7 +239,7 @@ const Layout = () => {
 
           {/* Page content */}
           <main className="flex-1 overflow-y-auto bg-gradient-to-br from-background to-background/95">
-            <div className="py-1 px-1 sm:py-2 sm:px-2 lg:px-4 min-h-full pb-20 md:pb-6 w-full">
+            <div className="py-1 px-1 sm:py-2 sm:px-2 min-h-full pb-16 md:pb-4 w-full">
               <Outlet />
             </div>
           </main>
