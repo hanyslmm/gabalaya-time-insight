@@ -13,19 +13,60 @@ const MyTimesheetPage: React.FC = () => {
   const { user } = useAuth();
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [filterType, setFilterType] = useState<'month' | 'payPeriod'>('month');
+  const [payPeriodType, setPayPeriodType] = useState<'current' | 'previous'>('current');
+
+  // Calculate pay period dates (assuming pay period ends on 28th of each month)
+  const getPayPeriodDates = (type: 'current' | 'previous') => {
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    
+    if (type === 'current') {
+      // Current pay period: previous month 29th to current month 28th
+      const startDate = new Date(currentYear, currentMonth - 1, 29);
+      const endDate = new Date(currentYear, currentMonth, 28);
+      return { startDate, endDate };
+    } else {
+      // Previous pay period: 2 months ago 29th to previous month 28th
+      const startDate = new Date(currentYear, currentMonth - 2, 29);
+      const endDate = new Date(currentYear, currentMonth - 1, 28);
+      return { startDate, endDate };
+    }
+  };
 
   const { data: timesheetData, isLoading } = useQuery({
-    queryKey: ['my-timesheet', user?.username, selectedMonth, selectedYear],
+    queryKey: ['my-timesheet', user?.username, selectedMonth, selectedYear, filterType, payPeriodType],
     queryFn: async () => {
       if (!user?.username) return null;
       
-      const { data, error } = await supabase
+      let startDate: string, endDate: string;
+      
+      if (filterType === 'month') {
+        // Month-based filtering
+        startDate = `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-01`;
+        endDate = `${selectedYear}-${(selectedMonth + 1).toString().padStart(2, '0')}-01`;
+             } else {
+         // Pay period filtering
+         const { startDate: payStartDate, endDate: payEndDate } = getPayPeriodDates(payPeriodType);
+         startDate = payStartDate.toISOString().split('T')[0];
+         endDate = payEndDate.toISOString().split('T')[0];
+       }
+      
+      const query = supabase
         .from('timesheet_entries')
         .select('*')
         .eq('employee_name', user.username)
-        .gte('clock_in_date', `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-01`)
-        .lt('clock_in_date', `${selectedYear}-${(selectedMonth + 1).toString().padStart(2, '0')}-01`)
+        .gte('clock_in_date', startDate)
         .order('clock_in_date', { ascending: false });
+        
+      if (filterType === 'month') {
+        query.lt('clock_in_date', endDate);
+      } else {
+        query.lte('clock_in_date', endDate);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       return data || [];
@@ -92,30 +133,56 @@ const MyTimesheetPage: React.FC = () => {
           <p className="text-muted-foreground">View your attendance and earnings summary</p>
         </div>
         <div className="flex space-x-2">
-          <Select value={selectedMonth.toString()} onValueChange={(value) => setSelectedMonth(parseInt(value))}>
-            <SelectTrigger className="w-32">
+          <Select value={filterType} onValueChange={(value: 'month' | 'payPeriod') => setFilterType(value)}>
+            <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {months.map((month) => (
-                <SelectItem key={month.value} value={month.value.toString()}>
-                  {month.label}
-                </SelectItem>
-              ))}
+              <SelectItem value="month">By Month</SelectItem>
+              <SelectItem value="payPeriod">Pay Period</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(parseInt(value))}>
-            <SelectTrigger className="w-20">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {years.map((year) => (
-                <SelectItem key={year} value={year.toString()}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          
+          {filterType === 'month' && (
+            <>
+              <Select value={selectedMonth.toString()} onValueChange={(value) => setSelectedMonth(parseInt(value))}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {months.map((month) => (
+                    <SelectItem key={month.value} value={month.value.toString()}>
+                      {month.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(parseInt(value))}>
+                <SelectTrigger className="w-20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {years.map((year) => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
+          
+          {filterType === 'payPeriod' && (
+            <Select value={payPeriodType} onValueChange={(value: 'current' | 'previous') => setPayPeriodType(value)}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="current">Current Pay Period</SelectItem>
+                <SelectItem value="previous">Previous Pay Period</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </div>
 
