@@ -127,18 +127,18 @@ Deno.serve(async (req) => {
         )
       }
 
-      // Get full name from employees table if not available and check for admin role elevation
+      // Get full name from employees table if not available (but don't elevate roles)
       let fullName = user.full_name;
-      let finalRole = user.role;
+      let finalRole = user.role; // Always use role from admin_users table
       
-      if (!fullName || user.role === 'employee') {
+      if (!fullName) {
         const { data: employeeData } = await supabaseAdmin
           .from('employees')
-          .select('full_name, role')
+          .select('full_name')
           .eq('staff_id', user.username)
           .maybeSingle();
         
-        if (employeeData?.full_name && !fullName) {
+        if (employeeData?.full_name) {
           fullName = employeeData.full_name;
           // Update admin_users table with the full name
           await supabaseAdmin
@@ -146,17 +146,10 @@ Deno.serve(async (req) => {
             .update({ full_name: fullName })
             .eq('username', user.username);
         }
-        
-        // Check if employee has admin role in employees table
-        if (employeeData?.role === 'admin' && user.role === 'employee') {
-          finalRole = 'admin';
-          // Update admin_users table to reflect admin role
-          await supabaseAdmin
-            .from('admin_users')
-            .update({ role: 'admin' })
-            .eq('username', user.username);
-        }
       }
+      
+      // Role is determined solely by admin_users table - no automatic elevation
+      // Only designated admin accounts should have admin role in admin_users table
 
       const token = generateToken({ ...user, full_name: fullName, role: finalRole });
       const userData = {
