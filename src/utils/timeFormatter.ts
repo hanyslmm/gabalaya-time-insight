@@ -65,11 +65,13 @@ export const formatTimeWithTimezone = async (time24: string, showTimezone = fals
 };
 
 /**
- * Get timezone abbreviation for display
+ * Get timezone abbreviation for display with improved error handling
  */
 export const getTimezoneAbbreviation = async (): Promise<string> => {
   try {
     const timezone = await getCompanyTimezone();
+    console.log('Getting abbreviation for timezone:', timezone);
+    
     const now = new Date();
     const formatter = new Intl.DateTimeFormat('en', {
       timeZone: timezone,
@@ -78,9 +80,12 @@ export const getTimezoneAbbreviation = async (): Promise<string> => {
     
     const parts = formatter.formatToParts(now);
     const timezonePart = parts.find(part => part.type === 'timeZoneName');
-    return timezonePart?.value || timezone.split('/').pop() || 'Local';
+    const abbreviation = timezonePart?.value || timezone.split('/').pop() || 'Local';
+    
+    console.log('Timezone abbreviation:', abbreviation);
+    return abbreviation;
   } catch (error) {
     console.warn('Could not get timezone abbreviation:', error);
-    return 'Local';
+    return 'UTC+2'; // Default for Egypt timezone
   }
 };
