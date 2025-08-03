@@ -11,6 +11,8 @@ import { Clock, LogIn, LogOut, MapPin, AlertCircle, RefreshCw, Users, Eye, EyeOf
 import { format, differenceInMinutes, startOfDay, addHours } from 'date-fns';
 import { toast } from 'sonner';
 import ProfileAvatar from '@/components/ProfileAvatar';
+import { getCurrentCompanyTime, getTodayInCompanyTimezone, formatInCompanyTimezone, getCompanyTimezone } from '@/utils/timezoneUtils';
+import { getTimezoneAbbreviation } from '@/utils/timeFormatter';
 
 // Defines the structure for a clock-in/out entry
 interface ClockEntry {
@@ -45,11 +47,13 @@ const ClockInOutPage: React.FC = () => {
   const [location, setLocation] = useState<string | null>(null);
   const [motivationalMessage, setMotivationalMessage] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [companyTime, setCompanyTime] = useState(new Date());
   const [workedHours, setWorkedHours] = useState(0);
   const [targetHours] = useState(8); // Default 8-hour workday
   const [showDebug, setShowDebug] = useState(false);
+  const [timezoneAbbr, setTimezoneAbbr] = useState('Local');
 
-  // Fetch motivational message on component mount
+  // Fetch motivational message and timezone info on component mount
   useEffect(() => {
     const fetchMessage = async () => {
       const { data } = await supabase
@@ -61,7 +65,18 @@ const ClockInOutPage: React.FC = () => {
         setMotivationalMessage(data.motivational_message);
       }
     };
+    
+    const fetchTimezoneInfo = async () => {
+      try {
+        const abbr = await getTimezoneAbbreviation();
+        setTimezoneAbbr(abbr);
+      } catch (error) {
+        console.warn('Could not fetch timezone abbreviation:', error);
+      }
+    };
+    
     fetchMessage();
+    fetchTimezoneInfo();
   }, []);
 
   // Get user's current geolocation
@@ -103,7 +118,7 @@ const ClockInOutPage: React.FC = () => {
       });
 
       // Fetch today's timesheet entries for all employees
-      const today = format(new Date(), 'yyyy-MM-dd');
+      const today = await getTodayInCompanyTimezone();
       const { data: timesheetData, error: timesheetError } = await supabase
         .from('timesheet_entries')
         .select('*')
@@ -118,7 +133,7 @@ const ClockInOutPage: React.FC = () => {
       timesheetData?.forEach(entry => {
         const isActive = !entry.clock_out_time || entry.clock_out_time === '00:00:00';
         const duration = isActive 
-          ? differenceInMinutes(new Date(), new Date(`${entry.clock_in_date}T${entry.clock_in_time}`))
+          ? differenceInMinutes(await getCurrentCompanyTime(), new Date(`${entry.clock_in_date}T${entry.clock_in_time}`))
           : entry.total_hours ? entry.total_hours * 60 : 0;
 
         // Map employee ID/name to display name
@@ -170,7 +185,7 @@ const ClockInOutPage: React.FC = () => {
       return;
     }
     
-    const today = new Date().toISOString().split('T')[0];
+    const today = await getTodayInCompanyTimezone();
     
     try {
       // Build user identifiers for timesheet lookup
@@ -226,13 +241,16 @@ const ClockInOutPage: React.FC = () => {
 
   // Update current time and worked hours every minute
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
+    const timer = setInterval(async () => {
+      const utcNow = new Date();
+      const companyNow = await getCurrentCompanyTime();
+      setCurrentTime(utcNow);
+      setCompanyTime(companyNow);
       
       // Calculate worked hours if clocked in
       if (currentEntry) {
         const clockInDateTime = new Date(`${currentEntry.clock_in_date}T${currentEntry.clock_in_time}`);
-        const minutesWorked = differenceInMinutes(new Date(), clockInDateTime);
+        const minutesWorked = differenceInMinutes(companyNow, clockInDateTime);
         setWorkedHours(minutesWorked / 60);
       }
     }, 1000);
@@ -291,7 +309,7 @@ const ClockInOutPage: React.FC = () => {
           console.log('Clock in error - user already clocked in, refreshing data...');
           
           // Refresh the data and check the result directly
-          const today = new Date().toISOString().split('T')[0];
+          const today = await getTodayInCompanyTimezone();
           try {
             // Build comprehensive identifier list
             const userIdentifiers = [user.username, user.full_name];
@@ -395,7 +413,7 @@ const ClockInOutPage: React.FC = () => {
   };
 
   const getGreeting = () => {
-    const hour = currentTime.getHours();
+    const hour = companyTime.getHours();
     if (hour < 12) return "Good Morning";
     if (hour < 17) return "Good Afternoon";
     return "Good Evening";
@@ -422,7 +440,7 @@ const ClockInOutPage: React.FC = () => {
                   {getGreeting()}, {user?.full_name?.split(' ')[0] || user?.username}!
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  {format(currentTime, 'eeee, MMMM dd • h:mm:ss a')}
+                  {format(companyTime, 'eeee, MMMM dd • h:mm:ss a')} ({timezoneAbbr})
                 </p>
               </div>
               <div className="text-2xl">
