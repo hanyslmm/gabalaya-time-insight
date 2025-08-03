@@ -6,40 +6,50 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, Save, Settings } from 'lucide-react';
+import { MessageCircle, Save, Settings, Clock } from 'lucide-react';
+import { COMMON_TIMEZONES, clearTimezoneCache } from '@/utils/timezoneUtils';
 
 const CompanySettingsPage: React.FC = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [message, setMessage] = useState('');
+  const [timezone, setTimezone] = useState('Africa/Cairo');
 
-  // Fetch current motivational message
-  const { data: currentMessage, isLoading } = useQuery({
+  // Fetch current company settings
+  const { data: currentSettings, isLoading } = useQuery({
     queryKey: ['company-settings'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('company_settings')
-        .select('motivational_message')
+        .select('motivational_message, timezone')
         .single();
 
       if (error && error.code !== 'PGRST116') {
         // If no settings exist, return default
-        return { motivational_message: "Keep up the great work! Your dedication and effort make a real difference to our team." };
+        return { 
+          motivational_message: "Keep up the great work! Your dedication and effort make a real difference to our team.",
+          timezone: "Africa/Cairo"
+        };
       }
       
-      return data || { motivational_message: "Keep up the great work! Your dedication and effort make a real difference to our team." };
+      return data || { 
+        motivational_message: "Keep up the great work! Your dedication and effort make a real difference to our team.",
+        timezone: "Africa/Cairo"
+      };
     }
   });
 
-  // Save motivational message
+  // Save company settings
   const saveMutation = useMutation({
-    mutationFn: async (newMessage: string) => {
+    mutationFn: async ({ newMessage, newTimezone }: { newMessage: string; newTimezone: string }) => {
       const { data, error } = await supabase
         .from('company_settings')
         .upsert({ 
           id: 1, // Use a fixed ID for singleton settings
-          motivational_message: newMessage 
+          motivational_message: newMessage,
+          timezone: newTimezone
         }, {
           onConflict: 'id'
         });
@@ -50,8 +60,10 @@ const CompanySettingsPage: React.FC = () => {
     onSuccess: () => {
       toast({
         title: "Settings Saved",
-        description: "Employee motivational message has been updated successfully.",
+        description: "Company settings have been updated successfully.",
       });
+      // Clear timezone cache to force reload
+      clearTimezoneCache();
       queryClient.invalidateQueries({ queryKey: ['company-settings'] });
       queryClient.invalidateQueries({ queryKey: ['motivational-message'] });
     },
@@ -67,15 +79,21 @@ const CompanySettingsPage: React.FC = () => {
 
   const handleSave = () => {
     if (message.trim()) {
-      saveMutation.mutate(message.trim());
+      saveMutation.mutate({ 
+        newMessage: message.trim(),
+        newTimezone: timezone
+      });
     }
   };
 
   React.useEffect(() => {
-    if (currentMessage?.motivational_message) {
-      setMessage(currentMessage.motivational_message);
+    if (currentSettings?.motivational_message) {
+      setMessage(currentSettings.motivational_message);
     }
-  }, [currentMessage]);
+    if (currentSettings?.timezone) {
+      setTimezone(currentSettings.timezone);
+    }
+  }, [currentSettings]);
 
   if (isLoading) {
     return (
@@ -149,19 +167,74 @@ const CompanySettingsPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="mt-6 bg-gradient-to-br from-card via-card to-muted/5 border-border/50 shadow-lg">
+        <Card className="mt-6 bg-gradient-to-br from-card via-card to-secondary/5 border-border/50 shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-3">
-              <div className="p-2 bg-muted/20 rounded-lg">
-                <Settings className="h-5 w-5 text-muted-foreground" />
+              <div className="p-2 bg-secondary/10 rounded-lg">
+                <Clock className="h-5 w-5 text-secondary" />
               </div>
-              Additional Settings
+              Timezone Configuration
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              More company settings and configuration options will be available here in future updates.
-            </p>
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="timezone-select">
+                Company Timezone
+              </Label>
+              <Select value={timezone} onValueChange={setTimezone}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select timezone..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {COMMON_TIMEZONES.map((tz) => (
+                    <SelectItem key={tz.value} value={tz.value}>
+                      {tz.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                This timezone will be used for all employee clock-in/out times and reports.
+              </p>
+            </div>
+
+            <div className="bg-muted/30 p-4 rounded-lg">
+              <h4 className="font-medium text-sm text-foreground mb-2">Current Time Preview:</h4>
+              <p className="text-muted-foreground">
+                🕐 {new Date().toLocaleString('en-GB', { 
+                  timeZone: timezone,
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                  hour12: false
+                })}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Times will be displayed in this timezone throughout the application
+              </p>
+            </div>
+
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-4 rounded-lg">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                ⚠️ <strong>Important:</strong> Changing the timezone will affect how all future times are displayed. 
+                Existing timesheet entries will be converted to show in the new timezone.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-4">
+              <Button
+                onClick={handleSave}
+                disabled={saveMutation.isPending || !message.trim()}
+                className="bg-primary hover:bg-primary/90"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {saveMutation.isPending ? 'Saving...' : 'Save All Settings'}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

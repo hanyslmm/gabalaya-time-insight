@@ -1,4 +1,5 @@
 // Utility functions for time formatting
+import { getCompanyTimezone } from './timezoneUtils';
 
 export const formatTimeToAMPM = (time24: string): string => {
   if (!time24) return '';
@@ -39,4 +40,47 @@ export const formatAMPMTo24 = (timeAMPM: string): string => {
   }
   
   return `${hour.toString().padStart(2, '0')}:${minute}:00`;
+};
+
+/**
+ * Format time with timezone information when needed
+ */
+export const formatTimeWithTimezone = async (time24: string, showTimezone = false): Promise<string> => {
+  if (!time24) return '';
+  
+  const formattedTime = formatTimeToAMPM(time24);
+  
+  if (showTimezone) {
+    try {
+      const timezone = await getCompanyTimezone();
+      const shortTimezone = timezone.split('/').pop() || timezone;
+      return `${formattedTime} (${shortTimezone})`;
+    } catch (error) {
+      console.warn('Could not get timezone for time formatting:', error);
+      return formattedTime;
+    }
+  }
+  
+  return formattedTime;
+};
+
+/**
+ * Get timezone abbreviation for display
+ */
+export const getTimezoneAbbreviation = async (): Promise<string> => {
+  try {
+    const timezone = await getCompanyTimezone();
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('en', {
+      timeZone: timezone,
+      timeZoneName: 'short'
+    });
+    
+    const parts = formatter.formatToParts(now);
+    const timezonePart = parts.find(part => part.type === 'timeZoneName');
+    return timezonePart?.value || timezone.split('/').pop() || 'Local';
+  } catch (error) {
+    console.warn('Could not get timezone abbreviation:', error);
+    return 'Local';
+  }
 };
