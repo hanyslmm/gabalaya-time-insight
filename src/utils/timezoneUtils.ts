@@ -1,41 +1,73 @@
 import { supabase } from '@/integrations/supabase/client';
 
 // Cache for company timezone to avoid repeated database calls
+// Use a more robust caching mechanism
 let cachedTimezone: string | null = null;
 let timezoneLastFetched = 0;
-const TIMEZONE_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+let fetchPromise: Promise<string> | null = null;
+const TIMEZONE_CACHE_DURATION = 10 * 60 * 1000; // Increased to 10 minutes for better stability
 
 /**
- * Get the company's configured timezone
+ * Get the company's configured timezone with improved caching and error handling
  */
 export async function getCompanyTimezone(): Promise<string> {
   const now = Date.now();
   
   // Return cached timezone if still valid
   if (cachedTimezone && (now - timezoneLastFetched) < TIMEZONE_CACHE_DURATION) {
+    console.log('Using cached timezone:', cachedTimezone);
     return cachedTimezone;
   }
 
-  try {
-    const { data, error } = await supabase
-      .from('company_settings')
-      .select('timezone')
-      .eq('id', 1)
-      .single();
+  // If there's already a fetch in progress, wait for it
+  if (fetchPromise) {
+    console.log('Waiting for existing timezone fetch...');
+    return fetchPromise;
+  }
 
-    if (error || !data?.timezone) {
-      console.warn('Could not fetch company timezone, using default:', error);
-      cachedTimezone = 'Africa/Cairo';
-    } else {
-      cachedTimezone = data.timezone;
+  // Create a new fetch promise
+  fetchPromise = (async () => {
+    try {
+      console.log('Fetching company timezone from database...');
+      const { data, error } = await supabase
+        .from('company_settings')
+        .select('timezone')
+        .eq('id', 1)
+        .single();
+
+      if (error) {
+        console.warn('Error fetching company timezone:', error);
+        // Try to get the first available record if single fails
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('company_settings')
+          .select('timezone')
+          .limit(1);
+        
+        if (fallbackError || !fallbackData || fallbackData.length === 0) {
+          console.warn('No company timezone found, using default Africa/Cairo');
+          cachedTimezone = 'Africa/Cairo';
+        } else {
+          cachedTimezone = fallbackData[0].timezone || 'Africa/Cairo';
+          console.log('Using fallback timezone:', cachedTimezone);
+        }
+      } else {
+        cachedTimezone = data?.timezone || 'Africa/Cairo';
+        console.log('Successfully fetched timezone:', cachedTimezone);
+      }
+      
+      timezoneLastFetched = now;
+      fetchPromise = null; // Clear the promise
+      return cachedTimezone;
+    } catch (error) {
+      console.error('Error in getCompanyTimezone:', error);
+      fetchPromise = null; // Clear the promise even on error
+      cachedTimezone = 'Africa/Cairo'; // Default fallback
+      timezoneLastFetched = now;
+      return cachedTimezone;
     }
-    
-    timezoneLastFetched = now;
-    return cachedTimezone;
-  } catch (error) {
-    console.error('Error fetching company timezone:', error);
-    return 'Africa/Cairo'; // Default to Egypt timezone
-  }
+  })();
+
+  return fetchPromise;
 }
 
 /**
@@ -178,6 +210,43 @@ export async function parseCompanyDateTime(dateStr: string, timeStr?: string): P
 export function clearTimezoneCache(): void {
   cachedTimezone = null;
   timezoneLastFetched = 0;
+  fetchPromise = null;
+  console.log('Timezone cache cleared');
+}
+
+/**
+ * Validate and ensure timezone consistency across the application
+ */
+export async function validateTimezone(): Promise<{ isValid: boolean; timezone: string; message: string }> {
+  try {
+    const timezone = await getCompanyTimezone();
+    
+    // Test if the timezone is valid by trying to use it
+    const testDate = new Date();
+    const formatted = new Intl.DateTimeFormat('en-GB', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(testDate);
+    
+    console.log(`Timezone validation: ${timezone} -> ${formatted}`);
+    
+    return {
+      isValid: true,
+      timezone,
+      message: `Timezone ${timezone} is valid and working correctly`
+    };
+  } catch (error) {
+    console.error('Timezone validation failed:', error);
+    return {
+      isValid: false,
+      timezone: 'Africa/Cairo',
+      message: `Timezone validation failed: ${error}. Using fallback.`
+    };
+  }
 }
 
 /**

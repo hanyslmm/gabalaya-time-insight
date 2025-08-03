@@ -11,7 +11,7 @@ import { Clock, LogIn, LogOut, MapPin, AlertCircle, RefreshCw, Users, Eye, EyeOf
 import { format, differenceInMinutes, startOfDay, addHours } from 'date-fns';
 import { toast } from 'sonner';
 import ProfileAvatar from '@/components/ProfileAvatar';
-import { getCurrentCompanyTime, getTodayInCompanyTimezone, formatInCompanyTimezone, getCompanyTimezone } from '@/utils/timezoneUtils';
+import { getCurrentCompanyTime, getTodayInCompanyTimezone, formatInCompanyTimezone, getCompanyTimezone, validateTimezone } from '@/utils/timezoneUtils';
 import { getTimezoneAbbreviation } from '@/utils/timeFormatter';
 
 // Defines the structure for a clock-in/out entry
@@ -68,10 +68,19 @@ const ClockInOutPage: React.FC = () => {
     
     const fetchTimezoneInfo = async () => {
       try {
+        // Validate timezone first
+        const validation = await validateTimezone();
+        console.log('Timezone validation result:', validation);
+        
+        if (!validation.isValid) {
+          toast.error(`Timezone issue: ${validation.message}`);
+        }
+        
         const abbr = await getTimezoneAbbreviation();
         setTimezoneAbbr(abbr);
       } catch (error) {
         console.warn('Could not fetch timezone abbreviation:', error);
+        setTimezoneAbbr('UTC+2'); // Fallback
       }
     };
     
@@ -240,22 +249,34 @@ const ClockInOutPage: React.FC = () => {
     }
   };
 
-  // Update current time and worked hours every minute
+  // Update current time and worked hours every second with error handling
   useEffect(() => {
-    const timer = setInterval(async () => {
-      const utcNow = new Date();
-      const companyNow = await getCurrentCompanyTime();
-      setCurrentTime(utcNow);
-      setCompanyTime(companyNow);
-      
-      // Calculate worked hours if clocked in
-      if (currentEntry) {
-        const clockInDateTime = new Date(`${currentEntry.clock_in_date}T${currentEntry.clock_in_time}`);
-        const minutesWorked = differenceInMinutes(companyNow, clockInDateTime);
-        setWorkedHours(minutesWorked / 60);
+    const updateTime = async () => {
+      try {
+        const utcNow = new Date();
+        const companyNow = await getCurrentCompanyTime();
+        setCurrentTime(utcNow);
+        setCompanyTime(companyNow);
+        
+        // Calculate worked hours if clocked in
+        if (currentEntry) {
+          const clockInDateTime = new Date(`${currentEntry.clock_in_date}T${currentEntry.clock_in_time}`);
+          const minutesWorked = differenceInMinutes(companyNow, clockInDateTime);
+          setWorkedHours(minutesWorked / 60);
+        }
+      } catch (error) {
+        console.error('Error updating time:', error);
+        // Fallback to local time if company time fails
+        const localNow = new Date();
+        setCurrentTime(localNow);
+        setCompanyTime(localNow);
       }
-    }, 1000);
+    };
 
+    // Initial update
+    updateTime();
+
+    const timer = setInterval(updateTime, 1000);
     return () => clearInterval(timer);
   }, [currentEntry]);
 
@@ -443,6 +464,11 @@ const ClockInOutPage: React.FC = () => {
                 <p className="text-sm text-muted-foreground">
                   {format(companyTime, 'eeee, MMMM dd • h:mm:ss a')} ({timezoneAbbr})
                 </p>
+                {showDebug && (
+                  <p className="text-xs text-muted-foreground/70 mt-1">
+                    Debug: UTC {new Date().toISOString()} | Local {new Date().toLocaleString()}
+                  </p>
+                )}
               </div>
               <div className="text-2xl">
                 {currentEntry ? '🎯' : '☀️'}
