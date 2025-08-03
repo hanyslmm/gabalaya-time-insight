@@ -1,20 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, Save, User, Lock, Eye, EyeOff } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { User, Mail, Phone, Calendar, Shield, Lock, Eye, EyeOff, Save } from 'lucide-react';
+import MobilePageWrapper, { MobileSection, MobileHeader } from '@/components/MobilePageWrapper';
 import { toast } from 'sonner';
 
 interface Employee {
   id: string;
   staff_id: string;
   full_name: string;
-  email: string | null;
-  phone_number: string | null;
+  email?: string | null;
+  phone_number?: string | null;
   role: string;
   hiring_date: string;
 }
@@ -28,6 +31,8 @@ const ProfilePage: React.FC = () => {
     email: '',
     phone_number: ''
   });
+
+  // Password change state
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -41,39 +46,79 @@ const ProfilePage: React.FC = () => {
   const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
-    fetchEmployeeData();
+    if (user?.username) {
+      fetchEmployeeData();
+    }
   }, [user]);
 
   const fetchEmployeeData = async () => {
-    if (!user) return;
-
     try {
-      const { data, error } = await supabase
+      setLoading(true);
+      console.log('Fetching employee data for:', user?.username);
+
+      // First check if user is admin (in admin_users table)
+      if (user?.role === 'admin') {
+        const { data: adminData, error: adminError } = await supabase
+          .from('admin_users')
+          .select('*')
+          .eq('username', user.username)
+          .single();
+
+        if (adminError) {
+          console.error('Error fetching admin data:', adminError);
+        } else if (adminData) {
+          setEmployee({
+            id: adminData.id,
+            staff_id: adminData.username,
+            full_name: adminData.full_name || adminData.username,
+            email: null,
+            phone_number: null, 
+            role: adminData.role,
+            hiring_date: adminData.created_at?.split('T')[0] || ''
+          });
+          setFormData({
+            email: '',
+            phone_number: ''
+          });
+          setLoading(false);
+          return;
+        }
+      }
+
+      // For employees, check employees table
+      const { data: employeeData, error: employeeError } = await supabase
         .from('employees')
         .select('*')
-        .eq('staff_id', user.username)
+        .eq('staff_id', user?.username)
         .single();
 
-      if (error) throw error;
-
-      setEmployee(data);
-      setFormData({
-        email: data.email || '',
-        phone_number: data.phone_number || ''
-      });
+      if (employeeError) {
+        console.error('Error fetching employee data:', employeeError);
+        toast.error('Error loading profile data');
+      } else if (employeeData) {
+        setEmployee(employeeData);
+        setFormData({
+          email: employeeData.email || '',
+          phone_number: employeeData.phone_number || ''
+        });
+      }
     } catch (error) {
-      console.error('Error fetching employee data:', error);
-      toast.error('Failed to load profile data');
+      console.error('Error in fetchEmployeeData:', error);
+      toast.error('Error loading profile data');
     } finally {
       setLoading(false);
     }
   };
 
   const handleSave = async () => {
-    if (!employee) return;
+    if (!employee || employee.role === 'admin') {
+      toast.error('Contact information not available for admin users');
+      return;
+    }
 
-    setSaving(true);
     try {
+      setSaving(true);
+
       const { error } = await supabase
         .from('employees')
         .update({
@@ -84,301 +129,354 @@ const ProfilePage: React.FC = () => {
 
       if (error) throw error;
 
-      toast.success('Profile updated successfully!');
-      fetchEmployeeData();
+      setEmployee(prev => prev ? {
+        ...prev,
+        email: formData.email || undefined,
+        phone_number: formData.phone_number || undefined
+      } : null);
+
+      toast.success('Profile updated successfully');
     } catch (error) {
       console.error('Error updating profile:', error);
-      toast.error('Failed to update profile');
+      toast.error('Error updating profile');
     } finally {
       setSaving(false);
     }
   };
 
   const handlePasswordChange = async () => {
-    if (!user) return;
+    if (!passwordData.newPassword || !passwordData.confirmPassword) {
+      toast.error('Please fill in all password fields');
+      return;
+    }
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       toast.error('New passwords do not match');
       return;
     }
 
-    if (passwordData.newPassword.length < 6) {
-      toast.error('Password must be at least 6 characters long');
+    if (passwordData.newPassword.length < 4) {
+      toast.error('Password must be at least 4 characters long');
       return;
     }
 
-    setChangingPassword(true);
     try {
-      // Check if user is admin (from admin_users table)
-      if (user.role === 'admin') {
-        // Use the admin password change function
-        const token = localStorage.getItem('auth_token');
-        if (!token) throw new Error('No authentication token found');
+      setChangingPassword(true);
 
-        const { data: result, error } = await supabase.functions.invoke('change-admin-password', {
-          body: {
-            username: user.username,
-            currentPassword: passwordData.currentPassword,
-            newPassword: passwordData.newPassword,
-            token: token
-          }
-        });
-
-        if (error) throw error;
-        if (!result.success) throw new Error(result.error);
-      } else {
-        // For regular employees, use the employee password change function
-        const token = localStorage.getItem('auth_token');
-        if (!token) throw new Error('No authentication token found');
-
-        const { data: result, error } = await supabase.functions.invoke('change-employee-password', {
-          body: {
-            username: user.username,
-            currentPassword: passwordData.currentPassword,
-            newPassword: passwordData.newPassword,
-            token: token
-          }
-        });
-
-        if (error) throw error;
-        if (!result.success) throw new Error(result.error);
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        toast.error('Authentication token not found');
+        return;
       }
 
-      toast.success('Password changed successfully!');
+      let requestBody: any = {
+        action: 'change-password',
+        token,
+        newPassword: passwordData.newPassword
+      };
+
+      if (user?.role === 'admin') {
+        requestBody.currentPassword = passwordData.currentPassword || 'dummy_password';
+      }
+
+      const { data, error } = await supabase.functions.invoke('unified-auth', {
+        body: requestBody
+      });
+
+      if (error || !data?.success) {
+        throw new Error(data?.error || 'Password change failed');
+      }
+
+      // Clear form
       setPasswordData({
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
       });
-    } catch (error) {
-      console.error('Error changing password:', error);
-      toast.error(error.message || 'Failed to change password');
+
+      toast.success(user?.role === 'admin' 
+        ? 'Admin password updated successfully' 
+        : `Password format noted. Employee passwords follow the format: ${user?.username}123`
+      );
+
+    } catch (error: any) {
+      console.error('Password change error:', error);
+      toast.error(error.message || 'Error changing password');
     } finally {
       setChangingPassword(false);
     }
   };
 
+  const getInitials = (fullName?: string) => {
+    if (!fullName) return 'U';
+    return fullName
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase();
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-      </div>
+      <MobilePageWrapper>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        </div>
+      </MobilePageWrapper>
     );
   }
 
   if (!employee) {
     return (
-      <div className="w-full px-4 sm:px-6 lg:px-8">
-        <Card>
-          <CardContent className="p-6 text-center">
-            <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Profile Not Found</h2>
-            <p className="text-muted-foreground">Unable to load your profile information.</p>
-          </CardContent>
-        </Card>
-      </div>
+      <MobilePageWrapper>
+        <MobileHeader title="Profile" subtitle="User profile not found" />
+        <MobileSection>
+          <Alert>
+            <AlertDescription>
+              Employee profile not found. Please contact your administrator.
+            </AlertDescription>
+          </Alert>
+        </MobileSection>
+      </MobilePageWrapper>
     );
   }
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-foreground">My Profile</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Manage your personal information and contact details
-        </p>
-      </div>
+    <MobilePageWrapper>
+      <MobileHeader 
+        title="Profile" 
+        subtitle="Manage your account information"
+      />
 
-      <div className="max-w-2xl mx-auto space-y-6">
-        {/* Profile Picture Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Profile Picture</CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center space-x-6">
-            <Avatar className="h-24 w-24">
-              <AvatarImage src="" alt={employee.full_name} />
-              <AvatarFallback className="text-lg">
-                {employee.full_name.split(' ').map(n => n[0]).join('')}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <Button variant="outline" size="sm" className="mb-2">
-                <Camera className="h-4 w-4 mr-2" />
-                Change Photo
-              </Button>
-              <p className="text-sm text-muted-foreground">
-                JPG, PNG or GIF. Max size 2MB.
-              </p>
+      {/* Profile Picture and Basic Info */}
+      <MobileSection>
+        <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-4">
+              <Avatar className="h-20 w-20 ring-4 ring-primary/20">
+                <AvatarFallback className="text-2xl font-bold bg-primary text-primary-foreground">
+                  {getInitials(employee.full_name)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                <h2 className="text-2xl font-bold text-foreground">{employee.full_name}</h2>
+                <p className="text-muted-foreground font-mono">{employee.staff_id}</p>
+                <Badge variant={employee.role === 'admin' ? 'destructive' : 'secondary'} className="mt-2">
+                  <Shield className="h-3 w-3 mr-1" />
+                  {employee.role.toUpperCase()}
+                </Badge>
+              </div>
             </div>
           </CardContent>
         </Card>
+      </MobileSection>
 
-        {/* Basic Information */}
+      {/* Basic Information */}
+      <MobileSection>
         <Card>
           <CardHeader>
-            <CardTitle>Basic Information</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Basic Information
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="full_name">Full Name</Label>
-                <Input
-                  id="full_name"
-                  value={employee.full_name}
-                  disabled
-                  className="bg-muted"
-                />
+              <div className="bg-muted/50 p-3 rounded-lg">
+                <Label className="text-sm font-medium text-muted-foreground">Staff ID</Label>
+                <div className="mt-1 text-foreground font-mono font-medium">{employee.staff_id}</div>
               </div>
-              <div>
-                <Label htmlFor="staff_id">Staff ID</Label>
-                <Input
-                  id="staff_id"
-                  value={employee.staff_id}
-                  disabled
-                  className="bg-muted"
-                />
+              <div className="bg-muted/50 p-3 rounded-lg">
+                <Label className="text-sm font-medium text-muted-foreground">Role</Label>
+                <div className="mt-1 text-foreground font-medium capitalize">{employee.role}</div>
               </div>
-              <div>
-                <Label htmlFor="role">Role</Label>
-                <Input
-                  id="role"
-                  value={employee.role}
-                  disabled
-                  className="bg-muted"
-                />
+              <div className="md:col-span-2 bg-muted/50 p-3 rounded-lg">
+                <Label className="text-sm font-medium text-muted-foreground">Full Name</Label>
+                <div className="mt-1 text-foreground font-medium">{employee.full_name}</div>
               </div>
-              <div>
-                <Label htmlFor="hiring_date">Hiring Date</Label>
-                <Input
-                  id="hiring_date"
-                  value={new Date(employee.hiring_date).toLocaleDateString()}
-                  disabled
-                  className="bg-muted"
-                />
-              </div>
+              {employee.hiring_date && (
+                <div className="md:col-span-2 bg-muted/50 p-3 rounded-lg">
+                  <Label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Hiring Date
+                  </Label>
+                  <div className="mt-1 text-foreground font-medium">
+                    {new Date(employee.hiring_date).toLocaleDateString()}
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
+      </MobileSection>
 
-        {/* Contact Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Contact Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="email">Email Address</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="Enter your email address"
-              />
-            </div>
-            <div>
-              <Label htmlFor="phone_number">Phone Number</Label>
-              <Input
-                id="phone_number"
-                type="tel"
-                value={formData.phone_number}
-                onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
-                placeholder="Enter your phone number"
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Password Change */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Change Password</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="currentPassword">Current Password</Label>
-              <div className="relative">
+      {/* Contact Information - Only for employees */}
+      {employee.role !== 'admin' && (
+        <MobileSection>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="h-5 w-5" />
+                Contact Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="email" className="flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  Email Address
+                </Label>
                 <Input
-                  id="currentPassword"
-                  type={showPasswords.current ? "text" : "password"}
-                  value={passwordData.currentPassword}
-                  onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                  placeholder="Enter current password"
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="Enter your email address"
+                  className="mt-1"
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                  onClick={() => setShowPasswords({ ...showPasswords, current: !showPasswords.current })}
-                >
-                  {showPasswords.current ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
               </div>
-            </div>
+
+              <div>
+                <Label htmlFor="phone" className="flex items-center gap-2">
+                  <Phone className="h-4 w-4" />
+                  Phone Number
+                </Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={formData.phone_number}
+                  onChange={(e) => setFormData(prev => ({ ...prev, phone_number: e.target.value }))}
+                  placeholder="Enter your phone number"
+                  className="mt-1"
+                />
+              </div>
+
+              <Button
+                onClick={handleSave}
+                disabled={saving}
+                className="w-full"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {saving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </CardContent>
+          </Card>
+        </MobileSection>
+      )}
+
+      {/* Password Management */}
+      <MobileSection>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5" />
+              Password Management
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {employee.role === 'employee' && (
+              <Alert>
+                <AlertDescription>
+                  <strong>Employee Password Format:</strong> {employee.staff_id}123
+                  {employee.staff_id === 'EMP085382' && (
+                    <span className="block mt-1 text-primary">
+                      ⚠️ Special user: Uses the same format as others.
+                    </span>
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {employee.role === 'admin' && (
+              <div>
+                <Label htmlFor="currentPassword" className="flex items-center gap-2">
+                  <Lock className="h-4 w-4" />
+                  Current Password
+                </Label>
+                <div className="relative mt-1">
+                  <Input
+                    id="currentPassword"
+                    type={showPasswords.current ? 'text' : 'password'}
+                    value={passwordData.currentPassword}
+                    onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                    placeholder="Enter current password"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3"
+                    onClick={() => setShowPasswords(prev => ({ ...prev, current: !prev.current }))}
+                  >
+                    {showPasswords.current ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <div>
-              <Label htmlFor="newPassword">New Password</Label>
-              <div className="relative">
+              <Label htmlFor="newPassword" className="flex items-center gap-2">
+                <Lock className="h-4 w-4" />
+                New Password
+              </Label>
+              <div className="relative mt-1">
                 <Input
                   id="newPassword"
-                  type={showPasswords.new ? "text" : "password"}
+                  type={showPasswords.new ? 'text' : 'password'}
                   value={passwordData.newPassword}
-                  onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                  onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
                   placeholder="Enter new password"
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                  onClick={() => setShowPasswords({ ...showPasswords, new: !showPasswords.new })}
+                  className="absolute right-0 top-0 h-full px-3"
+                  onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
                 >
                   {showPasswords.new ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
+
             <div>
-              <Label htmlFor="confirmPassword">Confirm New Password</Label>
-              <div className="relative">
+              <Label htmlFor="confirmPassword" className="flex items-center gap-2">
+                <Lock className="h-4 w-4" />
+                Confirm New Password
+              </Label>
+              <div className="relative mt-1">
                 <Input
                   id="confirmPassword"
-                  type={showPasswords.confirm ? "text" : "password"}
+                  type={showPasswords.confirm ? 'text' : 'password'}
                   value={passwordData.confirmPassword}
-                  onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                  onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
                   placeholder="Confirm new password"
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                  onClick={() => setShowPasswords({ ...showPasswords, confirm: !showPasswords.confirm })}
+                  className="absolute right-0 top-0 h-full px-3"
+                  onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
                 >
                   {showPasswords.confirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
-            <Button 
-              onClick={handlePasswordChange} 
-              disabled={changingPassword || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
+
+            <Button
+              onClick={handlePasswordChange}
+              disabled={changingPassword}
               className="w-full"
+              variant="secondary"
             >
               <Lock className="h-4 w-4 mr-2" />
               {changingPassword ? 'Changing Password...' : 'Change Password'}
             </Button>
           </CardContent>
         </Card>
-
-        {/* Save Button */}
-        <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={saving}>
-            <Save className="h-4 w-4 mr-2" />
-            {saving ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </div>
-      </div>
-    </div>
+      </MobileSection>
+    </MobilePageWrapper>
   );
 };
 

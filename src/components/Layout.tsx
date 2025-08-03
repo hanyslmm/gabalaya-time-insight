@@ -301,14 +301,14 @@ const Layout = () => {
                   sidebarCollapsed ? "lg:opacity-0 lg:w-0 lg:overflow-hidden" : "opacity-100"
                 )}>
                   <p className="text-sm font-medium truncate">{user?.full_name || user?.username}</p>
-                  <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user?.role || 'User'}</p>
                 </div>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <div className="px-2 py-1.5">
                 <p className="text-sm font-medium">{user?.full_name || user?.username}</p>
-                <p className="text-xs text-muted-foreground">{user?.email}</p>
+                <p className="text-xs text-muted-foreground">{user?.role || 'User'}</p>
               </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>

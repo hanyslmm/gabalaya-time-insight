@@ -177,11 +177,9 @@ const TimesheetsPage: React.FC = () => {
                <Upload className="h-3 w-3 sm:h-4 sm:w-4" />
                <span className="hidden sm:inline ml-1">Import</span>
              </Button>
-             <TimesheetExport 
-               timesheets={timesheets || []} 
-               dateRange={dateRange}
-               selectedEmployee={selectedEmployee}
-             />
+              <TimesheetExport 
+                selectedRows={[]}
+              />
            </div>
          }
       />
