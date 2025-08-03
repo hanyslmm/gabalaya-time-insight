@@ -13,6 +13,7 @@ import TimesheetDateFilter from '@/components/TimesheetDateFilter';
 import TimesheetExport from '@/components/TimesheetExport';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import MobilePageWrapper, { MobileSection, MobileHeader } from '@/components/MobilePageWrapper';
 
 interface DateRange {
   from: Date;
@@ -159,49 +160,48 @@ const TimesheetsPage: React.FC = () => {
   }
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-8">
-      <div className="mb-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0 mb-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('timesheets')}</h1>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-sm text-muted-foreground">
-                {totalEntries} total entries
-              </span>
-              {hasActiveFilters && (
-                <Badge variant="secondary" className="text-xs">
-                  Filtered
-                </Badge>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button
-              onClick={handleRefresh}
-              variant="outline"
-              size="sm"
-              disabled={isLoading}
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-            <Button
-              onClick={() => setShowUpload(true)}
-              className="bg-blue-600 hover:bg-blue-700"
-              size="sm"
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              {t('import')}
-            </Button>
-            <div className="w-full sm:w-auto">
-              <TimesheetExport selectedRows={selectedRows} />
-            </div>
-          </div>
+    <MobilePageWrapper>
+      <MobileHeader 
+        title={t('timesheets')}
+        subtitle={`${totalEntries} total entries`}
+                 actions={
+           <div className="flex items-center gap-1 sm:gap-2">
+             <Button onClick={handleRefresh} size="sm" variant="outline" className="h-7 sm:h-9">
+               <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
+             </Button>
+             <Button
+               onClick={() => setShowUpload(true)}
+               className="bg-blue-600 hover:bg-blue-700 h-7 sm:h-9"
+               size="sm"
+             >
+               <Upload className="h-3 w-3 sm:h-4 sm:w-4" />
+               <span className="hidden sm:inline ml-1">Import</span>
+             </Button>
+             <TimesheetExport 
+               timesheets={timesheets || []} 
+               dateRange={dateRange}
+               selectedEmployee={selectedEmployee}
+             />
+           </div>
+         }
+      />
+
+      <MobileSection>
+        <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-muted-foreground">
+          {hasActiveFilters && (
+            <Badge variant="secondary" className="text-xs">
+              Filtered
+            </Badge>
+          )}
+          <span className="hidden sm:inline">•</span>
+          <span className="text-xs">
+            Selected: {selectedRows.length} items
+          </span>
         </div>
-      </div>
+      </MobileSection>
 
       {/* Filters */}
-      <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
+      <MobileSection spacing="tight">
         <TimesheetDateFilter
           dateRange={dateRange}
           onDateRangeChange={handleDateRangeChange}
@@ -248,7 +248,101 @@ const TimesheetsPage: React.FC = () => {
             </CardContent>
           </Card>
         )}
-      </div>
+      </MobileSection>
+
+      {/* Summary Section - Morning vs Night Hours Analysis */}
+      {timesheets && timesheets.length > 0 && (
+        <Card className="mb-4 sm:mb-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base sm:text-lg">Timesheet Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+              {(() => {
+                // Calculate totals
+                const totalHours = timesheets.reduce((sum, entry) => sum + (entry.total_hours || 0), 0);
+                const totalMorningHours = timesheets.reduce((sum, entry) => sum + (entry.morning_hours || 0), 0);
+                const totalNightHours = timesheets.reduce((sum, entry) => sum + (entry.night_hours || 0), 0);
+                
+                // Calculate percentages
+                const morningPercentage = totalHours > 0 ? (totalMorningHours / totalHours) * 100 : 0;
+                const nightPercentage = totalHours > 0 ? (totalNightHours / totalHours) * 100 : 0;
+                const totalEntries = timesheets.length;
+                
+                return (
+                  <>
+                    {/* Total Entries */}
+                    <div className="bg-card border rounded-lg p-3 sm:p-4">
+                      <div className="text-xs sm:text-sm text-muted-foreground mb-1">Total Entries</div>
+                      <div className="text-lg sm:text-2xl font-bold text-primary">{totalEntries}</div>
+                      <div className="text-xs text-muted-foreground">Timesheet records</div>
+                    </div>
+
+                    {/* Total Hours */}
+                    <div className="bg-card border rounded-lg p-3 sm:p-4">
+                      <div className="text-xs sm:text-sm text-muted-foreground mb-1">Total Hours</div>
+                      <div className="text-lg sm:text-2xl font-bold text-blue-600">{totalHours.toFixed(1)}h</div>
+                      <div className="text-xs text-muted-foreground">All worked hours</div>
+                    </div>
+
+                    {/* Morning Hours */}
+                    <div className="bg-card border rounded-lg p-3 sm:p-4">
+                      <div className="text-xs sm:text-sm text-muted-foreground mb-1">Morning Hours</div>
+                      <div className="text-lg sm:text-2xl font-bold text-orange-600">{totalMorningHours.toFixed(1)}h</div>
+                      <div className="text-xs text-muted-foreground">
+                        {morningPercentage.toFixed(1)}% of total
+                      </div>
+                    </div>
+
+                    {/* Night Hours */}
+                    <div className="bg-card border rounded-lg p-3 sm:p-4">
+                      <div className="text-xs sm:text-sm text-muted-foreground mb-1">Night Hours</div>
+                      <div className="text-lg sm:text-2xl font-bold text-purple-600">{totalNightHours.toFixed(1)}h</div>
+                      <div className="text-xs text-muted-foreground">
+                        {nightPercentage.toFixed(1)}% of total
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+            
+            {/* Visual Breakdown Bar */}
+            <div className="mt-4">
+              <div className="text-xs text-muted-foreground mb-2">Hours Distribution</div>
+              <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
+                {(() => {
+                  const totalHours = timesheets.reduce((sum, entry) => sum + (entry.total_hours || 0), 0);
+                  const totalMorningHours = timesheets.reduce((sum, entry) => sum + (entry.morning_hours || 0), 0);
+                  const totalNightHours = timesheets.reduce((sum, entry) => sum + (entry.night_hours || 0), 0);
+                  
+                  const morningPercentage = totalHours > 0 ? (totalMorningHours / totalHours) * 100 : 0;
+                  const nightPercentage = totalHours > 0 ? (totalNightHours / totalHours) * 100 : 0;
+                  
+                  return (
+                    <div className="flex h-full">
+                      <div 
+                        className="bg-orange-500 h-full transition-all duration-300"
+                        style={{ width: `${morningPercentage}%` }}
+                        title={`Morning: ${morningPercentage.toFixed(1)}%`}
+                      />
+                      <div 
+                        className="bg-purple-500 h-full transition-all duration-300"
+                        style={{ width: `${nightPercentage}%` }}
+                        title={`Night: ${nightPercentage.toFixed(1)}%`}
+                      />
+                    </div>
+                  );
+                })()}
+              </div>
+              <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                <span>Morning ({((timesheets.reduce((sum, entry) => sum + (entry.morning_hours || 0), 0) / Math.max(timesheets.reduce((sum, entry) => sum + (entry.total_hours || 0), 0), 1)) * 100).toFixed(1)}%)</span>
+                <span>Night ({((timesheets.reduce((sum, entry) => sum + (entry.night_hours || 0), 0) / Math.max(timesheets.reduce((sum, entry) => sum + (entry.total_hours || 0), 0), 1)) * 100).toFixed(1)}%)</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
         <Card className="lg:col-span-4 xl:col-span-3">
@@ -304,7 +398,7 @@ const TimesheetsPage: React.FC = () => {
           onUploadComplete={refetch}
         />
       )}
-    </div>
+    </MobilePageWrapper>
   );
 };
 

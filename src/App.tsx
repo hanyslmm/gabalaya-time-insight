@@ -51,7 +51,7 @@ function App() {
                 <Route path="my-timesheet" element={<MyTimesheetPage />} />
                 <Route path="employees" element={<EmployeesPage />} />
                 <Route path="timesheets" element={<TimesheetsPage />} />
-                <Route path="monitor" element={<EmployeeMonitorPage />} />
+                <Route path="employee-monitor" element={<EmployeeMonitorPage />} />
                 <Route path="reports" element={<ReportsPage />} />
                 <Route path="company-settings" element={<CompanySettingsPage />} />
                 <Route path="settings" element={<SettingsPage />} />

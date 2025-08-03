@@ -1,30 +1,30 @@
-
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import NotificationSystem from '@/components/NotificationSystem';
-import MobileNavigation from '@/components/MobileNavigation';
 import OfflineIndicator from '@/components/OfflineIndicator';
 import GlobalSearch from '@/components/GlobalSearch';
 import { useIsMobile, useIsTablet, useDeviceType } from '@/hooks/use-mobile';
-import { 
-  LayoutDashboard, 
-  Clock, 
-  Users, 
-  FileText, 
-  Monitor, 
-  BarChart3, 
-  Settings, 
-  Building, 
+import {
+  LayoutDashboard,
+  Clock,
+  Users,
+  FileText,
+  Monitor,
+  BarChart3,
+  Settings,
+  Building,
   LogOut,
   User,
   Shield,
-  Menu
+  Menu,
+  X,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -33,11 +33,11 @@ const Layout = () => {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
-  const deviceType = useDeviceType();
-
+  
   const handleLogout = async () => {
     try {
       await logout();
@@ -48,263 +48,334 @@ const Layout = () => {
     }
   };
 
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
+
+  const toggleSidebarCollapse = () => {
+    setSidebarCollapsed(!sidebarCollapsed);
+    if (sidebarOpen) setSidebarOpen(false); // Close mobile sidebar when collapsing
+  };
+
+  const closeMobileSidebar = () => {
+    setSidebarOpen(false);
+  };
+
   const isAdmin = user?.role === 'admin';
 
-  const navigation = isAdmin ? [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, adminOnly: false },
-    { name: 'Clock In/Out', href: '/clock-in-out', icon: Clock, adminOnly: false },
-    { name: 'Employees', href: '/employees', icon: Users, adminOnly: true },
-    { name: 'Timesheets', href: '/timesheets', icon: FileText, adminOnly: true },
-    { name: 'My Timesheet', href: '/my-timesheet', icon: Clock, adminOnly: false },
-    { name: 'Monitor', href: '/monitor', icon: Monitor, adminOnly: true },
-    { name: 'Reports', href: '/reports', icon: BarChart3, adminOnly: true },
-    { name: 'Company Settings', href: '/company-settings', icon: Building, adminOnly: true },
-    { name: 'Settings', href: '/settings', icon: Settings, adminOnly: true },
-  ] : [
-    { name: 'Clock In/Out', href: '/clock-in-out', icon: Clock, adminOnly: false },
-    { name: 'My Timesheet', href: '/my-timesheet', icon: FileText, adminOnly: false },
+  const allNavigation = [
+    {
+      name: 'Dashboard',
+      href: '/dashboard',
+      icon: LayoutDashboard,
+      description: 'Overview & Analytics',
+      roles: ['admin', 'employee']
+    },
+    {
+      name: 'Clock In/Out',
+      href: '/clock-in-out',
+      icon: Clock,
+      description: 'Time Tracking',
+      roles: ['admin', 'employee']
+    },
+    {
+      name: 'My Timesheet',
+      href: '/my-timesheet',
+      icon: FileText,
+      description: 'Your Records',
+      roles: ['admin', 'employee']
+    },
+    {
+      name: 'Employees',
+      href: '/employees',
+      icon: Users,
+      description: 'Staff Management',
+      roles: ['admin']
+    },
+    {
+      name: 'Timesheets',
+      href: '/timesheets',
+      icon: FileText,
+      description: 'All Time Records',
+      roles: ['admin']
+    },
+    {
+      name: 'Employee Monitor',
+      href: '/employee-monitor',
+      icon: Monitor,
+      description: 'Live Tracking',
+      roles: ['admin']
+    },
+    {
+      name: 'Reports',
+      href: '/reports',
+      icon: BarChart3,
+      description: 'Analytics & Insights',
+      roles: ['admin']
+    },
+    {
+      name: 'Profile',
+      href: '/profile',
+      icon: User,
+      description: 'Account Settings',
+      roles: ['admin', 'employee']
+    },
+    {
+      name: 'Settings',
+      href: '/settings',
+      icon: Settings,
+      description: 'System Configuration',
+      roles: ['admin']
+    },
+    {
+      name: 'Company Settings',
+      href: '/company-settings',
+      icon: Building,
+      description: 'Company Setup',
+      roles: ['admin']
+    },
   ];
 
-  const visibleNavigation = navigation.filter(item => !item.adminOnly || isAdmin);
+  const navigation = allNavigation.filter(item =>
+    item.roles.includes(user?.role || 'employee')
+  );
 
-  const getInitials = (name: string) => {
-    return name
+  const isActivePath = (path) => {
+    return location.pathname === path ||
+      (path !== '/dashboard' && location.pathname.startsWith(path));
+  };
+  
+  const getInitials = (fullName) => {
+    if (!fullName) return 'U';
+    return fullName
       .split(' ')
-      .map(word => word.charAt(0))
+      .map(n => n[0])
       .join('')
-      .toUpperCase()
-      .slice(0, 2);
+      .toUpperCase();
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="flex h-screen">
-        {/* Sidebar - Hidden on mobile and tablet */}
-        <div className="hidden lg:flex lg:w-64 lg:flex-col">
-          <div className="flex flex-col flex-grow pt-5 bg-card border-r overflow-y-auto">
-            <div className="flex items-center flex-shrink-0 px-4">
-            <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center shadow-lg">
-                  <span className="text-primary-foreground font-bold text-sm">G</span>
-                </div>
-                <div>
-                  <h1 className="text-lg font-semibold text-foreground tracking-tight">Gabalaya Finance</h1>
-                  <p className="text-xs text-muted-foreground font-medium">HRM System</p>
-                </div>
-              </div>
+    <div className="min-h-screen bg-background flex">
+      {/* Sidebar Overlay for Mobile */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={closeMobileSidebar}
+        />
+      )}
+
+      {/* Left Sidebar */}
+      <div className={cn(
+        "fixed inset-y-0 left-0 z-50 flex flex-col bg-card border-r border-border transition-all duration-300 ease-in-out",
+        "lg:relative lg:translate-x-0",
+        sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
+        sidebarCollapsed ? "lg:w-16" : "lg:w-64",
+        "w-64"
+      )}>
+        {/* Sidebar Header */}
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <div className={cn(
+            "flex items-center gap-3 transition-opacity duration-200",
+            sidebarCollapsed ? "lg:opacity-0 lg:w-0 lg:overflow-hidden" : "opacity-100"
+          )}>
+            <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center shadow-lg">
+              <span className="text-primary-foreground font-bold text-sm">G</span>
             </div>
-            <div className="mt-8 flex-grow flex flex-col">
-              <nav className="flex-1 px-2 space-y-1">
-                {visibleNavigation.map((item) => {
-                  const isActive = location.pathname === item.href;
-                  return (
-                    <Link
-                      key={item.name}
-                      to={item.href}
-                      className={cn(
-                        "group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ease-in-out",
-                        isActive
-                          ? "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-md transform scale-[1.02]"
-                          : "text-muted-foreground hover:text-foreground hover:bg-accent/80 hover:scale-[1.01] hover:shadow-sm"
-                      )}
-                    >
-                      <item.icon
-                        className={cn(
-                          "mr-3 flex-shrink-0 h-5 w-5",
-                          isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
-                        )}
-                      />
-                      {item.name}
-                    </Link>
-                  );
-                })}
-              </nav>
+            <div>
+              <h1 className="text-lg font-semibold text-foreground tracking-tight">Gabalaya Finance</h1>
+              <p className="text-xs text-muted-foreground font-medium">HRM System</p>
             </div>
           </div>
+          
+          {/* Desktop Collapse Toggle */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleSidebarCollapse}
+            className="hidden lg:flex p-1.5"
+          >
+            {sidebarCollapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )}
+          </Button>
+
+          {/* Mobile Close Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={closeMobileSidebar}
+            className="lg:hidden p-1.5"
+          >
+            <X className="h-4 w-4" />
+          </Button>
         </div>
 
-        {/* Main content */}
-        <div className="flex flex-col flex-1 overflow-hidden">
-          {/* Enhanced Top navigation - Sticky with improved z-index */}
-          <header className="bg-card/95 backdrop-blur-sm border-b border-border/50 px-2 py-2 sm:px-4 sm:py-3 sticky top-0 z-50 shadow-sm">
-            <div className="flex items-center justify-between">
-              {/* Left section - Logo and page title */}
-              <div className="flex items-center space-x-2 sm:space-x-4 flex-1 min-w-0">
-                {/* Logo for mobile/tablet */}
-                <div className="flex items-center space-x-2 lg:hidden">
-                  <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-br from-primary to-primary/80 rounded-md flex items-center justify-center shadow-lg">
-                    <span className="text-primary-foreground font-bold text-xs sm:text-sm">G</span>
-                  </div>
-                  <div className="hidden sm:block">
-                    <h1 className="text-sm font-semibold text-foreground tracking-tight">Gabalaya</h1>
-                  </div>
-                </div>
-
-                {/* Page title */}
-                <div className="flex items-center space-x-2 min-w-0">
-                  <h2 className="text-sm sm:text-base lg:text-lg font-semibold text-foreground capitalize tracking-tight truncate">
-                    {location.pathname.split('/').pop()?.replace('-', ' ') || 'Dashboard'}
-                  </h2>
-                  <div className="hidden md:block">
-                    <div className="h-4 w-px bg-border/50"></div>
-                  </div>
-                  <p className="hidden md:block text-sm text-muted-foreground truncate">
-                    Welcome back, {user?.full_name || user?.username}
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto p-4 space-y-1">
+          {navigation.map((item) => {
+            const isActive = isActivePath(item.href);
+            return (
+              <Link
+                key={item.name}
+                to={item.href}
+                onClick={closeMobileSidebar}
+                className={cn(
+                  "group flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 mobile-press mobile-touch-target mobile-focus-ring",
+                  isActive
+                    ? "bg-primary text-primary-foreground shadow-md mobile-gradient-primary"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground mobile-hover"
+                )}
+              >
+                <item.icon className={cn(
+                  "flex-shrink-0 h-5 w-5",
+                  isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-accent-foreground"
+                )} />
+                
+                <div className={cn(
+                  "ml-3 min-w-0 flex-1 transition-all duration-200",
+                  sidebarCollapsed ? "lg:opacity-0 lg:w-0 lg:overflow-hidden" : "opacity-100"
+                )}>
+                  <p className="text-sm font-medium truncate">
+                    {item.name}
+                  </p>
+                  <p className="text-xs opacity-75 truncate">
+                    {item.description}
                   </p>
                 </div>
-              </div>
-
-              {/* Center section - Global Search (hidden on small screens) */}
-              <div className="hidden md:flex flex-1 max-w-sm mx-4">
-                <GlobalSearch />
-              </div>
-              
-              {/* Right section - Actions and burger menu */}
-              <div className="flex items-center space-x-1 sm:space-x-2">
-                {/* Notification and theme toggle - show based on screen size */}
-                <div className="hidden sm:flex items-center space-x-1 sm:space-x-2">
-                  <NotificationSystem />
-                  <ThemeToggle />
-                </div>
                 
-                {/* User avatar dropdown - always visible */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-7 w-7 sm:h-8 sm:w-8 rounded-full hover:scale-105 transition-transform">
-                      <Avatar className="h-7 w-7 sm:h-8 sm:w-8 ring-2 ring-border/20 hover:ring-primary/30 transition-all">
-                        <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground font-semibold text-xs">
-                          {user ? getInitials(user.full_name || user.username) : 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56" align="end" forceMount>
-                    <div className="flex flex-col space-y-1 p-2">
-                      <p className="text-sm font-medium leading-none">
-                        {user?.full_name || user?.username}
-                      </p>
-                      <div className="flex items-center space-x-2">
-                        <p className="text-xs text-muted-foreground">
-                          {user?.role}
-                        </p>
-                        {isAdmin && (
-                          <Shield className="h-3 w-3 text-primary" />
-                        )}
-                      </div>
-                    </div>
-                    <DropdownMenuSeparator />
-                    {/* Show notifications and theme on mobile via dropdown */}
-                    <div className="sm:hidden">
-                      <DropdownMenuItem asChild>
-                        <div className="flex items-center justify-between w-full p-2">
-                          <span>Notifications</span>
-                          <NotificationSystem />
-                        </div>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <div className="flex items-center justify-between w-full p-2">
-                          <span>Theme</span>
-                          <ThemeToggle />
-                        </div>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                    </div>
-                    <DropdownMenuItem asChild>
-                      <Link to="/profile" className="flex items-center">
-                        <User className="mr-2 h-4 w-4" />
-                        Profile
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Log out
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                {isActive && !sidebarCollapsed && (
+                  <div className="hidden lg:block w-1 h-4 bg-primary-foreground rounded-full ml-auto opacity-75" />
+                )}
+              </Link>
+            );
+          })}
+        </nav>
 
-                {/* Burger menu - positioned at top-right, visible on mobile and tablet */}
-                <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                  <SheetTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="lg:hidden h-7 w-7 sm:h-8 sm:w-8 p-0 hover:bg-accent/80 transition-colors"
-                    >
-                      <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent side="right" className={cn("p-0", deviceType === 'tablet' ? "w-96" : "w-72 sm:w-80")}>
-                    <SheetHeader className="p-4 border-b">
-                      <SheetTitle className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center shadow-lg">
-                          <span className="text-primary-foreground font-bold text-sm">G</span>
-                        </div>
-                        <div>
-                          <h1 className="text-lg font-semibold text-foreground tracking-tight">Gabalaya Finance</h1>
-                          <p className="text-xs text-muted-foreground font-medium">HRM System</p>
-                        </div>
-                      </SheetTitle>
-                    </SheetHeader>
-                    
-                                          {/* Mobile/Tablet search */}
-                      <div className={cn("p-4 border-b", deviceType === 'desktop' ? "hidden" : "block")}>
-                        <GlobalSearch />
-                      </div>
-                    
-                    {/* Navigation menu */}
-                    <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto max-h-[calc(100vh-200px)]">
-                      {visibleNavigation.map((item) => {
-                        const isActive = location.pathname === item.href;
-                        return (
-                          <Link
-                            key={item.name}
-                            to={item.href}
-                            onClick={() => setMobileMenuOpen(false)}
-                                                         className={cn(
-                               "group flex items-center px-3 py-3 font-medium rounded-lg transition-all duration-200 ease-in-out",
-                               deviceType === 'tablet' ? "text-lg" : "text-base",
-                              isActive
-                                ? "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-md"
-                                : "text-muted-foreground hover:text-foreground hover:bg-accent/80"
-                            )}
-                          >
-                            <item.icon
-                              className={cn(
-                                "mr-3 flex-shrink-0 h-5 w-5",
-                                isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
-                              )}
-                            />
-                            {item.name}
-                          </Link>
-                        );
-                      })}
-                    </nav>
-                  </SheetContent>
-                </Sheet>
+        {/* Sidebar Footer - User Info & Role */}
+        <div className="border-t border-border p-4">
+          {/* Role Badge */}
+          <div className={cn(
+            "mb-3 transition-all duration-200",
+            sidebarCollapsed ? "lg:opacity-0 lg:h-0 lg:overflow-hidden lg:mb-0" : "opacity-100"
+          )}>
+            <div className={cn(
+              "px-3 py-2 rounded-lg border text-center",
+              isAdmin
+                ? "border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950"
+                : "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950"
+            )}>
+              <div className="flex items-center justify-center gap-2">
+                <Shield className={cn(
+                  "h-4 w-4",
+                  isAdmin ? "text-orange-600 dark:text-orange-400" : "text-blue-600 dark:text-blue-400"
+                )} />
+                <span className={cn(
+                  "text-sm font-medium capitalize",
+                  isAdmin ? "text-orange-600 dark:text-orange-400" : "text-blue-600 dark:text-blue-400"
+                )}>
+                  {user?.role}
+                </span>
               </div>
             </div>
-          </header>
+          </div>
 
-          {/* Page content with device-specific padding */}
-          <main className="flex-1 overflow-y-auto bg-gradient-to-br from-background to-background/95">
-            <div className={cn(
-              "min-h-full w-full",
-              deviceType === 'mobile' ? "py-1 px-1 pb-20" : 
-              deviceType === 'tablet' ? "py-2 px-3 pb-6" : 
-              "py-2 px-2 lg:px-4 pb-6"
-            )}>
-              <Outlet />
-            </div>
-          </main>
+          {/* User Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className={cn(
+                  "w-full justify-start p-2 h-auto hover:bg-accent",
+                  sidebarCollapsed && "lg:justify-center"
+                )}
+              >
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback className="text-sm font-medium bg-primary text-primary-foreground">
+                    {getInitials(user?.full_name || user?.username)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className={cn(
+                  "ml-3 text-left min-w-0 flex-1 transition-all duration-200",
+                  sidebarCollapsed ? "lg:opacity-0 lg:w-0 lg:overflow-hidden" : "opacity-100"
+                )}>
+                  <p className="text-sm font-medium truncate">{user?.full_name || user?.username}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                </div>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <div className="px-2 py-1.5">
+                <p className="text-sm font-medium">{user?.full_name || user?.username}</p>
+                <p className="text-xs text-muted-foreground">{user?.email}</p>
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link to="/profile" className="mobile-touch-target mobile-focus-ring">
+                  <User className="h-4 w-4 mr-2" />
+                  <span>Profile</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={handleLogout}
+                className="text-destructive focus:text-destructive mobile-touch-target mobile-focus-ring"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                <span>Logout</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
-      
-      {/* Enhanced Mobile Navigation - only show on mobile */}
-      {isMobile && <MobileNavigation />}
-      
-      {/* Offline Indicator */}
-      <OfflineIndicator />
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-h-screen">
+        {/* Top Header */}
+        <header className="mobile-header border-b bg-card/80 backdrop-blur-sm sticky top-0 z-30">
+          <div className="flex items-center justify-between w-full px-4 py-2 sm:py-3">
+            {/* Hamburger Menu Button (for mobile) */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleSidebar}
+              className="lg:hidden p-1.5"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+
+            {/* Page Title */}
+            <div className="flex-1 px-4 lg:px-0">
+              <h2 className="text-lg font-semibold capitalize truncate">
+                {location.pathname.split('/').pop()?.replace('-', ' ') || 'Dashboard'}
+              </h2>
+            </div>
+            
+            {/* Right Section */}
+            <div className="flex items-center gap-2">
+              {/* Global Search - Desktop Only */}
+              <div className="hidden lg:block max-w-md">
+                <GlobalSearch />
+              </div>
+              {/* Notifications */}
+              <NotificationSystem />
+              {/* Theme Toggle */}
+              <ThemeToggle />
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="flex-1 mobile-main mobile-safe-bottom overflow-x-hidden p-4">
+          <div className="mobile-fade-in">
+            <Outlet />
+          </div>
+        </main>
+
+        {/* Offline Indicator */}
+        <OfflineIndicator />
+      </div>
     </div>
   );
 };
