@@ -129,11 +129,12 @@ const ClockInOutPage: React.FC = () => {
 
       // Process team member statuses
       const statusMap = new Map<string, TeamMemberStatus>();
+      const currentTime = await getCurrentCompanyTime();
       
       timesheetData?.forEach(entry => {
         const isActive = !entry.clock_out_time || entry.clock_out_time === '00:00:00';
         const duration = isActive 
-          ? differenceInMinutes(await getCurrentCompanyTime(), new Date(`${entry.clock_in_date}T${entry.clock_in_time}`))
+          ? differenceInMinutes(currentTime, new Date(`${entry.clock_in_date}T${entry.clock_in_time}`))
           : entry.total_hours ? entry.total_hours * 60 : 0;
 
         // Map employee ID/name to display name
