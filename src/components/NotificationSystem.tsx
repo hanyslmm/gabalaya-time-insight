@@ -111,7 +111,7 @@ const NotificationSystem: React.FC = () => {
       });
 
     } catch (error) {
-      console.error('Error checking notifications:', error);
+      // Silently fail notification updates
     }
   };
 

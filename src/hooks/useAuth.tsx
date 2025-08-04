@@ -43,7 +43,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setUser(data.user);
         }
       } catch (e) {
-        console.error('Auth check failed:', e);
         setUser(null);
       } finally {
         setLoading(false);
@@ -71,7 +70,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return {};
 
     } catch (e: any) {
-      console.error('Login error:', e);
       return { error: e.message || "An unexpected error occurred." };
     } finally {
       setLoading(false);

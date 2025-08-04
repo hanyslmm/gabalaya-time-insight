@@ -54,7 +54,6 @@ const ProfilePage: React.FC = () => {
   const fetchEmployeeData = async () => {
     try {
       setLoading(true);
-      console.log('Fetching employee data for:', user?.username);
 
       // First check if user is admin (in admin_users table)
       if (user?.role === 'admin') {
@@ -65,7 +64,6 @@ const ProfilePage: React.FC = () => {
           .single();
 
         if (adminError) {
-          console.error('Error fetching admin data:', adminError);
         } else if (adminData) {
           setEmployee({
             id: adminData.id,
@@ -93,7 +91,6 @@ const ProfilePage: React.FC = () => {
         .single();
 
       if (employeeError) {
-        console.error('Error fetching employee data:', employeeError);
         toast.error('Error loading profile data');
       } else if (employeeData) {
         setEmployee(employeeData);
@@ -103,7 +100,6 @@ const ProfilePage: React.FC = () => {
         });
       }
     } catch (error) {
-      console.error('Error in fetchEmployeeData:', error);
       toast.error('Error loading profile data');
     } finally {
       setLoading(false);
@@ -137,7 +133,6 @@ const ProfilePage: React.FC = () => {
 
       toast.success('Profile updated successfully');
     } catch (error) {
-      console.error('Error updating profile:', error);
       toast.error('Error updating profile');
     } finally {
       setSaving(false);
@@ -169,7 +164,7 @@ const ProfilePage: React.FC = () => {
         return;
       }
 
-      let requestBody: any = {
+      const requestBody: any = {
         action: 'change-password',
         token,
         newPassword: passwordData.newPassword
@@ -200,7 +195,6 @@ const ProfilePage: React.FC = () => {
       );
 
     } catch (error: any) {
-      console.error('Password change error:', error);
       toast.error(error.message || 'Error changing password');
     } finally {
       setChangingPassword(false);

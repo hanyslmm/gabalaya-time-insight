@@ -127,7 +127,6 @@ const EmployeeMonitorPage: React.FC = () => {
 
       setEmployeeStatuses(Array.from(statusMap.values()));
     } catch (error) {
-      console.error('Error fetching employee data:', error);
       toast.error('Failed to load employee status');
     } finally {
       setLoading(false);
@@ -160,7 +159,6 @@ const EmployeeMonitorPage: React.FC = () => {
         return;
       }
 
-      console.log('Force clocking out employee entry:', activeEntry.id);
 
       // Get current location or use a default
       let location = 'Force clockout by admin';
@@ -180,7 +178,6 @@ const EmployeeMonitorPage: React.FC = () => {
       });
 
       if (error) {
-        console.error('Force clockout error:', error);
         throw error;
       }
 
@@ -189,7 +186,6 @@ const EmployeeMonitorPage: React.FC = () => {
       // Refresh the data to show updated status
       await fetchData();
     } catch (error: any) {
-      console.error('Error forcing clockout:', error);
       toast.error(`Failed to force clock out ${employeeName}: ${error.message}`);
     } finally {
       setProcessingClockout(false);
@@ -240,7 +236,6 @@ const EmployeeMonitorPage: React.FC = () => {
             .single();
 
           if (findError || !activeEntry) {
-            console.error(`No active entry found for ${status.employee_name}`);
             errorCount++;
             continue;
           }
@@ -252,13 +247,11 @@ const EmployeeMonitorPage: React.FC = () => {
           });
 
           if (error) {
-            console.error(`Force clockout error for ${status.employee_name}:`, error);
             errorCount++;
           } else {
             successCount++;
           }
         } catch (error) {
-          console.error(`Error forcing clockout for ${status.employee_name}:`, error);
           errorCount++;
         }
       }
@@ -275,7 +268,6 @@ const EmployeeMonitorPage: React.FC = () => {
       // Refresh the data to show updated status
       await fetchData();
     } catch (error: any) {
-      console.error('Error in bulk force clockout:', error);
       toast.error(`Failed to force clock out employees: ${error.message}`);
     } finally {
       setProcessingClockout(false);

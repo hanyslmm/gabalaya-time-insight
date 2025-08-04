@@ -37,9 +37,7 @@ interface TeamMemberStatus {
 }
 
 const ClockInOutPage: React.FC = () => {
-  console.log('ClockInOutPage component rendering...');
   const { user } = useAuth();
-  console.log('ClockInOutPage - user:', user);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [currentEntry, setCurrentEntry] = useState<ClockEntry | null>(null);
@@ -47,7 +45,6 @@ const ClockInOutPage: React.FC = () => {
   // Emergency timeout to prevent infinite loading
   useEffect(() => {
     const emergencyTimeout = setTimeout(() => {
-      console.warn('ClockInOutPage - Emergency timeout triggered, forcing loading to false');
       setLoading(false);
     }, 5000); // 5 second emergency timeout
 
@@ -80,21 +77,16 @@ const ClockInOutPage: React.FC = () => {
     
     const fetchTimezoneInfo = async () => {
       try {
-        console.log('ClockInOutPage - fetchTimezoneInfo starting...');
         // Validate timezone first
         const validation = await validateTimezone();
-        console.log('Timezone validation result:', validation);
         
         if (!validation.isValid) {
           toast.error(`Timezone issue: ${validation.message}`);
         }
         
         const abbr = await getTimezoneAbbreviation();
-        console.log('ClockInOutPage - timezone abbreviation:', abbr);
         setTimezoneAbbr(abbr);
-        console.log('ClockInOutPage - fetchTimezoneInfo completed');
       } catch (error) {
-        console.error('ClockInOutPage - Could not fetch timezone abbreviation:', error);
         setTimezoneAbbr('UTC+2'); // Fallback
       }
     };
@@ -202,30 +194,23 @@ const ClockInOutPage: React.FC = () => {
       const activeTeamMembers = Array.from(statusMap.values()).filter(status => status.is_active);
       setTeamStatus(activeTeamMembers);
     } catch (error) {
-      console.error('Error fetching team status:', error);
     }
   };
 
   // Fetch today's clock-in/out entries
   const fetchTodayEntries = async () => {
-    console.log('ClockInOutPage - fetchTodayEntries called, user:', user);
     if (!user) {
-      console.log('ClockInOutPage - fetchTodayEntries: no user, setting loading to false');
       setLoading(false);
       return;
     }
     
     let today;
     try {
-      console.log('ClockInOutPage - calling getTodayInCompanyTimezone...');
       today = await getTodayInCompanyTimezone();
-      console.log('ClockInOutPage - getTodayInCompanyTimezone result:', today);
     } catch (error) {
-      console.error('ClockInOutPage - getTodayInCompanyTimezone error:', error);
       // Fallback to local date
       const localDate = new Date();
       today = `${localDate.getFullYear()}-${String(localDate.getMonth() + 1).padStart(2, '0')}-${String(localDate.getDate()).padStart(2, '0')}`;
-      console.log('ClockInOutPage - using fallback date:', today);
     }
     
     try {
@@ -245,8 +230,6 @@ const ClockInOutPage: React.FC = () => {
       // Filter out null/undefined values
       const validIdentifiers = userIdentifiers.filter(id => id && id.trim() !== '');
       
-      console.log('Searching for entries with identifiers:', validIdentifiers);
-      console.log('Employee data found:', employeeData);
 
       // Build OR query for all possible identifiers (including employee_id)
       let orQuery = validIdentifiers.map(id => `employee_name.eq.${id}`).join(',');
@@ -255,7 +238,6 @@ const ClockInOutPage: React.FC = () => {
       if (employeeData && employeeData.length > 0) {
         const employeeId = employeeData[0].id;
         orQuery += `,employee_id.eq.${employeeId}`;
-        console.log('Added employee_id to search:', employeeId);
       }
       
       const { data, error } = await supabase
@@ -266,7 +248,6 @@ const ClockInOutPage: React.FC = () => {
         .order('clock_in_time', { ascending: false });
 
       if (error) {
-        console.error('Error fetching entries:', error);
         toast.error("Could not fetch today's entries.");
         return;
       }
@@ -282,21 +263,9 @@ const ClockInOutPage: React.FC = () => {
       ) || null;
       setCurrentEntry(activeEntry);
       
-      // Enhanced debug logging
-      console.log('User info:', { 
-        username: user.username, 
-        full_name: user.full_name, 
-        identifiers: validIdentifiers 
-      });
-      console.log('Today entries found:', data);
-      console.log('Active entry:', activeEntry);
-      console.log('Current entry state will be set to:', activeEntry);
-      
     } catch (error) {
-      console.error('ClockInOutPage - Error fetching today entries:', error);
       toast.error("Could not fetch today's entries.");
     } finally {
-      console.log('ClockInOutPage - fetchTodayEntries finally block, setting loading to false');
       setLoading(false);
     }
   };
@@ -319,7 +288,6 @@ const ClockInOutPage: React.FC = () => {
           setWorkedHours(minutesWorked / 60);
         }
       } catch (error) {
-        console.error('Error updating time:', error);
         // Fallback to local time if company time fails
         const localNow = new Date();
         setCurrentTime(localNow);
@@ -335,27 +303,21 @@ const ClockInOutPage: React.FC = () => {
   }, [currentEntry]);
 
   useEffect(() => {
-    console.log('ClockInOutPage - useEffect triggered, user:', user);
     
     // Test database connection
     const testConnection = async () => {
       try {
-        console.log('ClockInOutPage - testing database connection...');
         const { data, error } = await supabase.from('company_settings').select('id').limit(1);
         if (error) {
-          console.error('ClockInOutPage - database connection error:', error);
         } else {
-          console.log('ClockInOutPage - database connection successful:', data);
         }
       } catch (error) {
-        console.error('ClockInOutPage - database connection failed:', error);
       }
     };
     
     testConnection();
     
     if (user) {
-      console.log('ClockInOutPage - user exists, calling forceRefreshOnMount');
       // Force refresh on mount to ensure sync
       forceRefreshOnMount();
       
@@ -363,7 +325,6 @@ const ClockInOutPage: React.FC = () => {
       const interval = setInterval(fetchTeamStatus, 30000);
       return () => clearInterval(interval);
     } else {
-      console.log('ClockInOutPage - no user found');
     }
   }, [user, forceRefreshOnMount]);
 
@@ -394,7 +355,6 @@ const ClockInOutPage: React.FC = () => {
       // Use staff_id if found, otherwise fallback to username
       const staffId = employeeData && employeeData.length > 0 ? employeeData[0].staff_id : user.username;
 
-      console.log('Attempting clock in with staff_id:', staffId);
 
       const { data, error } = await supabase.rpc('clock_in', {
         p_staff_id: staffId,
@@ -404,7 +364,6 @@ const ClockInOutPage: React.FC = () => {
       if (error) {
         // If the error is about already being clocked in, refresh the entries to show the current state
         if (error.message.toLowerCase().includes('already') || error.message.toLowerCase().includes('clocked in')) {
-          console.log('Clock in error - user already clocked in, refreshing data...');
           toast.info('🔄 Checking your current status...');
           
           // Refresh the data and check the result directly
@@ -427,7 +386,6 @@ const ClockInOutPage: React.FC = () => {
             if (employeeData && employeeData.length > 0) {
               const employeeId = employeeData[0].id;
               orQuery += `,employee_id.eq.${employeeId}`;
-              console.log('Refresh: Added employee_id to search:', employeeId);
             }
             
             const { data: refreshedData, error: refreshError } = await supabase
@@ -447,22 +405,16 @@ const ClockInOutPage: React.FC = () => {
               ) || null;
               setCurrentEntry(activeEntry);
               
-              console.log('Refreshed data:', refreshedData);
-                  console.log('Found active entry:', activeEntry);
                   
                   if (activeEntry) {
                     toast.success('✅ Status synced! You are currently clocked in.');
-                    console.log('✅ Successfully found and synced active entry:', activeEntry);
                   } else {
-                    console.warn('❌ No active entry found after refresh. This might indicate a status sync issue.');
-                    console.log('Available entries after refresh:', refreshedData);
                     toast.error('⚠️ Status sync issue detected. Please try refreshing the page or contact your administrator if this problem persists.');
                   }
             } else {
               toast.error('Unable to refresh your status. Please try again.');
             }
           } catch (refreshError) {
-            console.error('Error refreshing data:', refreshError);
             toast.error('Unable to refresh your status. Please try again.');
           }
           return;
@@ -475,7 +427,6 @@ const ClockInOutPage: React.FC = () => {
       toast.success('Clocked in successfully!');
     } catch (error: any) {
       toast.error(error.message || 'Failed to clock in');
-      console.error('Clock-in error:', error);
     } finally {
       setActionLoading(false);
     }
@@ -504,7 +455,6 @@ const ClockInOutPage: React.FC = () => {
       toast.success('Clocked out successfully!');
     } catch (error: any) {
       toast.error(error.message || 'Failed to clock out');
-      console.error('Clock-out error:', error);
     } finally {
       setActionLoading(false);
     }
@@ -517,7 +467,6 @@ const ClockInOutPage: React.FC = () => {
   };
 
   const refreshData = async () => {
-    console.log('🔄 Refreshing data to sync clock-in/out status...');
     await fetchTodayEntries();
     await fetchTeamStatus();
   };
@@ -526,21 +475,17 @@ const ClockInOutPage: React.FC = () => {
   const forceRefreshOnMount = useCallback(async () => {
     if (!user) return;
     
-    console.log('🚀 Force refreshing on mount to ensure status sync...');
     setLoading(true);
     
     // Add a timeout to prevent infinite loading
     const timeoutId = setTimeout(() => {
-      console.error('ClockInOutPage - forceRefreshOnMount timeout, setting loading to false');
       setLoading(false);
     }, 10000); // 10 second timeout
     
     try {
       await fetchTodayEntries();
       await fetchTeamStatus();
-      console.log('ClockInOutPage - forceRefreshOnMount completed successfully');
     } catch (error) {
-      console.error('ClockInOutPage - forceRefreshOnMount error:', error);
     } finally {
       clearTimeout(timeoutId);
       setLoading(false);
@@ -567,7 +512,6 @@ const ClockInOutPage: React.FC = () => {
   };
 
   if (loading) {
-    console.log('ClockInOutPage - still loading...');
     // Temporary: show loading for only 3 seconds max, then show content anyway
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
@@ -578,7 +522,6 @@ const ClockInOutPage: React.FC = () => {
     );
   }
 
-  console.log('ClockInOutPage - rendering main content, loading:', loading, 'user:', user);
 
   return (
     <div className="w-full px-1 sm:px-2 lg:px-4 pb-safe min-h-screen">

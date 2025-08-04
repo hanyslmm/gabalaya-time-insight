@@ -136,7 +136,7 @@ Deno.serve(async (req) => {
 
       // Get full name from employees table if not available (but don't elevate roles)
       let fullName = user.full_name;
-      let finalRole = user.role; // Always use role from admin_users table
+      const finalRole = user.role; // Always use role from admin_users table
       
       if (!fullName) {
         const { data: employeeData } = await supabaseAdmin

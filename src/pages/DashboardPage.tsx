@@ -21,29 +21,8 @@ const DashboardPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
-
-  // Check if user is admin - restrict dashboard access to admins only
-  if (!user || user.role !== 'admin') {
-    return (
-      <div className="w-full px-4 sm:px-6 lg:px-8 flex items-center justify-center min-h-[60vh]">
-        <Alert variant="destructive" className="max-w-md">
-          <ShieldAlert className="h-4 w-4" />
-          <AlertDescription>
-            Access denied. The dashboard is only available for administrators.
-            <div className="mt-4">
-              <Button 
-                onClick={() => navigate('/clock-in-out')}
-                variant="outline"
-                size="sm"
-              >
-                Go to Clock In/Out
-              </Button>
-            </div>
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
+  
+  // All hooks must be called before any conditional returns
   const [selectedPeriod, setSelectedPeriod] = useState('current');
   const [selectedMonth, setSelectedMonth] = useState('');
 
@@ -102,6 +81,29 @@ const DashboardPage: React.FC = () => {
 
   // Fetch data for the active period
   const { data: activeData, isLoading: activeLoading } = useDashboardData(activePeriod);
+
+  // Check if user is admin - restrict dashboard access to admins only
+  if (!user || user.role !== 'admin') {
+    return (
+      <div className="w-full px-4 sm:px-6 lg:px-8 flex items-center justify-center min-h-[60vh]">
+        <Alert variant="destructive" className="max-w-md">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertDescription>
+            Access denied. The dashboard is only available for administrators.
+            <div className="mt-4">
+              <Button 
+                onClick={() => navigate('/clock-in-out')}
+                variant="outline"
+                size="sm"
+              >
+                Go to Clock In/Out
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   const quickActions = [
     { title: 'Import Timesheets', description: 'Upload CSV or Excel files', icon: Upload, action: () => navigate('/timesheets'), color: 'bg-blue-500' },

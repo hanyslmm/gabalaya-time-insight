@@ -5,20 +5,23 @@ import { AuthProvider } from '@/hooks/useAuth';
 import { Toaster } from '@/components/ui/sonner';
 import Layout from '@/components/Layout';
 import LoginPage from '@/pages/LoginPage';
-import DashboardPage from '@/pages/DashboardPage';
-import EmployeesPage from '@/pages/EmployeesPage';
-import TimesheetsPage from '@/pages/TimesheetsPage';
-import EmployeeMonitorPage from '@/pages/EmployeeMonitorPage';
-import ReportsPage from '@/pages/ReportsPage';
-import SettingsPage from '@/pages/SettingsPage';
-import ProfilePage from '@/pages/ProfilePage';
-import ClockInOutPage from '@/pages/ClockInOutPage';
-import MyTimesheetPage from '@/pages/MyTimesheetPage';
-import CompanySettingsPage from '@/pages/CompanySettingsPage';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import NotFound from '@/pages/NotFound';
+import { Suspense, lazy } from 'react';
 import './i18n';
 import './App.css';
+
+// Lazy load components for better performance
+const DashboardPage = lazy(() => import('@/pages/DashboardPage'));
+const EmployeesPage = lazy(() => import('@/pages/EmployeesPage'));
+const TimesheetsPage = lazy(() => import('@/pages/TimesheetsPage'));
+const EmployeeMonitorPage = lazy(() => import('@/pages/EmployeeMonitorPage'));
+const ReportsPage = lazy(() => import('@/pages/ReportsPage'));
+const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
+const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
+const ClockInOutPage = lazy(() => import('@/pages/ClockInOutPage'));
+const MyTimesheetPage = lazy(() => import('@/pages/MyTimesheetPage'));
+const CompanySettingsPage = lazy(() => import('@/pages/CompanySettingsPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -28,6 +31,13 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// Loading component for Suspense fallback
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+  </div>
+);
 
 function App() {
   return (
@@ -46,16 +56,56 @@ function App() {
                 }
               >
                 <Route index element={<Navigate to="/clock-in-out" replace />} />
-                <Route path="dashboard" element={<DashboardPage />} />
-                <Route path="clock-in-out" element={<ClockInOutPage />} />
-                <Route path="my-timesheet" element={<MyTimesheetPage />} />
-                <Route path="employees" element={<EmployeesPage />} />
-                <Route path="timesheets" element={<TimesheetsPage />} />
-                <Route path="employee-monitor" element={<EmployeeMonitorPage />} />
-                <Route path="reports" element={<ReportsPage />} />
-                <Route path="company-settings" element={<CompanySettingsPage />} />
-                <Route path="settings" element={<SettingsPage />} />
-                <Route path="profile" element={<ProfilePage />} />
+                <Route path="dashboard" element={
+                  <Suspense fallback={<PageLoader />}>
+                    <DashboardPage />
+                  </Suspense>
+                } />
+                <Route path="clock-in-out" element={
+                  <Suspense fallback={<PageLoader />}>
+                    <ClockInOutPage />
+                  </Suspense>
+                } />
+                <Route path="my-timesheet" element={
+                  <Suspense fallback={<PageLoader />}>
+                    <MyTimesheetPage />
+                  </Suspense>
+                } />
+                <Route path="employees" element={
+                  <Suspense fallback={<PageLoader />}>
+                    <EmployeesPage />
+                  </Suspense>
+                } />
+                <Route path="timesheets" element={
+                  <Suspense fallback={<PageLoader />}>
+                    <TimesheetsPage />
+                  </Suspense>
+                } />
+                <Route path="employee-monitor" element={
+                  <Suspense fallback={<PageLoader />}>
+                    <EmployeeMonitorPage />
+                  </Suspense>
+                } />
+                <Route path="reports" element={
+                  <Suspense fallback={<PageLoader />}>
+                    <ReportsPage />
+                  </Suspense>
+                } />
+                <Route path="company-settings" element={
+                  <Suspense fallback={<PageLoader />}>
+                    <CompanySettingsPage />
+                  </Suspense>
+                } />
+                <Route path="settings" element={
+                  <Suspense fallback={<PageLoader />}>
+                    <SettingsPage />
+                  </Suspense>
+                } />
+                <Route path="profile" element={
+                  <Suspense fallback={<PageLoader />}>
+                    <ProfilePage />
+                  </Suspense>
+                } />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

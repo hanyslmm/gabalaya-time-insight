@@ -54,7 +54,6 @@ const WageSettings: React.FC = () => {
       toast.success(t('settingsUpdated') || 'Settings updated successfully');
     },
     onError: (error) => {
-      console.error('Error updating wage settings:', error);
       toast.error(t('errorUpdatingSettings') || 'Error updating settings');
     }
   });

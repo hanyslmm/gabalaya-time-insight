@@ -154,7 +154,7 @@ export const HRAnalytics: React.FC<HRAnalyticsProps> = ({ dateRange }) => {
       setDailyEmployeeData(dailyData);
 
     } catch (error) {
-      console.error('Error fetching analytics data:', error);
+      // Silently handle analytics fetch errors
     } finally {
       setLoading(false);
     }

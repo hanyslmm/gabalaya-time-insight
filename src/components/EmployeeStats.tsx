@@ -57,7 +57,6 @@ const EmployeeStats: React.FC<EmployeeStatsProps> = ({ employee, onClose }) => {
   const { data: stats, isLoading } = useQuery({
     queryKey: ['employee-stats', employee.id, viewMode],
     queryFn: async () => {
-      console.log('Fetching stats for employee:', employee.full_name);
       
       const payPeriod = viewMode === 'current' ? getCurrentPayPeriod() : getPreviousPayPeriod();
       
@@ -70,11 +69,9 @@ const EmployeeStats: React.FC<EmployeeStatsProps> = ({ employee, onClose }) => {
         .lte('clock_in_date', format(payPeriod.to, 'yyyy-MM-dd'));
 
       if (error) {
-        console.error('Error fetching timesheet entries:', error);
         throw error;
       }
 
-      console.log('Found timesheet entries:', data);
       const entries = data || [];
       const totalShifts = entries.length;
       

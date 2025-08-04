@@ -78,12 +78,6 @@ const MyTimesheetPage: React.FC = () => {
         }
       }
       
-      console.log('Searching for timesheet data:', {
-        username: user.username,
-        employeeName: employeeName,
-        dateRange: { startDate, endDate }
-      });
-      
       const query = supabase
         .from('timesheet_entries')
         .select('*')
@@ -99,7 +93,6 @@ const MyTimesheetPage: React.FC = () => {
 
       const { data, error } = await query;
       
-      console.log('Timesheet query result:', { data, error });
 
       if (error) throw error;
       return data || [];
