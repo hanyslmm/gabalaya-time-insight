@@ -11,7 +11,7 @@ import { Clock, LogIn, LogOut, MapPin, AlertCircle, RefreshCw, Users, Eye, EyeOf
 import { format, differenceInMinutes, startOfDay, addHours } from 'date-fns';
 import { toast } from 'sonner';
 import ProfileAvatar from '@/components/ProfileAvatar';
-import { getCurrentCompanyTime, getTodayInCompanyTimezone, formatInCompanyTimezone, getCompanyTimezone, validateTimezone } from '@/utils/timezoneUtils';
+import { getCurrentCompanyTime, getTodayInCompanyTimezone, formatInCompanyTimezone, getCompanyTimezone, validateTimezone, parseCompanyDateTime } from '@/utils/timezoneUtils';
 import { getTimezoneAbbreviation } from '@/utils/timeFormatter';
 
 // Defines the structure for a clock-in/out entry
@@ -270,8 +270,10 @@ const ClockInOutPage: React.FC = () => {
         
         // Calculate worked hours if clocked in
         if (currentEntry) {
-          const clockInDateTime = new Date(`${currentEntry.clock_in_date}T${currentEntry.clock_in_time}`);
-          const minutesWorked = differenceInMinutes(companyNow, clockInDateTime);
+          // Parse the clock-in time as company timezone and convert to UTC for proper comparison
+          const clockInDateTimeStr = `${currentEntry.clock_in_date} ${currentEntry.clock_in_time}`;
+          const clockInDateTime = await parseCompanyDateTime(clockInDateTimeStr);
+          const minutesWorked = differenceInMinutes(utcNow, clockInDateTime);
           setWorkedHours(minutesWorked / 60);
         }
       } catch (error) {
