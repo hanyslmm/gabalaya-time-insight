@@ -1,4 +1,5 @@
 // Mobile optimization utilities
+import React from 'react';
 
 export const isMobileDevice = (): boolean => {
   return window.innerWidth < 768;
@@ -218,6 +219,3 @@ export const useMobileOptimization = () => {
     optimizeForMobile
   };
 };
-
-// Import React for the hook
-import React from 'react';
