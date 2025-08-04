@@ -141,11 +141,10 @@ const ClockInOutPage: React.FC = () => {
       const currentTime = await getCurrentCompanyTime();
       
       timesheetData?.forEach(entry => {
-        // Fixed logic: Check for active entry more comprehensively
-        const isActive = !entry.clock_out_time || 
-                         entry.clock_out_time === null || 
-                         entry.clock_out_time === '' ||
-                         entry.clock_out_time === '00:00:00';
+        // Improved logic: Check for active entry (null, undefined, or empty string)
+        const isActive = entry.clock_out_time === null || 
+                         entry.clock_out_time === undefined ||
+                         entry.clock_out_time === '';
         const duration = isActive 
           ? differenceInMinutes(currentTime, new Date(`${entry.clock_in_date}T${entry.clock_in_time}`))
           : entry.total_hours ? entry.total_hours * 60 : 0;
@@ -202,7 +201,14 @@ const ClockInOutPage: React.FC = () => {
     const today = await getTodayInCompanyTimezone();
     
     try {
-      // Build user identifiers for timesheet lookup
+      // First, get the employee record to find the correct employee_id
+      const { data: employeeData } = await supabase
+        .from('employees')
+        .select('id, staff_id, full_name')
+        .or(`staff_id.eq.${user.username},full_name.eq.${user.full_name}`)
+        .limit(1);
+
+      // Build user identifiers for timesheet lookup (both by name and by employee_id)
       const userIdentifiers = [
         user.username,
         user.full_name
@@ -212,9 +218,17 @@ const ClockInOutPage: React.FC = () => {
       const validIdentifiers = userIdentifiers.filter(id => id && id.trim() !== '');
       
       console.log('Searching for entries with identifiers:', validIdentifiers);
+      console.log('Employee data found:', employeeData);
 
-      // Build OR query for all possible identifiers
-      const orQuery = validIdentifiers.map(id => `employee_name.eq.${id}`).join(',');
+      // Build OR query for all possible identifiers (including employee_id)
+      let orQuery = validIdentifiers.map(id => `employee_name.eq.${id}`).join(',');
+      
+      // Add employee_id to the search if we found the employee record
+      if (employeeData && employeeData.length > 0) {
+        const employeeId = employeeData[0].id;
+        orQuery += `,employee_id.eq.${employeeId}`;
+        console.log('Added employee_id to search:', employeeId);
+      }
       
       const { data, error } = await supabase
         .from('timesheet_entries')
@@ -232,12 +246,11 @@ const ClockInOutPage: React.FC = () => {
       setTodayEntries(data || []);
       
       // Find the most recent entry without clock_out_time (active entry)
-      // Fixed logic: entry without clock_out_time OR with null/empty clock_out_time
+      // Improved logic: entry without clock_out_time (null, undefined, or empty string)
       const activeEntry = data?.find(entry => 
-        !entry.clock_out_time || 
         entry.clock_out_time === null || 
-        entry.clock_out_time === '' ||
-        entry.clock_out_time === '00:00:00'
+        entry.clock_out_time === undefined ||
+        entry.clock_out_time === ''
       ) || null;
       setCurrentEntry(activeEntry);
       
@@ -294,14 +307,14 @@ const ClockInOutPage: React.FC = () => {
 
   useEffect(() => {
     if (user) {
-      fetchTodayEntries();
-      fetchTeamStatus();
+      // Force refresh on mount to ensure sync
+      forceRefreshOnMount();
       
       // Set up interval to refresh team status every 30 seconds
       const interval = setInterval(fetchTeamStatus, 30000);
       return () => clearInterval(interval);
     }
-  }, [user]);
+  }, [user, forceRefreshOnMount]);
 
   const handleClockIn = async () => {
     if (!user) {
@@ -341,15 +354,30 @@ const ClockInOutPage: React.FC = () => {
         // If the error is about already being clocked in, refresh the entries to show the current state
         if (error.message.toLowerCase().includes('already') || error.message.toLowerCase().includes('clocked in')) {
           console.log('Clock in error - user already clocked in, refreshing data...');
+          toast.info('🔄 Checking your current status...');
           
           // Refresh the data and check the result directly
           const today = await getTodayInCompanyTimezone();
           try {
+            // Get the employee record to find the correct employee_id
+            const { data: employeeData } = await supabase
+              .from('employees')
+              .select('id, staff_id, full_name')
+              .or(`staff_id.eq.${user.username},full_name.eq.${user.full_name}`)
+              .limit(1);
+
             // Build comprehensive identifier list
             const userIdentifiers = [user.username, user.full_name];
 
             const validIdentifiers = userIdentifiers.filter(id => id && id.trim() !== '');
-            const orQuery = validIdentifiers.map(id => `employee_name.eq.${id}`).join(',');
+            let orQuery = validIdentifiers.map(id => `employee_name.eq.${id}`).join(',');
+            
+            // Add employee_id to the search if we found the employee record
+            if (employeeData && employeeData.length > 0) {
+              const employeeId = employeeData[0].id;
+              orQuery += `,employee_id.eq.${employeeId}`;
+              console.log('Refresh: Added employee_id to search:', employeeId);
+            }
             
             const { data: refreshedData, error: refreshError } = await supabase
               .from('timesheet_entries')
@@ -360,12 +388,11 @@ const ClockInOutPage: React.FC = () => {
 
             if (!refreshError && refreshedData) {
               setTodayEntries(refreshedData);
-              // Fixed logic: entry without clock_out_time OR with null/empty clock_out_time
+              // Improved logic: entry without clock_out_time (null, undefined, or empty string)
               const activeEntry = refreshedData.find(entry => 
-                !entry.clock_out_time || 
                 entry.clock_out_time === null || 
-                entry.clock_out_time === '' ||
-                entry.clock_out_time === '00:00:00'
+                entry.clock_out_time === undefined ||
+                entry.clock_out_time === ''
               ) || null;
               setCurrentEntry(activeEntry);
               
@@ -373,10 +400,12 @@ const ClockInOutPage: React.FC = () => {
                   console.log('Found active entry:', activeEntry);
                   
                   if (activeEntry) {
-                    toast.success('✅ Status updated! You are currently clocked in.');
+                    toast.success('✅ Status synced! You are currently clocked in.');
+                    console.log('✅ Successfully found and synced active entry:', activeEntry);
                   } else {
                     console.warn('❌ No active entry found after refresh. This might indicate a status sync issue.');
-                    toast.error('⚠️ Status sync issue detected. Please try clocking in again or contact your administrator if this problem persists.');
+                    console.log('Available entries after refresh:', refreshedData);
+                    toast.error('⚠️ Status sync issue detected. Please try refreshing the page or contact your administrator if this problem persists.');
                   }
             } else {
               toast.error('Unable to refresh your status. Please try again.');
@@ -437,9 +466,24 @@ const ClockInOutPage: React.FC = () => {
   };
 
   const refreshData = async () => {
+    console.log('🔄 Refreshing data to sync clock-in/out status...');
     await fetchTodayEntries();
     await fetchTeamStatus();
   };
+
+  // Force refresh data on component mount to ensure sync
+  const forceRefreshOnMount = useCallback(async () => {
+    if (!user) return;
+    
+    console.log('🚀 Force refreshing on mount to ensure status sync...');
+    setLoading(true);
+    try {
+      await fetchTodayEntries();
+      await fetchTeamStatus();
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
 
   const getWorkDayProgress = () => {
     if (!currentEntry) return 0;
