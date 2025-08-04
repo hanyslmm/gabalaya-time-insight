@@ -45,7 +45,31 @@ export async function getCompanyTimezone(): Promise<string> {
         
         if (fallbackError || !fallbackData || fallbackData.length === 0) {
           console.warn('No company timezone found, using default Africa/Cairo');
-          cachedTimezone = 'Africa/Cairo';
+          console.warn('ADMIN ACTION REQUIRED: Please insert company settings into the database');
+          
+          // Try to auto-fix by inserting default settings
+          try {
+            const { error: insertError } = await supabase
+              .from('company_settings')
+              .insert({
+                id: 1,
+                timezone: 'Africa/Cairo',
+                motivational_message: 'Keep up the great work! Your dedication makes a difference.',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              });
+            
+            if (!insertError) {
+              console.log('✅ Auto-fixed: Default company settings inserted');
+              cachedTimezone = 'Africa/Cairo';
+            } else {
+              console.warn('Could not auto-fix company settings:', insertError.message);
+              cachedTimezone = 'Africa/Cairo';
+            }
+          } catch (autoFixError) {
+            console.warn('Auto-fix failed, using fallback timezone');
+            cachedTimezone = 'Africa/Cairo';
+          }
         } else {
           cachedTimezone = fallbackData[0].timezone || 'Africa/Cairo';
           console.log('Using fallback timezone:', cachedTimezone);
