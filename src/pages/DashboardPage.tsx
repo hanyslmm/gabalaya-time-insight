@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, Clock, DollarSign, TrendingUp, Upload, Download, Settings } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Users, Clock, DollarSign, TrendingUp, Upload, Download, Settings, ShieldAlert } from 'lucide-react';
 import WeeklyHoursTrend from '@/components/WeeklyHoursTrend';
 import MonthlyShiftsActivity from '@/components/MonthlyShiftsActivity';
 import DailyPaymentChart from '@/components/DailyPaymentChart';
@@ -18,6 +20,30 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 const DashboardPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // Check if user is admin - restrict dashboard access to admins only
+  if (!user || user.role !== 'admin') {
+    return (
+      <div className="w-full px-4 sm:px-6 lg:px-8 flex items-center justify-center min-h-[60vh]">
+        <Alert variant="destructive" className="max-w-md">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertDescription>
+            Access denied. The dashboard is only available for administrators.
+            <div className="mt-4">
+              <Button 
+                onClick={() => navigate('/clock-in-out')}
+                variant="outline"
+                size="sm"
+              >
+                Go to Clock In/Out
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
   const [selectedPeriod, setSelectedPeriod] = useState('current');
   const [selectedMonth, setSelectedMonth] = useState('');
 

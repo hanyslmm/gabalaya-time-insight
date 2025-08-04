@@ -45,7 +45,7 @@ function App() {
                   </ProtectedRoute>
                 }
               >
-                <Route index element={<Navigate to="/dashboard" replace />} />
+                <Route index element={<Navigate to="/clock-in-out" replace />} />
                 <Route path="dashboard" element={<DashboardPage />} />
                 <Route path="clock-in-out" element={<ClockInOutPage />} />
                 <Route path="my-timesheet" element={<MyTimesheetPage />} />

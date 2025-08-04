@@ -141,7 +141,11 @@ const ClockInOutPage: React.FC = () => {
       const currentTime = await getCurrentCompanyTime();
       
       timesheetData?.forEach(entry => {
-        const isActive = !entry.clock_out_time || entry.clock_out_time === '00:00:00';
+        // Fixed logic: Check for active entry more comprehensively
+        const isActive = !entry.clock_out_time || 
+                         entry.clock_out_time === null || 
+                         entry.clock_out_time === '' ||
+                         entry.clock_out_time === '00:00:00';
         const duration = isActive 
           ? differenceInMinutes(currentTime, new Date(`${entry.clock_in_date}T${entry.clock_in_time}`))
           : entry.total_hours ? entry.total_hours * 60 : 0;
@@ -228,7 +232,13 @@ const ClockInOutPage: React.FC = () => {
       setTodayEntries(data || []);
       
       // Find the most recent entry without clock_out_time (active entry)
-      const activeEntry = data?.find(entry => !entry.clock_out_time && entry.clock_out_time !== '00:00:00') || null;
+      // Fixed logic: entry without clock_out_time OR with null/empty clock_out_time
+      const activeEntry = data?.find(entry => 
+        !entry.clock_out_time || 
+        entry.clock_out_time === null || 
+        entry.clock_out_time === '' ||
+        entry.clock_out_time === '00:00:00'
+      ) || null;
       setCurrentEntry(activeEntry);
       
       // Enhanced debug logging
@@ -348,17 +358,24 @@ const ClockInOutPage: React.FC = () => {
 
             if (!refreshError && refreshedData) {
               setTodayEntries(refreshedData);
-              const activeEntry = refreshedData.find(entry => !entry.clock_out_time && entry.clock_out_time !== '00:00:00') || null;
+              // Fixed logic: entry without clock_out_time OR with null/empty clock_out_time
+              const activeEntry = refreshedData.find(entry => 
+                !entry.clock_out_time || 
+                entry.clock_out_time === null || 
+                entry.clock_out_time === '' ||
+                entry.clock_out_time === '00:00:00'
+              ) || null;
               setCurrentEntry(activeEntry);
               
               console.log('Refreshed data:', refreshedData);
-              console.log('Found active entry:', activeEntry);
-              
-              if (activeEntry) {
-                toast.info('You are already clocked in. The page has been refreshed to show your current status.');
-              } else {
-                toast.warning('No active clock-in found. You may need to clock in again.');
-              }
+                  console.log('Found active entry:', activeEntry);
+                  
+                  if (activeEntry) {
+                    toast.success('✅ Status updated! You are currently clocked in.');
+                  } else {
+                    console.warn('❌ No active entry found after refresh. This might indicate a status sync issue.');
+                    toast.error('⚠️ Status sync issue detected. Please try clocking in again or contact your administrator if this problem persists.');
+                  }
             } else {
               toast.error('Unable to refresh your status. Please try again.');
             }
@@ -599,6 +616,14 @@ const ClockInOutPage: React.FC = () => {
                     <p className="text-sm text-muted-foreground">
                       💡 Your location will be recorded for attendance tracking
                     </p>
+                    {showDebug && (
+                      <div className="text-xs text-muted-foreground/70 bg-muted/20 p-2 rounded mt-2">
+                        <p>Debug Info:</p>
+                        <p>User: {user?.username} | Role: {user?.role}</p>
+                        <p>Today's entries: {todayEntries.length}</p>
+                        <p>Active entry: {currentEntry ? 'Found' : 'None'}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
                 

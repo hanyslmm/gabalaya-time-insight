@@ -69,7 +69,7 @@ const Layout = () => {
       href: '/dashboard',
       icon: LayoutDashboard,
       description: 'Overview & Analytics',
-      roles: ['admin', 'employee']
+      roles: ['admin']
     },
     {
       name: 'Clock In/Out',
