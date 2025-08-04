@@ -46,7 +46,6 @@ const EmployeeWageRates: React.FC<EmployeeWageRatesProps> = ({ employee, onClose
       onClose();
     },
     onError: (error) => {
-      console.error('Error updating wage rates:', error);
       toast.error('Error updating wage rates');
     }
   });

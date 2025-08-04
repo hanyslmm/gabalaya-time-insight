@@ -29,7 +29,7 @@ const DashboardPage: React.FC = () => {
     const month = targetDate.getMonth();
     
     // Calculate the end date of the pay period
-    let endDate = new Date(year, month, endDay);
+    const endDate = new Date(year, month, endDay);
     
     // For current period, if end day hasn't passed this month, use previous month's period
     if (offsetMonths === 0 && endDate > baseDate) {

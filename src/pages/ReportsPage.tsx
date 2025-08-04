@@ -40,7 +40,6 @@ const ReportsPage: React.FC = () => {
         to: today 
       };
     } catch (error) {
-      console.error('Error setting default date range:', error);
       const today = new Date();
       const lastMonth = new Date();
       lastMonth.setMonth(today.getMonth() - 1);
@@ -55,17 +54,14 @@ const ReportsPage: React.FC = () => {
   const { data: wageSettings, isLoading: wageLoading, error: wageError } = useQuery({
     queryKey: ['wage-settings'],
     queryFn: async () => {
-      console.log('Fetching wage settings...');
       const { data, error } = await supabase
         .from('wage_settings')
         .select('*')
         .single();
       
       if (error) {
-        console.error('Wage settings error:', error);
         throw error;
       }
-      console.log('Wage settings loaded:', data);
       return data;
     }
   });
@@ -78,8 +74,6 @@ const ReportsPage: React.FC = () => {
         const fromDate = format(dateRange.from, 'yyyy-MM-dd');
         const toDate = format(dateRange.to, 'yyyy-MM-dd');
         
-        console.log('=== FETCHING TIMESHEET DATA ===');
-        console.log('Date range:', { fromDate, toDate });
         
         const { data, error } = await supabase
           .from('timesheet_entries')
@@ -89,16 +83,12 @@ const ReportsPage: React.FC = () => {
           .order('clock_in_date', { ascending: false });
         
         if (error) {
-          console.error('Timesheet query error:', error);
           throw error;
         }
         
-        console.log('Raw timesheet entries found:', data?.length || 0);
-        console.log('Sample entries:', data?.slice(0, 3));
         
         return data || [];
       } catch (error) {
-        console.error('Error in timesheet query:', error);
         throw error;
       }
     },
@@ -109,17 +99,14 @@ const ReportsPage: React.FC = () => {
   const { data: employees, isLoading: employeesLoading } = useQuery({
     queryKey: ['employees-for-reports'],
     queryFn: async () => {
-      console.log('Fetching employees...');
       const { data, error } = await supabase
         .from('employees')
         .select('id, staff_id, full_name');
       
       if (error) {
-        console.error('Employees error:', error);
         throw error;
       }
       
-      console.log('Employees loaded:', data?.length || 0);
       return data || [];
     }
   });
@@ -127,16 +114,10 @@ const ReportsPage: React.FC = () => {
   // Process attendance report with better error handling
   const attendanceReport = useMemo(() => {
     try {
-      if (!rawTimesheetData || !employees || !wageSettings) {
-        console.log('Missing data for attendance report:', {
-          hasTimesheet: !!rawTimesheetData,
-          hasEmployees: !!employees,
-          hasWageSettings: !!wageSettings
-        });
-        return [];
-      }
+          if (!rawTimesheetData || !employees || !wageSettings) {
+      return [];
+    }
 
-      console.log('=== PROCESSING ATTENDANCE REPORT ===');
       
       // Create employee name mapping
       const employeeMap = new Map();
@@ -148,13 +129,12 @@ const ReportsPage: React.FC = () => {
 
       const processedData = rawTimesheetData.map(entry => {
         let morningHours = entry.morning_hours || 0;
-        let nightHours = entry.night_hours || 0;
+        const nightHours = entry.night_hours || 0;
 
         // If no morning/night hours calculated, try to calculate or use total
         if (morningHours === 0 && nightHours === 0 && entry.total_hours > 0) {
           // Simple fallback: assign all hours to morning for now
           morningHours = entry.total_hours;
-          console.log(`Assigned ${entry.total_hours}h to morning for ${entry.employee_name}`);
         }
 
         const displayName = employeeMap.get(entry.employee_name) || 
@@ -170,10 +150,8 @@ const ReportsPage: React.FC = () => {
         };
       });
 
-      console.log('Processed attendance entries:', processedData.length);
       return processedData;
     } catch (error) {
-      console.error('Error processing attendance report:', error);
       return [];
     }
   }, [rawTimesheetData, employees, wageSettings]);
@@ -185,7 +163,6 @@ const ReportsPage: React.FC = () => {
         return [];
       }
 
-      console.log('=== CALCULATING PAYROLL SUMMARY ===');
 
       // Group by employee
       const grouped = attendanceReport.reduce((acc, entry) => {
@@ -213,10 +190,8 @@ const ReportsPage: React.FC = () => {
       }, {} as any);
 
       const summary = Object.values(grouped);
-      console.log('Payroll summary calculated:', summary.length, 'employees');
       return summary;
     } catch (error) {
-      console.error('Error calculating payroll summary:', error);
       return [];
     }
   }, [attendanceReport]);
@@ -263,7 +238,6 @@ const ReportsPage: React.FC = () => {
       
       toast.success(`${type} report exported successfully`);
     } catch (error) {
-      console.error('Export error:', error);
       toast.error('Failed to export report');
     }
   };
@@ -317,7 +291,6 @@ const ReportsPage: React.FC = () => {
       }
       return 'Invalid date range';
     } catch (error) {
-      console.error('Error formatting date range:', error);
       return 'Invalid date range';
     }
   };

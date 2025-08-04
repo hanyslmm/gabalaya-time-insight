@@ -73,7 +73,6 @@ const CompanySettingsPage: React.FC = () => {
         description: "Failed to save settings. Please try again.",
         variant: "destructive",
       });
-      console.error('Save error:', error);
     }
   });
 

@@ -69,9 +69,9 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({
       
       try {
         await onRefresh();
-      } catch (error) {
-        console.error('Refresh failed:', error);
-      } finally {
+          } catch (error) {
+      // Silently handle refresh errors
+    } finally {
         setIsRefreshing(false);
         setCanRefresh(false);
       }

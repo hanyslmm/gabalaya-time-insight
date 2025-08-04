@@ -67,15 +67,9 @@ const TimesheetsPage: React.FC = () => {
         // Apply employee filter
         if (selectedEmployee && selectedEmployee !== 'all') {
           // Get the selected employee's details for proper filtering
-          const selectedEmp = employees?.find(emp => emp.id === selectedEmployee);
-          
-          console.log('Employee filter debug:', {
-            selectedEmployee,
-            selectedEmp,
-            allEmployees: employees
-          });
-          
-          if (selectedEmp) {
+                  const selectedEmp = employees?.find(emp => emp.id === selectedEmployee);
+        
+        if (selectedEmp) {
             // Build OR conditions to match various ways employee data might be stored
             const conditions = [
               `employee_id.eq.${selectedEmployee}`, // Match by UUID
@@ -83,10 +77,8 @@ const TimesheetsPage: React.FC = () => {
               `employee_name.eq.${selectedEmp.full_name}` // Match by full name (like Donia Amal)
             ];
             
-            console.log('Using filter conditions:', conditions);
             query = query.or(conditions.join(','));
           } else {
-            console.log('Selected employee not found in employees list');
           }
         }
 
@@ -94,15 +86,12 @@ const TimesheetsPage: React.FC = () => {
         const { data: timesheetData, error: timesheetError } = await query.order('clock_in_date', { ascending: false }).limit(500);
         
         if (timesheetError) {
-          console.error('Timesheet query error:', timesheetError);
           throw timesheetError;
         }
 
-        console.log(`Loaded ${timesheetData?.length || 0} timesheet entries`);
         return timesheetData || [];
         
       } catch (error) {
-        console.error('Error fetching timesheets:', error);
         throw error;
       }
     },

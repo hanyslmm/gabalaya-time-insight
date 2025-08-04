@@ -269,8 +269,8 @@ Deno.serve(async (req) => {
           }
           
           // Calculate night hours overlap (handling overnight periods)
-          let nightOverlapStart = Math.max(shiftStartMinutes, nightStartMinutes);
-          let nightOverlapEnd = Math.min(actualShiftEndMinutes, nightEndMinutes);
+          const nightOverlapStart = Math.max(shiftStartMinutes, nightStartMinutes);
+          const nightOverlapEnd = Math.min(actualShiftEndMinutes, nightEndMinutes);
           
           // Handle the case where shift spans midnight and night period also spans midnight
           if (nightEndMinutes > (24 * 60)) {

@@ -25,7 +25,6 @@ const WageCalculator: React.FC<WageCalculatorProps> = ({ selectedRows, onCalcula
         .single();
       
       if (error) {
-        console.error('Error fetching wage settings:', error);
         throw error;
       }
       return data;
@@ -37,7 +36,6 @@ const WageCalculator: React.FC<WageCalculatorProps> = ({ selectedRows, onCalcula
     queryFn: async () => {
       if (selectedRows.length === 0) return [];
       
-      console.log('Fetching selected entries for IDs:', selectedRows);
       
       const { data, error } = await supabase
         .from('timesheet_entries')
@@ -52,11 +50,9 @@ const WageCalculator: React.FC<WageCalculatorProps> = ({ selectedRows, onCalcula
         .in('id', selectedRows);
       
       if (error) {
-        console.error('Error fetching selected entries:', error);
         throw error;
       }
       
-      console.log('Selected entries with employee data:', data);
       return data;
     },
     enabled: selectedRows.length > 0
@@ -68,18 +64,13 @@ const WageCalculator: React.FC<WageCalculatorProps> = ({ selectedRows, onCalcula
         throw new Error('Missing data for calculation');
       }
 
-      console.log('Starting wage calculation with settings:', wageSettings);
-      console.log('Processing entries:', selectedEntries);
 
       const updates = selectedEntries.map(entry => {
-        console.log('Processing entry for:', entry.employee_name);
         
         // Parse times - handle both date and time
         const clockInDateTime = new Date(`${entry.clock_in_date}T${entry.clock_in_time}`);
         const clockOutDateTime = new Date(`${entry.clock_out_date}T${entry.clock_out_time}`);
         
-        console.log('Clock in:', clockInDateTime);
-        console.log('Clock out:', clockOutDateTime);
         
         // Handle next day scenario for night shifts
         if (clockOutDateTime < clockInDateTime) {
@@ -110,13 +101,6 @@ const WageCalculator: React.FC<WageCalculatorProps> = ({ selectedRows, onCalcula
           nightEnd.setDate(nightEnd.getDate() + 1);
         }
 
-        console.log('Time boundaries:', {
-          morningStart: morningStart.toISOString(),
-          morningEnd: morningEnd.toISOString(),
-          nightStart: nightStart.toISOString(),
-          nightEnd: nightEnd.toISOString()
-        });
-
         let morningHours = 0;
         let nightHours = 0;
 
@@ -136,7 +120,6 @@ const WageCalculator: React.FC<WageCalculatorProps> = ({ selectedRows, onCalcula
           nightHours = (nightOverlapEnd.getTime() - nightOverlapStart.getTime()) / (1000 * 60 * 60);
         }
 
-        console.log('Calculated hours:', { morningHours, nightHours });
 
         // Ensure total hours don't exceed actual worked hours
         const totalWorkedHours = (clockOutDateTime.getTime() - clockInDateTime.getTime()) / (1000 * 60 * 60);
@@ -146,24 +129,16 @@ const WageCalculator: React.FC<WageCalculatorProps> = ({ selectedRows, onCalcula
           const ratio = totalWorkedHours / calculatedTotal;
           morningHours *= ratio;
           nightHours *= ratio;
-          console.log('Adjusted hours due to total limit:', { morningHours, nightHours });
         }
 
         // Use individual employee rates or fall back to default
         const employeeMorningRate = entry.employees?.morning_wage_rate || wageSettings.morning_wage_rate;
         const employeeNightRate = entry.employees?.night_wage_rate || wageSettings.night_wage_rate;
 
-        console.log('Using rates:', { employeeMorningRate, employeeNightRate });
 
-        const totalSplitAmount = (morningHours * employeeMorningRate) + (nightHours * employeeNightRate);
+                const totalSplitAmount = (morningHours * employeeMorningRate) + (nightHours * employeeNightRate);
 
-        console.log('Final calculation:', {
-          morningHours: morningHours.toFixed(2),
-          nightHours: nightHours.toFixed(2),
-          totalSplitAmount: totalSplitAmount.toFixed(2)
-        });
-
-        return {
+      return {
           id: entry.id,
           morning_hours: Math.max(0, parseFloat(morningHours.toFixed(2))),
           night_hours: Math.max(0, parseFloat(nightHours.toFixed(2))),
@@ -172,18 +147,15 @@ const WageCalculator: React.FC<WageCalculatorProps> = ({ selectedRows, onCalcula
         };
       });
 
-      console.log('Updates to apply:', updates);
 
       // Update all entries in batch
       for (const update of updates) {
-        console.log('Updating entry:', update.id, update);
         const { error } = await supabase
           .from('timesheet_entries')
           .update(update)
           .eq('id', update.id);
         
         if (error) {
-          console.error('Error updating entry:', update.id, error);
           throw error;
         }
       }
@@ -191,14 +163,12 @@ const WageCalculator: React.FC<WageCalculatorProps> = ({ selectedRows, onCalcula
       return updates;
     },
     onSuccess: (updates) => {
-      console.log('Successfully updated entries:', updates);
       queryClient.invalidateQueries({ queryKey: ['timesheets'] });
       queryClient.invalidateQueries({ queryKey: ['selected-timesheet-entries'] });
       toast.success(`${t('wagesCalculated') || 'Split wages calculated successfully'} (${updates.length} entries updated)`);
       onCalculationComplete();
     },
     onError: (error) => {
-      console.error('Error calculating split wages:', error);
       toast.error(t('errorCalculatingWages') || 'Error calculating split wages');
     }
   });
@@ -209,7 +179,6 @@ const WageCalculator: React.FC<WageCalculatorProps> = ({ selectedRows, onCalcula
       return;
     }
 
-    console.log('Starting split wage calculation for rows:', selectedRows);
     calculateSplitWagesMutation.mutate();
   };
 

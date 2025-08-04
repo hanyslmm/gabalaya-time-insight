@@ -21,7 +21,8 @@ const OfflineIndicator: React.FC = () => {
         setShowOfflineAlert(true);
       } else {
         // When coming back online, hide alert after a delay
-        setTimeout(() => setShowOfflineAlert(false), 3000);
+        const timeoutId = setTimeout(() => setShowOfflineAlert(false), 3000);
+        return () => clearTimeout(timeoutId);
       }
     });
 
@@ -33,9 +34,9 @@ const OfflineIndicator: React.FC = () => {
       try {
         const actions = await getOfflineActions();
         setOfflineActionsCount(actions.length);
-      } catch (error) {
-        console.error('Failed to get offline actions:', error);
-      }
+          } catch (error) {
+      // Silently fail if offline actions can't be retrieved
+    }
     };
 
     updateOfflineActionsCount();

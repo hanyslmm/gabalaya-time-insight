@@ -74,7 +74,6 @@ const TimesheetUpload: React.FC<TimesheetUploadProps> = ({ onClose, onUploadComp
     setUploading(true);
     try {
       const rawData = await parseFile(file);
-      console.log('Parsed raw data:', rawData);
       
       // Use the new edge function for processing and validation
       const { data: result, error } = await supabase.functions.invoke('process-timesheet', {
@@ -85,13 +84,11 @@ const TimesheetUpload: React.FC<TimesheetUploadProps> = ({ onClose, onUploadComp
       });
 
       if (error) {
-        console.error('Error validating timesheet data:', error);
         toast.error('Error validating timesheet data: ' + error.message);
         return;
       }
 
       if (result && result.success) {
-        console.log('Validation result:', result);
         
         if (result.validEntries === 0) {
           toast.error(t('noValidData') || 'No valid data found in file. Please check the file format.');
@@ -106,7 +103,7 @@ const TimesheetUpload: React.FC<TimesheetUploadProps> = ({ onClose, onUploadComp
 
         // Show validation errors if any
         if (result.errors && result.errors.length > 0) {
-          console.warn('Validation errors:', result.errors);
+          // Validation errors will be shown in the preview
         }
 
         setPreviewData(preview);
@@ -122,7 +119,6 @@ const TimesheetUpload: React.FC<TimesheetUploadProps> = ({ onClose, onUploadComp
         toast.error(result?.error || 'Unknown error occurred during validation');
       }
     } catch (error) {
-      console.error('Error processing file:', error);
       toast.error(t('errorProcessingFile') || 'Error processing file: ' + (error as Error).message);
     } finally {
       setUploading(false);
@@ -152,7 +148,6 @@ const TimesheetUpload: React.FC<TimesheetUploadProps> = ({ onClose, onUploadComp
       });
 
       if (error) {
-        console.error('Error uploading timesheet data:', error);
         toast.error('Error uploading timesheet data: ' + error.message);
         return;
       }
@@ -165,7 +160,6 @@ const TimesheetUpload: React.FC<TimesheetUploadProps> = ({ onClose, onUploadComp
         toast.error(result?.error || 'Unknown error occurred during upload');
       }
     } catch (error) {
-      console.error('Upload error:', error);
       toast.error('Upload failed: ' + (error as Error).message);
     } finally {
       setUploading(false);

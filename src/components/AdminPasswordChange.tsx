@@ -50,7 +50,6 @@ const AdminPasswordChange: React.FC<AdminPasswordChangeProps> = ({ employee, onC
       });
 
       if (error) {
-        console.error('Edge function error:', error);
         throw new Error('Failed to change password');
       }
       if (!result?.success) {
