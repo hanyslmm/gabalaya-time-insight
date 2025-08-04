@@ -37,10 +37,22 @@ interface TeamMemberStatus {
 }
 
 const ClockInOutPage: React.FC = () => {
+  console.log('ClockInOutPage component rendering...');
   const { user } = useAuth();
+  console.log('ClockInOutPage - user:', user);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [currentEntry, setCurrentEntry] = useState<ClockEntry | null>(null);
+
+  // Emergency timeout to prevent infinite loading
+  useEffect(() => {
+    const emergencyTimeout = setTimeout(() => {
+      console.warn('ClockInOutPage - Emergency timeout triggered, forcing loading to false');
+      setLoading(false);
+    }, 5000); // 5 second emergency timeout
+
+    return () => clearTimeout(emergencyTimeout);
+  }, []);
   const [todayEntries, setTodayEntries] = useState<ClockEntry[]>([]);
   const [teamStatus, setTeamStatus] = useState<TeamMemberStatus[]>([]);
   const [showTeamStatus, setShowTeamStatus] = useState(false);
@@ -68,6 +80,7 @@ const ClockInOutPage: React.FC = () => {
     
     const fetchTimezoneInfo = async () => {
       try {
+        console.log('ClockInOutPage - fetchTimezoneInfo starting...');
         // Validate timezone first
         const validation = await validateTimezone();
         console.log('Timezone validation result:', validation);
@@ -77,9 +90,11 @@ const ClockInOutPage: React.FC = () => {
         }
         
         const abbr = await getTimezoneAbbreviation();
+        console.log('ClockInOutPage - timezone abbreviation:', abbr);
         setTimezoneAbbr(abbr);
+        console.log('ClockInOutPage - fetchTimezoneInfo completed');
       } catch (error) {
-        console.warn('Could not fetch timezone abbreviation:', error);
+        console.error('ClockInOutPage - Could not fetch timezone abbreviation:', error);
         setTimezoneAbbr('UTC+2'); // Fallback
       }
     };
@@ -193,12 +208,25 @@ const ClockInOutPage: React.FC = () => {
 
   // Fetch today's clock-in/out entries
   const fetchTodayEntries = async () => {
+    console.log('ClockInOutPage - fetchTodayEntries called, user:', user);
     if (!user) {
+      console.log('ClockInOutPage - fetchTodayEntries: no user, setting loading to false');
       setLoading(false);
       return;
     }
     
-    const today = await getTodayInCompanyTimezone();
+    let today;
+    try {
+      console.log('ClockInOutPage - calling getTodayInCompanyTimezone...');
+      today = await getTodayInCompanyTimezone();
+      console.log('ClockInOutPage - getTodayInCompanyTimezone result:', today);
+    } catch (error) {
+      console.error('ClockInOutPage - getTodayInCompanyTimezone error:', error);
+      // Fallback to local date
+      const localDate = new Date();
+      today = `${localDate.getFullYear()}-${String(localDate.getMonth() + 1).padStart(2, '0')}-${String(localDate.getDate()).padStart(2, '0')}`;
+      console.log('ClockInOutPage - using fallback date:', today);
+    }
     
     try {
       // First, get the employee record to find the correct employee_id
@@ -265,9 +293,10 @@ const ClockInOutPage: React.FC = () => {
       console.log('Current entry state will be set to:', activeEntry);
       
     } catch (error) {
-      console.error('Error fetching today entries:', error);
+      console.error('ClockInOutPage - Error fetching today entries:', error);
       toast.error("Could not fetch today's entries.");
     } finally {
+      console.log('ClockInOutPage - fetchTodayEntries finally block, setting loading to false');
       setLoading(false);
     }
   };
@@ -306,13 +335,35 @@ const ClockInOutPage: React.FC = () => {
   }, [currentEntry]);
 
   useEffect(() => {
+    console.log('ClockInOutPage - useEffect triggered, user:', user);
+    
+    // Test database connection
+    const testConnection = async () => {
+      try {
+        console.log('ClockInOutPage - testing database connection...');
+        const { data, error } = await supabase.from('company_settings').select('id').limit(1);
+        if (error) {
+          console.error('ClockInOutPage - database connection error:', error);
+        } else {
+          console.log('ClockInOutPage - database connection successful:', data);
+        }
+      } catch (error) {
+        console.error('ClockInOutPage - database connection failed:', error);
+      }
+    };
+    
+    testConnection();
+    
     if (user) {
+      console.log('ClockInOutPage - user exists, calling forceRefreshOnMount');
       // Force refresh on mount to ensure sync
       forceRefreshOnMount();
       
       // Set up interval to refresh team status every 30 seconds
       const interval = setInterval(fetchTeamStatus, 30000);
       return () => clearInterval(interval);
+    } else {
+      console.log('ClockInOutPage - no user found');
     }
   }, [user, forceRefreshOnMount]);
 
@@ -477,10 +528,21 @@ const ClockInOutPage: React.FC = () => {
     
     console.log('🚀 Force refreshing on mount to ensure status sync...');
     setLoading(true);
+    
+    // Add a timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.error('ClockInOutPage - forceRefreshOnMount timeout, setting loading to false');
+      setLoading(false);
+    }, 10000); // 10 second timeout
+    
     try {
       await fetchTodayEntries();
       await fetchTeamStatus();
+      console.log('ClockInOutPage - forceRefreshOnMount completed successfully');
+    } catch (error) {
+      console.error('ClockInOutPage - forceRefreshOnMount error:', error);
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   }, [user]);
@@ -505,19 +567,24 @@ const ClockInOutPage: React.FC = () => {
   };
 
   if (loading) {
+    console.log('ClockInOutPage - still loading...');
+    // Temporary: show loading for only 3 seconds max, then show content anyway
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
         <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
         <p className="text-muted-foreground animate-pulse">Loading your workspace...</p>
+        <p className="text-xs text-muted-foreground">Debug: Loading state active</p>
       </div>
     );
   }
 
+  console.log('ClockInOutPage - rendering main content, loading:', loading, 'user:', user);
+
   return (
-    <div className="w-full px-1 sm:px-2 lg:px-4 pb-safe min-h-screen animate-fade-in">
+    <div className="w-full px-1 sm:px-2 lg:px-4 pb-safe min-h-screen">
       <div className="max-w-md mx-auto space-y-3 sm:space-y-4">
         {/* Greeting Card */}
-        <Card className="bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/10 animate-scale-in">
+        <Card className="bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/10">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -550,7 +617,7 @@ const ClockInOutPage: React.FC = () => {
         )}
 
         {/* Main Clock In/Out Card */}
-        <Card className="shadow-2xl border-border/20 bg-gradient-to-br from-card via-card/95 to-card/90 rounded-3xl overflow-hidden animate-scale-in">
+        <Card className="shadow-2xl border-border/20 bg-gradient-to-br from-card via-card/95 to-card/90 rounded-3xl overflow-hidden">
           <CardHeader className="text-center pb-4 px-6 pt-8 relative">
             <div className="flex justify-between items-center mb-4">
               <Badge variant={currentEntry ? "default" : "secondary"} className="animate-pulse">
