@@ -41,15 +41,6 @@ const ClockInOutPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [currentEntry, setCurrentEntry] = useState<ClockEntry | null>(null);
-
-  // Emergency timeout to prevent infinite loading
-  useEffect(() => {
-    const emergencyTimeout = setTimeout(() => {
-      setLoading(false);
-    }, 5000); // 5 second emergency timeout
-
-    return () => clearTimeout(emergencyTimeout);
-  }, []);
   const [todayEntries, setTodayEntries] = useState<ClockEntry[]>([]);
   const [teamStatus, setTeamStatus] = useState<TeamMemberStatus[]>([]);
   const [showTeamStatus, setShowTeamStatus] = useState(false);
@@ -61,38 +52,56 @@ const ClockInOutPage: React.FC = () => {
   const [targetHours] = useState(8); // Default 8-hour workday
   const [showDebug, setShowDebug] = useState(false);
   const [timezoneAbbr, setTimezoneAbbr] = useState('Local');
+  const [initializationError, setInitializationError] = useState<string | null>(null);
+
+  // Simplified loading timeout - just one timeout to prevent infinite loading
+  useEffect(() => {
+    const loadingTimeout = setTimeout(() => {
+      if (loading) {
+        console.warn('Loading timeout reached, forcing component to load');
+        setLoading(false);
+        setInitializationError('Loading took longer than expected. Some features may not work correctly.');
+      }
+    }, 8000); // 8 second timeout
+
+    return () => clearTimeout(loadingTimeout);
+  }, [loading]);
 
   // Fetch motivational message and timezone info on component mount
   useEffect(() => {
-    const fetchMessage = async () => {
-      const { data } = await supabase
-        .from('company_settings')
-        .select('motivational_message')
-        .single();
-      
-      if (data?.motivational_message) {
-        setMotivationalMessage(data.motivational_message);
-      }
-    };
-    
-    const fetchTimezoneInfo = async () => {
+    const fetchInitialData = async () => {
       try {
-        // Validate timezone first
+        // Fetch motivational message
+        const { data: settingsData } = await supabase
+          .from('company_settings')
+          .select('motivational_message')
+          .single();
+        
+        if (settingsData?.motivational_message) {
+          setMotivationalMessage(settingsData.motivational_message);
+        }
+      } catch (error) {
+        console.warn('Could not fetch motivational message:', error);
+      }
+      
+      try {
+        // Validate timezone
         const validation = await validateTimezone();
         
         if (!validation.isValid) {
-          toast.error(`Timezone issue: ${validation.message}`);
+          console.warn(`Timezone issue: ${validation.message}`);
+          setInitializationError(`Timezone issue: ${validation.message}`);
         }
         
         const abbr = await getTimezoneAbbreviation();
         setTimezoneAbbr(abbr);
       } catch (error) {
+        console.warn('Could not fetch timezone info:', error);
         setTimezoneAbbr('UTC+2'); // Fallback
       }
     };
     
-    fetchMessage();
-    fetchTimezoneInfo();
+    fetchInitialData();
   }, []);
 
   // Get user's current geolocation
@@ -124,7 +133,10 @@ const ClockInOutPage: React.FC = () => {
         .from('employees')
         .select('staff_id, full_name, role');
 
-      if (employeesError) throw employeesError;
+      if (employeesError) {
+        console.warn('Could not fetch employees for team status:', employeesError);
+        return;
+      }
 
       // Create a comprehensive map to convert employee IDs/names to display names
       const employeeMap = new Map();
@@ -141,7 +153,10 @@ const ClockInOutPage: React.FC = () => {
         .eq('clock_in_date', today)
         .order('clock_in_time', { ascending: false });
 
-      if (timesheetError) throw timesheetError;
+      if (timesheetError) {
+        console.warn('Could not fetch team timesheet data:', timesheetError);
+        return;
+      }
 
       // Process team member statuses
       const statusMap = new Map<string, TeamMemberStatus>();
@@ -194,26 +209,25 @@ const ClockInOutPage: React.FC = () => {
       const activeTeamMembers = Array.from(statusMap.values()).filter(status => status.is_active);
       setTeamStatus(activeTeamMembers);
     } catch (error) {
+      console.warn('Error fetching team status:', error);
     }
   }, [user]);
 
   // Fetch today's clock-in/out entries
   const fetchTodayEntries = useCallback(async () => {
+    console.log('fetchTodayEntries: Starting, user:', user?.username);
+    
     if (!user) {
+      console.log('fetchTodayEntries: No user, setting loading to false');
       setLoading(false);
       return;
     }
     
-    let today;
     try {
-      today = await getTodayInCompanyTimezone();
-    } catch (error) {
-      // Fallback to local date
-      const localDate = new Date();
-      today = `${localDate.getFullYear()}-${String(localDate.getMonth() + 1).padStart(2, '0')}-${String(localDate.getDate()).padStart(2, '0')}`;
-    }
-    
-    try {
+      console.log('fetchTodayEntries: Getting today in company timezone...');
+      const today = await getTodayInCompanyTimezone();
+      console.log('fetchTodayEntries: Today is:', today);
+      
       // First, get the employee record to find the correct employee_id
       const { data: employeeData } = await supabase
         .from('employees')
@@ -248,10 +262,12 @@ const ClockInOutPage: React.FC = () => {
         .order('clock_in_time', { ascending: false });
 
       if (error) {
-        toast.error("Could not fetch today's entries.");
+        console.warn("Could not fetch today's entries:", error);
+        setInitializationError("Could not fetch today's entries. Please refresh the page.");
         return;
       }
 
+      console.log('fetchTodayEntries: Found', data?.length || 0, 'entries');
       setTodayEntries(data || []);
       
       // Find the most recent entry without clock_out_time (active entry)
@@ -261,11 +277,14 @@ const ClockInOutPage: React.FC = () => {
         entry.clock_out_time === undefined ||
         entry.clock_out_time === ''
       ) || null;
+      console.log('fetchTodayEntries: Active entry:', activeEntry?.id || 'none');
       setCurrentEntry(activeEntry);
       
     } catch (error) {
-      toast.error("Could not fetch today's entries.");
+      console.error("fetchTodayEntries: Error fetching today's entries:", error);
+      setInitializationError("Error loading your timesheet data. Please refresh the page.");
     } finally {
+      console.log('fetchTodayEntries: Setting loading to false');
       setLoading(false);
     }
   }, [user]);
@@ -302,56 +321,57 @@ const ClockInOutPage: React.FC = () => {
     return () => clearInterval(timer);
   }, [currentEntry]);
 
-  // Force refresh data on component mount to ensure sync
-  const forceRefreshOnMount = useCallback(async () => {
-    if (!user) return;
-    
-    setLoading(true);
-    
-    // Add a timeout to prevent infinite loading
-    const timeoutId = setTimeout(() => {
-      setLoading(false);
-    }, 10000); // 10 second timeout
-    
-    try {
-      await Promise.all([
-        fetchTodayEntries(),
-        fetchTeamStatus()
-      ]);
-    } catch (error) {
-      console.error('Error refreshing data:', error);
-      toast.error('Failed to refresh data. Please try again.');
-    } finally {
-      clearTimeout(timeoutId);
-      setLoading(false);
-    }
-  }, [user, fetchTodayEntries, fetchTeamStatus]);
-
+  // Main initialization effect - simplified
   useEffect(() => {
+    console.log('ClockInOutPage: useEffect triggered, user:', user?.username);
     
-    // Test database connection
-    const testConnection = async () => {
+    if (!user) {
+      console.log('ClockInOutPage: No user found, setting loading to false');
+      setLoading(false);
+      return;
+    }
+
+    const initializeData = async () => {
       try {
-        const { data, error } = await supabase.from('company_settings').select('id').limit(1);
-        if (error) {
+        console.log('ClockInOutPage: Initializing data for user:', user.username);
+        
+        // Test database connection first
+        const { data: testData, error: testError } = await supabase.from('company_settings').select('id').limit(1);
+        if (testError) {
+          console.warn('ClockInOutPage: Database connection issue:', testError);
+          setInitializationError('Database connection issue. Please refresh the page.');
         } else {
+          console.log('ClockInOutPage: Database connection successful');
         }
+        
+        // Fetch today's entries (this will set loading to false)
+        console.log('ClockInOutPage: Fetching today\'s entries...');
+        await fetchTodayEntries();
+        
+        // Fetch team status (non-blocking)
+        console.log('ClockInOutPage: Fetching team status...');
+        fetchTeamStatus().catch(error => {
+          console.warn('ClockInOutPage: Could not fetch team status:', error);
+        });
+        
       } catch (error) {
+        console.error('ClockInOutPage: Error initializing data:', error);
+        setInitializationError('Failed to initialize page data. Please refresh.');
+        setLoading(false);
       }
     };
+
+    initializeData();
     
-    testConnection();
+    // Set up interval to refresh team status every 30 seconds
+    const interval = setInterval(() => {
+      fetchTeamStatus().catch(error => {
+        console.warn('ClockInOutPage: Could not refresh team status:', error);
+      });
+    }, 30000);
     
-    if (user) {
-      // Force refresh on mount to ensure sync
-      forceRefreshOnMount();
-      
-      // Set up interval to refresh team status every 30 seconds
-      const interval = setInterval(fetchTeamStatus, 30000);
-      return () => clearInterval(interval);
-    } else {
-    }
-  }, [user, forceRefreshOnMount, fetchTeamStatus]);
+    return () => clearInterval(interval);
+  }, [user, fetchTodayEntries, fetchTeamStatus]);
 
   const handleClockIn = async () => {
     if (!user) {
@@ -504,12 +524,17 @@ const ClockInOutPage: React.FC = () => {
   };
 
   if (loading) {
-    // Temporary: show loading for only 3 seconds max, then show content anyway
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
         <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
         <p className="text-muted-foreground animate-pulse">Loading your workspace...</p>
-        <p className="text-xs text-muted-foreground">Debug: Loading state active</p>
+        <p className="text-xs text-muted-foreground">Please wait while we load your data...</p>
+        {initializationError && (
+          <Alert variant="destructive" className="max-w-md">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{initializationError}</AlertDescription>
+          </Alert>
+        )}
       </div>
     );
   }
@@ -542,7 +567,16 @@ const ClockInOutPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        {motivationalMessage && (
+        {initializationError && (
+          <Alert variant="destructive" className="rounded-2xl animate-slide-in-right">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="text-foreground font-medium">
+              {initializationError}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {motivationalMessage && !initializationError && (
           <Alert variant="default" className="bg-gradient-to-r from-accent/10 to-secondary/10 border-accent/20 rounded-2xl animate-slide-in-right">
             <Zap className="h-4 w-4 text-accent" />
             <AlertDescription className="text-foreground font-medium">
