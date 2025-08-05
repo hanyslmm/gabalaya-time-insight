@@ -135,7 +135,7 @@ export async function convertCompanyTimeToUTC(localDate: Date): Promise<Date> {
   const timezone = await getCompanyTimezone();
   
   try {
-    // Create a date string in the company timezone
+    // Create a date string in ISO format
     const year = localDate.getFullYear();
     const month = String(localDate.getMonth() + 1).padStart(2, '0');
     const day = String(localDate.getDate()).padStart(2, '0');
@@ -143,19 +143,28 @@ export async function convertCompanyTimeToUTC(localDate: Date): Promise<Date> {
     const minutes = String(localDate.getMinutes()).padStart(2, '0');
     const seconds = String(localDate.getSeconds()).padStart(2, '0');
     
-    const localDateString = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+    // The key insight: we need to find what UTC time would produce this local time in the company timezone
+    // We'll use a more direct approach with Intl.DateTimeFormat
     
-    // Create a temporary date in UTC and adjust for timezone offset
-    const tempDate = new Date(localDateString);
-    const utcDate = new Date(tempDate.toLocaleString('en-US', { timeZone: 'UTC' }));
-    const companyDate = new Date(tempDate.toLocaleString('en-US', { timeZone: timezone }));
+    // Create a reference date to calculate the timezone offset
+    const referenceDate = new Date();
     
-    // Calculate the offset and adjust
-    const offset = utcDate.getTime() - companyDate.getTime();
-    return new Date(tempDate.getTime() + offset);
+    // Get the offset in minutes for the company timezone
+    const utcDate = new Date(referenceDate.toLocaleString('en-US', { timeZone: 'UTC' }));
+    const companyDate = new Date(referenceDate.toLocaleString('en-US', { timeZone: timezone }));
+    const offsetMinutes = (utcDate.getTime() - companyDate.getTime()) / (1000 * 60);
+    
+    // Apply this offset to our local date
+    const localDateTime = new Date(`${year}-${month}-${day}T${hours}:${minutes}:${seconds}`);
+    return new Date(localDateTime.getTime() + (offsetMinutes * 60 * 1000));
+    
   } catch (error) {
     console.error('Error converting company time to UTC:', error);
-    return localDate; // Fallback to original date
+    
+    // Fallback: assume Egypt timezone offset (UTC+2)
+    const offsetHours = 2;
+    const localDateTime = new Date(localDate);
+    return new Date(localDateTime.getTime() - (offsetHours * 60 * 60 * 1000));
   }
 }
 
@@ -211,20 +220,41 @@ export async function parseCompanyDateTime(dateStr: string, timeStr?: string): P
   try {
     let fullDateTimeStr = dateStr;
     if (timeStr) {
-      fullDateTimeStr = `${dateStr}T${timeStr}`;
+      fullDateTimeStr = `${dateStr} ${timeStr}`;
     }
     
     // If no time specified, assume start of day
-    if (!timeStr && !dateStr.includes('T')) {
-      fullDateTimeStr = `${dateStr}T00:00:00`;
+    if (!timeStr && !dateStr.includes('T') && !dateStr.includes(' ')) {
+      fullDateTimeStr = `${dateStr} 00:00:00`;
     }
     
-    // Parse as if it's in the company timezone
-    const tempDate = new Date(fullDateTimeStr);
-    return await convertCompanyTimeToUTC(tempDate);
+    // Parse the date/time string and treat it as if it's in the company timezone
+    // Use a more reliable approach that handles timezone conversion properly
+    
+    // First, parse the date components
+    const dateTimeMatch = fullDateTimeStr.match(/(\d{4})-(\d{2})-(\d{2})[\sT](\d{2}):(\d{2}):(\d{2})/);
+    if (!dateTimeMatch) {
+      throw new Error('Invalid date/time format');
+    }
+    
+    const [, year, month, day, hours, minutes, seconds] = dateTimeMatch;
+    
+    // Create a date object in the local timezone first
+    const localDate = new Date(
+      parseInt(year),
+      parseInt(month) - 1, // months are 0-indexed
+      parseInt(day),
+      parseInt(hours),
+      parseInt(minutes),
+      parseInt(seconds)
+    );
+    
+    // Now convert this local date to UTC, treating it as if it was in the company timezone
+    return await convertCompanyTimeToUTC(localDate);
   } catch (error) {
     console.error('Error parsing company date/time:', error);
-    return new Date(dateStr); // Fallback
+    // Fallback: try to parse as-is and hope for the best
+    return new Date(fullDateTimeStr);
   }
 }
 

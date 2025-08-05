@@ -531,7 +531,7 @@ const ClockInOutPage: React.FC = () => {
                 </p>
                 {showDebug && (
                   <p className="text-xs text-muted-foreground/70 mt-1">
-                    Debug: UTC {new Date().toISOString()} | Local {new Date().toLocaleString()}
+                    Debug: UTC {new Date().toISOString()} | Local {new Date().toLocaleString()} | Company {companyTime.toLocaleString()}
                   </p>
                 )}
               </div>
@@ -722,18 +722,26 @@ const ClockInOutPage: React.FC = () => {
                   <div>User: {user?.username}</div>
                   <div>Name: {user?.full_name}</div>
                   <div>Role: {user?.role}</div>
+                  <div>Timezone: {timezoneAbbr}</div>
                 </div>
                 <div>
                   <div>Active Entry: {currentEntry ? 'YES' : 'NO'}</div>
                   <div>Today Entries: {todayEntries.length}</div>
                   <div>Worked Hours: {workedHours.toFixed(2)}h</div>
+                  <div>Target Hours: {targetHours}h</div>
                 </div>
+              </div>
+              <div className="pt-2 border-t">
+                <div>Current Time (UTC): {currentTime.toISOString()}</div>
+                <div>Company Time: {companyTime.toLocaleString()}</div>
+                <div>Company Time (ISO): {companyTime.toISOString()}</div>
               </div>
               {currentEntry && (
                 <div className="pt-2 border-t">
                   <div>Entry ID: {currentEntry.id}</div>
-                  <div>Clock In: {currentEntry.clock_in_time}</div>
+                  <div>Clock In: {currentEntry.clock_in_date} {currentEntry.clock_in_time}</div>
                   <div>Employee Name: {currentEntry.employee_name}</div>
+                  <div>Clock In Location: {currentEntry.clock_in_location || 'N/A'}</div>
                 </div>
               )}
             </CardContent>
