@@ -115,7 +115,7 @@ const ClockInOutPage: React.FC = () => {
   };
 
   // Fetch team status (other employees' clock-in status)
-  const fetchTeamStatus = async () => {
+  const fetchTeamStatus = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -173,7 +173,7 @@ const ClockInOutPage: React.FC = () => {
         }
 
         // Skip current user from team status
-        if (displayName === user.full_name || entry.employee_name === user.username) {
+        if (displayName === user?.full_name || entry.employee_name === user?.username) {
           return;
         }
 
@@ -195,10 +195,10 @@ const ClockInOutPage: React.FC = () => {
       setTeamStatus(activeTeamMembers);
     } catch (error) {
     }
-  };
+  }, [user]);
 
   // Fetch today's clock-in/out entries
-  const fetchTodayEntries = async () => {
+  const fetchTodayEntries = useCallback(async () => {
     if (!user) {
       setLoading(false);
       return;
@@ -268,7 +268,7 @@ const ClockInOutPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   // Update current time and worked hours every second with error handling
   useEffect(() => {
