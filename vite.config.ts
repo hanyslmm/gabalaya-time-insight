@@ -13,7 +13,12 @@ export default defineConfig(({ mode }) => ({
   preview: {
     host: "::",
     port: 4173,
-    allowedHosts: "all",
+    // Allow all Render deployment sub-domains as well as the specific production host
+    // A leading dot matches any sub-domain of the specified suffix (e.g. *.onrender.com)
+    allowedHosts: [
+      ".onrender.com", // any Render app
+      "gabalaya-time-insight.onrender.com" // current production host
+    ],
     cors: true,
   },
   plugins: [
