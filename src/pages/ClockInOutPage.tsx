@@ -302,6 +302,31 @@ const ClockInOutPage: React.FC = () => {
     return () => clearInterval(timer);
   }, [currentEntry]);
 
+  // Force refresh data on component mount to ensure sync
+  const forceRefreshOnMount = useCallback(async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    
+    // Add a timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      setLoading(false);
+    }, 10000); // 10 second timeout
+    
+    try {
+      await Promise.all([
+        fetchTodayEntries(),
+        fetchTeamStatus()
+      ]);
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      toast.error('Failed to refresh data. Please try again.');
+    } finally {
+      clearTimeout(timeoutId);
+      setLoading(false);
+    }
+  }, [user, fetchTodayEntries, fetchTeamStatus]);
+
   useEffect(() => {
     
     // Test database connection
@@ -326,7 +351,7 @@ const ClockInOutPage: React.FC = () => {
       return () => clearInterval(interval);
     } else {
     }
-  }, [user, forceRefreshOnMount]);
+  }, [user, forceRefreshOnMount, fetchTeamStatus]);
 
   const handleClockIn = async () => {
     if (!user) {
@@ -470,27 +495,6 @@ const ClockInOutPage: React.FC = () => {
     await fetchTodayEntries();
     await fetchTeamStatus();
   };
-
-  // Force refresh data on component mount to ensure sync
-  const forceRefreshOnMount = useCallback(async () => {
-    if (!user) return;
-    
-    setLoading(true);
-    
-    // Add a timeout to prevent infinite loading
-    const timeoutId = setTimeout(() => {
-      setLoading(false);
-    }, 10000); // 10 second timeout
-    
-    try {
-      await fetchTodayEntries();
-      await fetchTeamStatus();
-    } catch (error) {
-    } finally {
-      clearTimeout(timeoutId);
-      setLoading(false);
-    }
-  }, [user]);
 
   const getWorkDayProgress = () => {
     if (!currentEntry) return 0;

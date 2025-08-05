@@ -1,137 +1,288 @@
-# Welcome to your Lovable project
+# Employee Timesheet Management System
 
-## Project info
+A modern, responsive web application for employee time tracking and management built with React, TypeScript, and Supabase.
 
-**URL**: https://lovable.dev/projects/733db91f-0f1c-4315-9d4f-8743f7fa150f
+## 🚀 Quick Start Guide for macOS
 
-## How can I edit this code?
+### Prerequisites
 
-There are several ways of editing your application.
+Before you begin, ensure you have the following installed on your macOS:
 
-**Use Lovable**
+1. **Node.js** (v18 or higher)
+   ```bash
+   # Install using Homebrew (recommended)
+   brew install node
+   
+   # Or download from https://nodejs.org/
+   # Verify installation
+   node --version
+   npm --version
+   ```
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/733db91f-0f1c-4315-9d4f-8743f7fa150f) and start prompting.
+2. **Git**
+   ```bash
+   # Install using Homebrew
+   brew install git
+   
+   # Verify installation
+   git --version
+   ```
 
-Changes made via Lovable will be committed automatically to this repo.
+3. **VS Code** (recommended)
+   ```bash
+   # Install using Homebrew
+   brew install --cask visual-studio-code
+   
+   # Or download from https://code.visualstudio.com/
+   ```
 
-**Use your preferred IDE**
+### Step 1: Clone the Repository
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
+```bash
+# Clone the repository
 git clone <YOUR_GIT_URL>
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Navigate to the project directory
+cd employee-timesheet-app
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+# Open in VS Code
+code .
 ```
 
-**Edit a file directly in GitHub**
+### Step 2: Install Dependencies
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+# Install all project dependencies
+npm install
 
-**Use GitHub Codespaces**
+# This will install all packages listed in package.json
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### Step 3: Supabase Setup
 
-## What technologies are used for this project?
+#### 3.1 Create a Supabase Account
+1. Go to [https://supabase.com](https://supabase.com)
+2. Sign up for a free account
+3. Create a new project
 
-This project is built with:
+#### 3.2 Get Your Project Credentials
+1. In your Supabase dashboard, go to **Settings** > **API**
+2. Copy the following values:
+   - **Project URL** (looks like: `https://your-project-id.supabase.co`)
+   - **Anon Key** (public key for client-side operations)
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+#### 3.3 Update Environment Configuration
+1. Open `src/integrations/supabase/client.ts`
+2. Replace the placeholder values with your actual Supabase credentials:
+   ```typescript
+   const SUPABASE_URL = "https://your-project-id.supabase.co";
+   const SUPABASE_PUBLISHABLE_KEY = "your-anon-key-here";
+   ```
 
-## How can I deploy this project?
+### Step 4: Database Setup
+
+#### 4.1 Run Database Migrations
+The project includes SQL migration files. Execute them in your Supabase SQL editor:
+
+1. Go to your Supabase dashboard
+2. Navigate to **SQL Editor**
+3. Copy and run the contents of files in the `supabase/migrations/` folder in order
+
+#### 4.2 Set up Edge Functions (Optional)
+If you plan to use authentication features:
+
+1. Install Supabase CLI:
+   ```bash
+   npm install -g @supabase/cli
+   ```
+
+2. Login to Supabase:
+   ```bash
+   supabase login
+   ```
+
+3. Link your project:
+   ```bash
+   supabase link --project-ref your-project-id
+   ```
+
+4. Deploy functions:
+   ```bash
+   supabase functions deploy
+   ```
+
+### Step 5: Run the Application
+
+```bash
+# Start the development server
+npm run dev
+
+# The application will be available at http://localhost:5173
+```
+
+### Step 6: Initial Setup
+
+#### 6.1 Create Admin User
+1. In your Supabase dashboard, go to **Authentication** > **Users**
+2. Create a new user with admin privileges
+3. Add the user to the `admin_users` table with appropriate role
+
+#### 6.2 Add Company Settings
+1. Go to **Database** > **Table Editor**
+2. Add a record to the `company_settings` table with your timezone and company info
+
+## 📱 Features
+
+### Core Functionality
+- ⏰ **Real-time Clock In/Out** - Employees can track their work hours
+- 📊 **Dashboard Analytics** - Comprehensive reporting and insights
+- 👥 **Employee Management** - Admin tools for managing staff
+- 📈 **Timesheet Management** - Detailed time tracking and reports
+- 🌍 **Timezone Support** - Multi-timezone compatibility
+- 📱 **Mobile Responsive** - Works perfectly on all devices
+
+### User Roles
+- **Admin** - Full access to all features and employee management
+- **Employee** - Clock in/out, view personal timesheets, basic dashboard
+
+### Technology Stack
+- **Frontend**: React 18, TypeScript, Tailwind CSS
+- **Backend**: Supabase (PostgreSQL, Auth, Edge Functions)
+- **State Management**: TanStack Query
+- **UI Components**: Radix UI + Custom components
+- **Charts**: Recharts
+- **Date Handling**: date-fns
+- **Routing**: React Router DOM
+
+## 🛠️ Development Commands
+
+```bash
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+
+# Type checking
+npm run type-check
+
+# Linting
+npm run lint
+```
+
+## 📁 Project Structure
+
+```
+src/
+├── components/          # Reusable UI components
+│   ├── ui/             # Base UI components (shadcn/ui)
+│   └── ...             # Feature-specific components
+├── pages/              # Page components
+├── hooks/              # Custom React hooks
+├── utils/              # Utility functions
+├── integrations/       # External service integrations
+│   └── supabase/       # Supabase configuration
+└── contexts/           # React contexts
+
+supabase/
+├── functions/          # Edge functions
+├── migrations/         # Database migrations
+└── config.toml        # Supabase configuration
+```
+
+## 🔧 Configuration
+
+### Environment Variables
+All configuration is handled through the Supabase client file. No environment variables needed for basic setup.
+
+### Timezone Configuration
+The app uses company timezone settings stored in the database. Configure this in the `company_settings` table.
+
+### Customization
+- **Styling**: Modify `src/index.css` and `tailwind.config.ts`
+- **Components**: Customize components in `src/components/`
+- **Business Logic**: Update hooks and utils in respective folders
+
+## 🚀 Deployment
 
 ### Option 1: Lovable Platform (Recommended)
 Simply open [Lovable](https://lovable.dev/projects/733db91f-0f1c-4315-9d4f-8743f7fa150f) and click on Share -> Publish.
 
-### Option 2: Deploy to Render
+### Option 2: Manual Deployment
+1. Build the project:
+   ```bash
+   npm run build
+   ```
 
-Follow these steps to deploy your Employee Timesheet Management System to Render:
+2. Deploy the `dist/` folder to your hosting provider:
+   - **Vercel**: Connect your GitHub repo
+   - **Netlify**: Drag and drop the dist folder
+   - **AWS S3**: Upload dist contents to S3 bucket
 
-#### Prerequisites
-- A GitHub account with your project repository
-- A Render account (sign up at [render.com](https://render.com))
+## 🔒 Security Features
 
-#### Step-by-Step Deployment
+- **Row Level Security (RLS)** - Database-level access control
+- **JWT Authentication** - Secure token-based auth
+- **Role-based Access** - Different permissions for admins and employees
+- **Location Tracking** - GPS-based attendance verification
 
-1. **Connect your GitHub repository to Render:**
-   - Log in to your Render dashboard
-   - Click "New +" and select "Web Service"
-   - Connect your GitHub account and select your repository
+## 🐛 Troubleshooting
 
-2. **Configure the build settings:**
-   - **Name**: Choose a name for your service
-   - **Branch**: `main` (or your default branch)
-   - **Root Directory**: Leave empty (root of repository)
-   - **Environment**: `Node`
-   - **Build Command**: `npm run build`
-   - **Start Command**: `npm run preview`
-   - **Publish Directory**: `dist`
+### Common Issues
 
-3. **Set Environment Variables:**
+1. **App won't start**
+   ```bash
+   # Clear node modules and reinstall
+   rm -rf node_modules package-lock.json
+   npm install
+   ```
+
+2. **Database connection errors**
+   - Verify your Supabase credentials in `src/integrations/supabase/client.ts`
+   - Check if your Supabase project is active
+
+3. **Build errors**
+   ```bash
+   # Check TypeScript errors
+   npm run type-check
    
-   **Required for build process:**
-   - `NPM_CONFIG_INCLUDE_DEV` = `true` (This ensures devDependencies are installed for the build)
-   
-   **Required for Supabase integration:**
-   - `VITE_SUPABASE_URL` = `https://npmniesobtsoftczeh.supabase.co`
-   - `VITE_SUPABASE_ANON_KEY` = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5wbW5pZXNwaG9idHNvZnRjemVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA3OTc5ODYsImV4cCI6MjA2NjM3Mzk4Nn0.iTO3IXLxisUhosFZsE3cAo2oNsq8G6mWybSwjAGuJHQ`
+   # Fix linting issues
+   npm run lint
+   ```
 
-4. **Deploy:**
-   - Click "Create Web Service"
-   - Render will automatically build and deploy your application
-   - The first deployment may take 5-10 minutes
+4. **Authentication issues**
+   - Ensure your Supabase project has auth enabled
+   - Check RLS policies are correctly configured
 
-#### Troubleshooting Common Issues
+### Performance Tips
+- The app uses React Query for caching - data is automatically cached and refreshed
+- Lazy loading is implemented for better performance
+- Mobile-optimized with touch-friendly interactions
 
-**Build fails with "vite: not found" error:**
-- Ensure you've set `NPM_CONFIG_INCLUDE_DEV=true` in environment variables
-- This tells Render to install devDependencies required for the build process
+## 📞 Support
 
-**Build fails with dependency conflicts (ERESOLVE errors):**
-- This has been fixed by upgrading `react-day-picker` to support `date-fns` v4
-- If you encounter similar issues, try changing Build Command to: `npm install --legacy-peer-deps && npm run build`
-- The `--legacy-peer-deps` flag resolves dependency conflicts by using older resolution strategy
+For technical issues or questions:
+1. Check the troubleshooting section above
+2. Review the Supabase documentation
+3. Check the browser console for error messages
+4. Ensure all dependencies are properly installed
 
-**Application loads but data doesn't appear:**
-- Verify your Supabase environment variables are set correctly
-- Check that your Supabase project is accessible from external domains
+## 🔄 Updates
 
-**Build takes too long or times out:**
-- Consider upgrading to a paid Render plan for faster build times
-- Check for any large dependencies that might be causing slow builds
+To update the project:
+```bash
+# Pull latest changes
+git pull origin main
 
-#### Post-Deployment Verification
-1. Visit your deployed application URL
-2. Test the login functionality
-3. Verify timesheet upload and data display works correctly
-4. Check that all navigation links work properly
+# Update dependencies
+npm install
 
-## Can I connect a custom domain to my Lovable project?
+# Run any new migrations in Supabase
+```
 
-Yes, you can!
+---
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Built with ❤️ using modern web technologies for seamless employee time tracking.
