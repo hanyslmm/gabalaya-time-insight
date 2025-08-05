@@ -12,7 +12,7 @@ import { format, differenceInMinutes, startOfDay, addHours } from 'date-fns';
 import { toast } from 'sonner';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import { getCurrentCompanyTime, getTodayInCompanyTimezone, formatInCompanyTimezone, getCompanyTimezone, validateTimezone, parseCompanyDateTime } from '@/utils/timezoneUtils';
-import { getTimezoneAbbreviation } from '@/utils/timeFormatter';
+import { getTimezoneAbbreviation, formatTimeToAMPM } from '@/utils/timeFormatter';
 
 // Defines the structure for a clock-in/out entry
 interface ClockEntry {
@@ -282,7 +282,7 @@ const ClockInOutPage: React.FC = () => {
         // Calculate worked hours if clocked in
         if (currentEntry) {
           // Parse the clock-in time as company timezone and convert to UTC for proper comparison
-          const clockInDateTimeStr = `${currentEntry.clock_in_date} ${currentEntry.clock_in_time}`;
+          const clockInDateTimeStr = `${currentEntry.clock_in_date} ${currentEntry.clock_in_time.split('.')[0]}`;
           const clockInDateTime = await parseCompanyDateTime(clockInDateTimeStr);
           const minutesWorked = differenceInMinutes(utcNow, clockInDateTime);
           setWorkedHours(minutesWorked / 60);
@@ -601,7 +601,7 @@ const ClockInOutPage: React.FC = () => {
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <div className="flex items-center space-x-1">
                       <Timer className="h-3 w-3" />
-                      <span>Since {currentEntry.clock_in_time}</span>
+                      <span>Since {formatTimeToAMPM(currentEntry.clock_in_time.split('.')[0])}</span>
                     </div>
                     {getTimeUntilTarget() && (
                       <div className="flex items-center space-x-1">
@@ -739,7 +739,7 @@ const ClockInOutPage: React.FC = () => {
               {currentEntry && (
                 <div className="pt-2 border-t">
                   <div>Entry ID: {currentEntry.id}</div>
-                  <div>Clock In: {currentEntry.clock_in_date} {currentEntry.clock_in_time}</div>
+                                      <div>Clock In: {currentEntry.clock_in_date} {formatTimeToAMPM(currentEntry.clock_in_time.split('.')[0])}</div>
                   <div>Employee Name: {currentEntry.employee_name}</div>
                   <div>Clock In Location: {currentEntry.clock_in_location || 'N/A'}</div>
                 </div>
@@ -812,7 +812,7 @@ const ClockInOutPage: React.FC = () => {
                             <p className="font-semibold text-sm">{member.employee_name}</p>
                             <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                               <Clock className="h-3 w-3" />
-                              <span>Started at {member.clock_in_time}</span>
+                              <span>Started at {formatTimeToAMPM(member.clock_in_time.split('.')[0])}</span>
                             </div>
                           </div>
                         </div>
@@ -875,7 +875,7 @@ const ClockInOutPage: React.FC = () => {
                           </div>
                           <div>
                             <span className="text-sm font-semibold">Clock In</span>
-                            <p className="text-lg font-bold text-success">{entry.clock_in_time}</p>
+                            <p className="text-lg font-bold text-success">{formatTimeToAMPM(entry.clock_in_time.split('.')[0])}</p>
                           </div>
                         </div>
                         
@@ -886,7 +886,7 @@ const ClockInOutPage: React.FC = () => {
                             </div>
                             <div>
                               <span className="text-sm font-semibold">Clock Out</span>
-                              <p className="text-lg font-bold text-destructive">{entry.clock_out_time}</p>
+                              <p className="text-lg font-bold text-destructive">{formatTimeToAMPM(entry.clock_out_time.split('.')[0])}</p>
                             </div>
                           </div>
                         )}
