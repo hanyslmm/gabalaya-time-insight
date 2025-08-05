@@ -282,7 +282,7 @@ const ClockInOutPage: React.FC = () => {
         // Calculate worked hours if clocked in
         if (currentEntry) {
           // Parse the clock-in time as company timezone and convert to UTC for proper comparison
-          const clockInDateTimeStr = `${currentEntry.clock_in_date} ${currentEntry.clock_in_time}`;
+          const clockInDateTimeStr = `${currentEntry.clock_in_date} ${currentEntry.clock_in_time.split('.')[0]}`;
           const clockInDateTime = await parseCompanyDateTime(clockInDateTimeStr);
           const minutesWorked = differenceInMinutes(utcNow, clockInDateTime);
           setWorkedHours(minutesWorked / 60);
@@ -601,7 +601,7 @@ const ClockInOutPage: React.FC = () => {
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <div className="flex items-center space-x-1">
                       <Timer className="h-3 w-3" />
-                      <span>Since {currentEntry.clock_in_time}</span>
+                      <span>Since {format(new Date(`${currentEntry.clock_in_date}T${currentEntry.clock_in_time.split('.')[0]}`), 'h:mm:ss a')}</span>
                     </div>
                     {getTimeUntilTarget() && (
                       <div className="flex items-center space-x-1">
@@ -739,7 +739,7 @@ const ClockInOutPage: React.FC = () => {
               {currentEntry && (
                 <div className="pt-2 border-t">
                   <div>Entry ID: {currentEntry.id}</div>
-                  <div>Clock In: {currentEntry.clock_in_date} {currentEntry.clock_in_time}</div>
+                                      <div>Clock In: {currentEntry.clock_in_date} {format(new Date(`${currentEntry.clock_in_date}T${currentEntry.clock_in_time.split('.')[0]}`), 'h:mm:ss a')}</div>
                   <div>Employee Name: {currentEntry.employee_name}</div>
                   <div>Clock In Location: {currentEntry.clock_in_location || 'N/A'}</div>
                 </div>
@@ -812,7 +812,7 @@ const ClockInOutPage: React.FC = () => {
                             <p className="font-semibold text-sm">{member.employee_name}</p>
                             <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                               <Clock className="h-3 w-3" />
-                              <span>Started at {member.clock_in_time}</span>
+                              <span>Started at {format(new Date(`${member.clock_in_date}T${member.clock_in_time.split('.')[0]}`), 'h:mm a')}</span>
                             </div>
                           </div>
                         </div>
@@ -875,7 +875,7 @@ const ClockInOutPage: React.FC = () => {
                           </div>
                           <div>
                             <span className="text-sm font-semibold">Clock In</span>
-                            <p className="text-lg font-bold text-success">{entry.clock_in_time}</p>
+                            <p className="text-lg font-bold text-success">{format(new Date(`${entry.clock_in_date}T${entry.clock_in_time.split('.')[0]}`), 'h:mm a')}</p>
                           </div>
                         </div>
                         
@@ -886,7 +886,7 @@ const ClockInOutPage: React.FC = () => {
                             </div>
                             <div>
                               <span className="text-sm font-semibold">Clock Out</span>
-                              <p className="text-lg font-bold text-destructive">{entry.clock_out_time}</p>
+                              <p className="text-lg font-bold text-destructive">{format(new Date(`${entry.clock_out_date}T${entry.clock_out_time.split('.')[0]}`), 'h:mm a')}</p>
                             </div>
                           </div>
                         )}
