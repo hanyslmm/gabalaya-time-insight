@@ -10,6 +10,12 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
   },
+  preview: {
+    host: "::",
+    port: 4173,
+    allowedHosts: "all",
+    cors: true,
+  },
   plugins: [
     react(),
     mode === 'development' &&
@@ -19,6 +25,7 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB limit
+        navigateFallbackDenylist: [/^\/auth/, /^\/api/, /functions/, /supabase/],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
