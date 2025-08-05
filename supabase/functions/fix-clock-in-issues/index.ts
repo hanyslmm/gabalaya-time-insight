@@ -7,13 +7,108 @@ Deno.serve(async (req) => {
   }
 
   try {
-    console.log('Starting clock in issues fix...');
+    const { action, staff_id } = await req.json()
+    console.log('Clock in issues fix requested:', { action, staff_id });
 
     // Create Supabase client with service role key for admin access
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
+
+    if (action === 'force_clock_out') {
+      // Force clock out any active entries for the user
+      console.log(`Force clocking out active entries for staff_id: ${staff_id}`);
+
+      // Find the employee ID first
+      const { data: employeeData, error: employeeError } = await supabaseAdmin
+        .from('employees')
+        .select('id, full_name')
+        .eq('staff_id', staff_id)
+        .single();
+
+      if (employeeError || !employeeData) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Employee not found',
+            details: `No employee found with staff_id: ${staff_id}`
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+        )
+      }
+
+      // Find all active entries (where clock_out_time is null)
+      const { data: activeEntries, error: activeError } = await supabaseAdmin
+        .from('timesheet_entries')
+        .select('*')
+        .eq('employee_id', employeeData.id)
+        .is('clock_out_time', null);
+
+      if (activeError) {
+        console.error('Error finding active entries:', activeError);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Failed to find active entries',
+            details: activeError.message
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        )
+      }
+
+      const results = [];
+
+      // Force clock out each active entry
+      for (const entry of activeEntries || []) {
+        const clockInDateTime = new Date(`${entry.clock_in_date}T${entry.clock_in_time}`);
+        const now = new Date();
+        const totalHours = (now.getTime() - clockInDateTime.getTime()) / (1000 * 60 * 60);
+
+        const { data: updateData, error: updateError } = await supabaseAdmin
+          .from('timesheet_entries')
+          .update({
+            clock_out_date: new Date().toISOString().split('T')[0],
+            clock_out_time: new Date().toTimeString().split(' ')[0],
+            clock_out_location: 'Auto-corrected',
+            total_hours: Math.round(totalHours * 100) / 100,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', entry.id)
+          .select();
+
+        if (updateError) {
+          console.error(`Error updating entry ${entry.id}:`, updateError);
+          results.push({
+            entry_id: entry.id,
+            status: 'error',
+            error: updateError.message
+          });
+        } else {
+          console.log(`Successfully closed entry ${entry.id}`);
+          results.push({
+            entry_id: entry.id,
+            status: 'success',
+            clock_in_date: entry.clock_in_date,
+            clock_in_time: entry.clock_in_time,
+            total_hours: Math.round(totalHours * 100) / 100
+          });
+        }
+      }
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: `Force clock out completed for ${employeeData.full_name}`,
+          entries_closed: results.length,
+          results: results
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      )
+    }
+
+    // Default action: Fix general clock-in issues
+    console.log('Starting general clock in issues fix...');
 
     const results = [];
 
@@ -40,68 +135,56 @@ Deno.serve(async (req) => {
       results.push({ step: 'company_settings', status: 'success', data: companySettingsResult });
     }
 
-    // 2. Fix user authentication issues - Add missing employees to admin_users
-    console.log('2. Adding missing employees to admin_users...');
-    const missingAdminUsers = [
-      { username: 'EMP110774', password_hash: 'EMP110774123', full_name: 'Hend Khaled', role: 'employee' },
-      { username: 'EMP085382', password_hash: 'EMP085382123', full_name: 'Donia Amal', role: 'employee' },
-      { username: 'EMP117885', password_hash: 'EMP117885123', full_name: 'Hoor Goha', role: 'employee' },
-      { username: 'MAN123', password_hash: 'MAN123123', full_name: 'Hany', role: 'admin' }
-    ];
+    // 2. Find and fix orphaned active entries
+    console.log('2. Finding orphaned active entries...');
+    const { data: orphanedEntries, error: orphanedError } = await supabaseAdmin
+      .from('timesheet_entries')
+      .select('*')
+      .is('clock_out_time', null)
+      .not('clock_in_date', 'eq', new Date().toISOString().split('T')[0]); // Not today
 
-    for (const user of missingAdminUsers) {
-      const { error: userError } = await supabaseAdmin
-        .from('admin_users')
-        .upsert({
-          ...user,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }, { 
-          onConflict: 'username',
-          ignoreDuplicates: false 
-        });
+    if (!orphanedError && orphanedEntries && orphanedEntries.length > 0) {
+      console.log(`Found ${orphanedEntries.length} orphaned entries to fix`);
+      
+      for (const entry of orphanedEntries) {
+        const clockInDateTime = new Date(`${entry.clock_in_date}T${entry.clock_in_time}`);
+        const endOfDay = new Date(clockInDateTime);
+        endOfDay.setHours(23, 59, 59);
+        
+        const totalHours = (endOfDay.getTime() - clockInDateTime.getTime()) / (1000 * 60 * 60);
 
-      if (userError) {
-        console.error(`Error adding user ${user.username}:`, userError);
-        results.push({ step: `admin_user_${user.username}`, status: 'error', error: userError.message });
-      } else {
-        console.log(`Added/updated user ${user.username} successfully`);
-        results.push({ step: `admin_user_${user.username}`, status: 'success' });
+        const { error: fixError } = await supabaseAdmin
+          .from('timesheet_entries')
+          .update({
+            clock_out_date: entry.clock_in_date,
+            clock_out_time: '23:59:59',
+            clock_out_location: 'Auto-corrected - End of day',
+            total_hours: Math.round(totalHours * 100) / 100,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', entry.id);
+
+        if (fixError) {
+          console.error(`Error fixing orphaned entry ${entry.id}:`, fixError);
+          results.push({
+            step: `fix_orphaned_${entry.id}`,
+            status: 'error',
+            error: fixError.message
+          });
+        } else {
+          console.log(`Fixed orphaned entry ${entry.id}`);
+          results.push({
+            step: `fix_orphaned_${entry.id}`,
+            status: 'success',
+            entry_date: entry.clock_in_date,
+            employee_name: entry.employee_name
+          });
+        }
       }
     }
 
-    // 3. Add missing employees to employees table
-    console.log('3. Adding missing employees to employees table...');
-    const missingEmployees = [
-      { staff_id: 'EMP060922', full_name: 'Aya Zoghloul', role: 'Employee', hiring_date: '2024-01-01' },
-      { staff_id: 'EMP067273', full_name: 'Basant ElSherif', role: 'Employee', hiring_date: '2024-01-01' },
-      { staff_id: 'EMP074162', full_name: 'Basma Hegazy', role: 'Employee', hiring_date: '2024-01-01' },
-      { staff_id: 'EMP078659', full_name: 'Basmalla Abdelhafez', role: 'Employee', hiring_date: '2024-01-01' }
-    ];
-
-    for (const employee of missingEmployees) {
-      const { error: empError } = await supabaseAdmin
-        .from('employees')
-        .upsert({
-          ...employee,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }, { 
-          onConflict: 'staff_id',
-          ignoreDuplicates: false 
-        });
-
-      if (empError) {
-        console.error(`Error adding employee ${employee.staff_id}:`, empError);
-        results.push({ step: `employee_${employee.staff_id}`, status: 'error', error: empError.message });
-      } else {
-        console.log(`Added/updated employee ${employee.staff_id} successfully`);
-        results.push({ step: `employee_${employee.staff_id}`, status: 'success' });
-      }
-    }
-
-    // 4. Verify the fixes
-    console.log('4. Verifying fixes...');
+    // 3. Verify the fixes
+    console.log('3. Verifying fixes...');
     
     // Check company settings
     const { data: companyCheck, error: companyCheckError } = await supabaseAdmin
@@ -115,30 +198,16 @@ Deno.serve(async (req) => {
       data: { count: companyCheck?.length || 0, settings: companyCheck?.[0] }
     });
 
-    // Check user consistency
-    const { data: employeesCheck } = await supabaseAdmin
-      .from('employees')
-      .select('staff_id');
-    
-    const { data: adminUsersCheck } = await supabaseAdmin
-      .from('admin_users')
-      .select('username');
-
-    const employeeIds = employeesCheck?.map(e => e.staff_id) || [];
-    const adminUsernames = adminUsersCheck?.map(a => a.username) || [];
-    
-    const missingInAdminUsers = employeeIds.filter(id => !adminUsernames.includes(id));
-    const missingInEmployees = adminUsernames.filter(username => 
-      !employeeIds.includes(username) && !['admin', 'administrator'].includes(username)
-    );
+    // Check for remaining active entries
+    const { data: remainingActive, error: remainingError } = await supabaseAdmin
+      .from('timesheet_entries')
+      .select('count')
+      .is('clock_out_time', null);
 
     results.push({
-      step: 'verification_user_consistency',
-      status: (missingInAdminUsers.length === 0 && missingInEmployees.length === 0) ? 'success' : 'warning',
-      data: {
-        missing_in_admin_users: missingInAdminUsers,
-        missing_in_employees: missingInEmployees
-      }
+      step: 'verification_active_entries',
+      status: remainingError ? 'error' : 'success',
+      data: { active_entries_count: remainingActive?.[0]?.count || 0 }
     });
 
     // Return success response
@@ -146,7 +215,7 @@ Deno.serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         message: 'Clock in issues have been fixed!',
-        details: 'Company settings configured, user authentication issues resolved.',
+        details: 'Company settings configured, orphaned entries closed.',
         results: results,
         summary: {
           total_steps: results.length,

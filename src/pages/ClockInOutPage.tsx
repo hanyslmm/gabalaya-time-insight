@@ -387,62 +387,50 @@ const ClockInOutPage: React.FC = () => {
       });
 
       if (error) {
-        // If the error is about already being clocked in, refresh the entries to show the current state
+        // If the error is about already being clocked in, handle the sync issue
         if (error.message.toLowerCase().includes('already') || error.message.toLowerCase().includes('clocked in')) {
-          toast.info('🔄 Checking your current status...');
+          toast.info('⚠️ Sync issue detected. Fixing your clock-in status...');
           
-          // Refresh the data and check the result directly
-          const today = await getTodayInCompanyTimezone();
           try {
-            // Get the employee record to find the correct employee_id
-            const { data: employeeData } = await supabase
-              .from('employees')
-              .select('id, staff_id, full_name')
-              .or(`staff_id.eq.${user.username},full_name.eq.${user.full_name}`)
-              .limit(1);
+            // Call the fix function to force clock out any orphaned entries
+            const { data: fixData, error: fixError } = await supabase.functions.invoke('fix-clock-in-issues', {
+              body: { action: 'force_clock_out', staff_id: staffId }
+            });
 
-            // Build comprehensive identifier list
-            const userIdentifiers = [user.username, user.full_name];
-
-            const validIdentifiers = userIdentifiers.filter(id => id && id.trim() !== '');
-            let orQuery = validIdentifiers.map(id => `employee_name.eq.${id}`).join(',');
-            
-            // Add employee_id to the search if we found the employee record
-            if (employeeData && employeeData.length > 0) {
-              const employeeId = employeeData[0].id;
-              orQuery += `,employee_id.eq.${employeeId}`;
+            if (fixError || !fixData?.success) {
+              toast.error('❌ Unable to fix sync issue. Please contact your administrator.');
+              return;
             }
-            
-            const { data: refreshedData, error: refreshError } = await supabase
-              .from('timesheet_entries')
-              .select('*')
-              .or(orQuery)
-              .eq('clock_in_date', today)
-              .order('clock_in_time', { ascending: false });
 
-            if (!refreshError && refreshedData) {
-              setTodayEntries(refreshedData);
-              // Improved logic: entry without clock_out_time (null, undefined, or empty string)
-              const activeEntry = refreshedData.find(entry => 
-                entry.clock_out_time === null || 
-                entry.clock_out_time === undefined ||
-                entry.clock_out_time === ''
-              ) || null;
-              setCurrentEntry(activeEntry);
-              
-                  
-                  if (activeEntry) {
-                    toast.success('✅ Status synced! You are currently clocked in.');
-                  } else {
-                    toast.error('⚠️ Status sync issue detected. Please try refreshing the page or contact your administrator if this problem persists.');
-                  }
+            // Show success message about the fix
+            if (fixData.entries_closed > 0) {
+              toast.success(`✅ Fixed ${fixData.entries_closed} orphaned entry(ies). You can now clock in.`);
             } else {
-              toast.error('Unable to refresh your status. Please try again.');
+              toast.info('✅ Status synchronized. You can now clock in.');
             }
-          } catch (refreshError) {
-            toast.error('Unable to refresh your status. Please try again.');
+
+            // Now try to clock in again
+            const { data: retryData, error: retryError } = await supabase.rpc('clock_in', {
+              p_staff_id: staffId,
+              p_clock_in_location: userLocation,
+            });
+
+            if (retryError) {
+              toast.error(`❌ ${retryError.message}`);
+              return;
+            }
+
+            // Success - refresh the data
+            await fetchTodayEntries();
+            await fetchTeamStatus();
+            toast.success('🎉 Clocked in successfully!');
+            return;
+
+          } catch (fixError) {
+            console.error('Error fixing sync issue:', fixError);
+            toast.error('❌ Unable to fix sync issue. Please contact your administrator.');
+            return;
           }
-          return;
         }
         throw new Error(error.message);
       }
