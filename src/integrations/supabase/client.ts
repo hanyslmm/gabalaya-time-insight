@@ -13,6 +13,20 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   auth: {
     storage: localStorage,
     persistSession: true,
-    autoRefreshToken: true,
-  }
+    autoRefreshToken: false, // Disable for faster login
+  },
+  global: {
+    headers: {
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    },
+  },
+  db: {
+    schema: 'public',
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10,
+    },
+  },
 });

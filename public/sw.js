@@ -20,8 +20,22 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Fetch event - serve from cache when offline
+// Fetch event - serve from cache when offline (but never cache auth or API calls)
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  
+  // Never cache authentication, API calls, or Supabase functions
+  if (url.pathname.includes('/auth') || 
+      url.pathname.includes('/api') || 
+      url.pathname.includes('/functions') ||
+      url.hostname.includes('supabase') ||
+      url.pathname.includes('unified-auth') ||
+      event.request.method !== 'GET') {
+    // Always fetch from network for auth/API requests
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
