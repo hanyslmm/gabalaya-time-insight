@@ -12,7 +12,7 @@ import { format, differenceInMinutes, startOfDay, addHours } from 'date-fns';
 import { toast } from 'sonner';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import { getCurrentCompanyTime, getTodayInCompanyTimezone, formatInCompanyTimezone, getCompanyTimezone, validateTimezone, parseCompanyDateTime } from '@/utils/timezoneUtils';
-import { getTimezoneAbbreviation } from '@/utils/timeFormatter';
+import { getTimezoneAbbreviation, formatTimeToAMPM } from '@/utils/timeFormatter';
 
 // Defines the structure for a clock-in/out entry
 interface ClockEntry {
@@ -601,7 +601,7 @@ const ClockInOutPage: React.FC = () => {
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <div className="flex items-center space-x-1">
                       <Timer className="h-3 w-3" />
-                      <span>Since {format(new Date(`${currentEntry.clock_in_date}T${currentEntry.clock_in_time.split('.')[0]}`), 'h:mm:ss a')}</span>
+                      <span>Since {formatTimeToAMPM(currentEntry.clock_in_time.split('.')[0])}</span>
                     </div>
                     {getTimeUntilTarget() && (
                       <div className="flex items-center space-x-1">
@@ -739,7 +739,7 @@ const ClockInOutPage: React.FC = () => {
               {currentEntry && (
                 <div className="pt-2 border-t">
                   <div>Entry ID: {currentEntry.id}</div>
-                                      <div>Clock In: {currentEntry.clock_in_date} {format(new Date(`${currentEntry.clock_in_date}T${currentEntry.clock_in_time.split('.')[0]}`), 'h:mm:ss a')}</div>
+                                      <div>Clock In: {currentEntry.clock_in_date} {formatTimeToAMPM(currentEntry.clock_in_time.split('.')[0])}</div>
                   <div>Employee Name: {currentEntry.employee_name}</div>
                   <div>Clock In Location: {currentEntry.clock_in_location || 'N/A'}</div>
                 </div>
@@ -812,7 +812,7 @@ const ClockInOutPage: React.FC = () => {
                             <p className="font-semibold text-sm">{member.employee_name}</p>
                             <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                               <Clock className="h-3 w-3" />
-                              <span>Started at {format(new Date(`${member.clock_in_date}T${member.clock_in_time.split('.')[0]}`), 'h:mm a')}</span>
+                              <span>Started at {formatTimeToAMPM(member.clock_in_time.split('.')[0])}</span>
                             </div>
                           </div>
                         </div>
@@ -875,7 +875,7 @@ const ClockInOutPage: React.FC = () => {
                           </div>
                           <div>
                             <span className="text-sm font-semibold">Clock In</span>
-                            <p className="text-lg font-bold text-success">{format(new Date(`${entry.clock_in_date}T${entry.clock_in_time.split('.')[0]}`), 'h:mm a')}</p>
+                            <p className="text-lg font-bold text-success">{formatTimeToAMPM(entry.clock_in_time.split('.')[0])}</p>
                           </div>
                         </div>
                         
@@ -886,7 +886,7 @@ const ClockInOutPage: React.FC = () => {
                             </div>
                             <div>
                               <span className="text-sm font-semibold">Clock Out</span>
-                              <p className="text-lg font-bold text-destructive">{format(new Date(`${entry.clock_out_date}T${entry.clock_out_time.split('.')[0]}`), 'h:mm a')}</p>
+                              <p className="text-lg font-bold text-destructive">{formatTimeToAMPM(entry.clock_out_time.split('.')[0])}</p>
                             </div>
                           </div>
                         )}
