@@ -1,4 +1,40 @@
--- Update clock_in function to use company timezone
+-- Comprehensive timezone fix for clock-in/out functions
+-- This migration ensures proper timezone handling across all clock operations
+
+-- First, ensure timezone helper functions exist
+CREATE OR REPLACE FUNCTION get_company_timezone()
+RETURNS TEXT AS $$
+DECLARE
+    tz TEXT;
+BEGIN
+    SELECT timezone INTO tz FROM public.company_settings WHERE id = 1;
+    RETURN COALESCE(tz, 'Africa/Cairo');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Create a function to convert UTC to company timezone
+CREATE OR REPLACE FUNCTION utc_to_company_time(utc_time TIMESTAMP WITH TIME ZONE)
+RETURNS TIMESTAMP AS $$
+DECLARE
+    company_tz TEXT;
+BEGIN
+    company_tz := get_company_timezone();
+    RETURN utc_time AT TIME ZONE company_tz;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Create a function to convert company time to UTC
+CREATE OR REPLACE FUNCTION company_time_to_utc(local_time TIMESTAMP, company_tz TEXT DEFAULT NULL)
+RETURNS TIMESTAMP WITH TIME ZONE AS $$
+BEGIN
+    IF company_tz IS NULL THEN
+        company_tz := get_company_timezone();
+    END IF;
+    RETURN local_time AT TIME ZONE company_tz;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Update clock_in function to use company timezone properly
 CREATE OR REPLACE FUNCTION public.clock_in(p_staff_id text, p_clock_in_location text)
  RETURNS timesheet_entries
  LANGUAGE plpgsql
@@ -53,7 +89,7 @@ BEGIN
 END;
 $function$;
 
--- Update clock_out function to use company timezone
+-- Update clock_out function to use company timezone properly
 CREATE OR REPLACE FUNCTION public.clock_out(p_entry_id uuid, p_clock_out_location text)
  RETURNS timesheet_entries
  LANGUAGE plpgsql
@@ -110,3 +146,29 @@ BEGIN
   RETURN updated_entry;
 END;
 $function$;
+
+-- Ensure company settings table has timezone column
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name='company_settings' AND column_name='timezone') THEN
+        ALTER TABLE public.company_settings ADD COLUMN timezone VARCHAR(50) DEFAULT 'Africa/Cairo';
+    END IF;
+END $$;
+
+-- Ensure there's a company settings record with proper timezone
+INSERT INTO public.company_settings (id, timezone, motivational_message, created_at, updated_at)
+VALUES (
+    1, 
+    'Africa/Cairo', 
+    'Keep up the great work! Your dedication makes a difference.',
+    NOW(),
+    NOW()
+)
+ON CONFLICT (id) DO UPDATE SET
+    timezone = COALESCE(company_settings.timezone, 'Africa/Cairo'),
+    updated_at = NOW();
+
+-- Add a comment to track this migration
+COMMENT ON FUNCTION public.clock_in(text, text) IS 'Updated to use proper company timezone conversion - 2025-01-17';
+COMMENT ON FUNCTION public.clock_out(uuid, text) IS 'Updated to use proper company timezone conversion - 2025-01-17';
