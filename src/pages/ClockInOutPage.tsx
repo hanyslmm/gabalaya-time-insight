@@ -11,7 +11,7 @@ import { Clock, LogIn, LogOut, MapPin, AlertCircle, RefreshCw, Users, Eye, EyeOf
 import { format, differenceInMinutes, startOfDay, addHours } from 'date-fns';
 import { toast } from 'sonner';
 import ProfileAvatar from '@/components/ProfileAvatar';
-import { getCurrentCompanyTime, getTodayInCompanyTimezone, formatInCompanyTimezone, getCompanyTimezone, validateTimezone, parseCompanyDateTime, convertUTCToCompanyTime } from '@/utils/timezoneUtils';
+import { getCurrentCompanyTime, getTodayInCompanyTimezone, validateTimezone, parseCompanyDateTime } from '@/utils/timezoneUtils';
 import { getTimezoneAbbreviation, formatTimeToAMPM } from '@/utils/timeFormatter';
 
 // Defines the structure for a clock-in/out entry
@@ -53,6 +53,7 @@ const ClockInOutPage: React.FC = () => {
   const [showDebug, setShowDebug] = useState(false);
   const [timezoneAbbr, setTimezoneAbbr] = useState('Local');
   const [initializationError, setInitializationError] = useState<string | null>(null);
+  const [companyTimezone, setCompanyTimezone] = useState<string>('Africa/Cairo');
 
   // Simplified loading timeout - just one timeout to prevent infinite loading
   useEffect(() => {
@@ -87,6 +88,7 @@ const ClockInOutPage: React.FC = () => {
       try {
         // Validate timezone
         const validation = await validateTimezone();
+        setCompanyTimezone(validation.timezone);
         
         if (!validation.isValid) {
           console.warn(`Timezone issue: ${validation.message}`);
@@ -122,6 +124,25 @@ const ClockInOutPage: React.FC = () => {
       }
     });
   };
+
+  // Helper to format DB times in company's timezone (AM/PM)
+  const formatCompanyTimeAMPM = useCallback((dateStr: string, timeStr: string) => {
+    try {
+      const baseTime = (timeStr || '').split('.')[0];
+      if (!dateStr || !baseTime) return '';
+      // Treat DB time as UTC and format in company timezone
+      const utcDate = new Date(`${dateStr}T${baseTime}Z`);
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: companyTimezone,
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+      return formatter.format(utcDate);
+    } catch {
+      return formatTimeToAMPM((timeStr || '').split('.')[0]);
+    }
+  }, [companyTimezone]);
 
   // Fetch team status (other employees' clock-in status)
   const fetchTeamStatus = useCallback(async () => {
@@ -635,7 +656,7 @@ const ClockInOutPage: React.FC = () => {
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <div className="flex items-center space-x-1">
                       <Timer className="h-3 w-3" />
-                      <span>Since {formatTimeToAMPM(currentEntry.clock_in_time.split('.')[0])}</span>
+                      <span>Since {formatCompanyTimeAMPM(currentEntry.clock_in_date, currentEntry.clock_in_time)}</span>
                     </div>
                     {getTimeUntilTarget() && (
                       <div className="flex items-center space-x-1">
@@ -773,7 +794,7 @@ const ClockInOutPage: React.FC = () => {
               {currentEntry && (
                 <div className="pt-2 border-t">
                   <div>Entry ID: {currentEntry.id}</div>
-                                      <div>Clock In: {currentEntry.clock_in_date} {formatTimeToAMPM(currentEntry.clock_in_time.split('.')[0])}</div>
+                                      <div>Clock In: {currentEntry.clock_in_date} {formatCompanyTimeAMPM(currentEntry.clock_in_date, currentEntry.clock_in_time)}</div>
                   <div>Employee Name: {currentEntry.employee_name}</div>
                   <div>Clock In Location: {currentEntry.clock_in_location || 'N/A'}</div>
                 </div>
@@ -846,7 +867,7 @@ const ClockInOutPage: React.FC = () => {
                             <p className="font-semibold text-sm">{member.employee_name}</p>
                             <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                               <Clock className="h-3 w-3" />
-                              <span>Started at {formatTimeToAMPM(member.clock_in_time.split('.')[0])}</span>
+                              <span>Started at {formatCompanyTimeAMPM(member.clock_in_date, member.clock_in_time)}</span>
                             </div>
                           </div>
                         </div>
@@ -909,7 +930,7 @@ const ClockInOutPage: React.FC = () => {
                           </div>
                           <div>
                             <span className="text-sm font-semibold">Clock In</span>
-                            <p className="text-lg font-bold text-success">{formatTimeToAMPM(entry.clock_in_time.split('.')[0])}</p>
+                            <p className="text-lg font-bold text-success">{formatCompanyTimeAMPM(entry.clock_in_date, entry.clock_in_time)}</p>
                           </div>
                         </div>
                         
@@ -920,7 +941,7 @@ const ClockInOutPage: React.FC = () => {
                             </div>
                             <div>
                               <span className="text-sm font-semibold">Clock Out</span>
-                              <p className="text-lg font-bold text-destructive">{formatTimeToAMPM(entry.clock_out_time.split('.')[0])}</p>
+                              <p className="text-lg font-bold text-destructive">{formatCompanyTimeAMPM(entry.clock_out_date || entry.clock_in_date, entry.clock_out_time)}</p>
                             </div>
                           </div>
                         )}
