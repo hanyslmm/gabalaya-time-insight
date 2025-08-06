@@ -217,12 +217,13 @@ export async function getTodayInCompanyTimezone(): Promise<string> {
 export async function parseCompanyDateTime(dateStr: string, timeStr?: string): Promise<Date> {
   const timezone = await getCompanyTimezone();
   
+  // Build full date-time string outside the try/catch so it's available in the catch block
+  let fullDateTimeStr = dateStr;
+  if (timeStr) {
+    fullDateTimeStr = `${dateStr} ${timeStr}`;
+  }
+  
   try {
-    let fullDateTimeStr = dateStr;
-    if (timeStr) {
-      fullDateTimeStr = `${dateStr} ${timeStr}`;
-    }
-    
     // If no time specified, assume start of day
     if (!timeStr && !dateStr.includes('T') && !dateStr.includes(' ')) {
       fullDateTimeStr = `${dateStr} 00:00:00`;

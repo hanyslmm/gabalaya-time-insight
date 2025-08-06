@@ -11,7 +11,7 @@ import { Clock, LogIn, LogOut, MapPin, AlertCircle, RefreshCw, Users, Eye, EyeOf
 import { format, differenceInMinutes, startOfDay, addHours } from 'date-fns';
 import { toast } from 'sonner';
 import ProfileAvatar from '@/components/ProfileAvatar';
-import { getCurrentCompanyTime, getTodayInCompanyTimezone, formatInCompanyTimezone, getCompanyTimezone, validateTimezone, parseCompanyDateTime } from '@/utils/timezoneUtils';
+import { getCurrentCompanyTime, getTodayInCompanyTimezone, formatInCompanyTimezone, getCompanyTimezone, validateTimezone, parseCompanyDateTime, convertUTCToCompanyTime } from '@/utils/timezoneUtils';
 import { getTimezoneAbbreviation, formatTimeToAMPM } from '@/utils/timeFormatter';
 
 // Defines the structure for a clock-in/out entry
