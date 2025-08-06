@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Clock, DollarSign, Calendar, TrendingUp } from 'lucide-react';
 import MobilePageWrapper, { MobileSection, MobileCard, MobileHeader } from '@/components/MobilePageWrapper';
+import { getCompanyTimezone } from '@/utils/timezoneUtils';
 // Simple format function for hours display
 const formatHours = (hours: number) => hours.toFixed(2);
 
@@ -17,6 +18,46 @@ const MyTimesheetPage: React.FC = () => {
   const [filterType, setFilterType] = useState<'month' | 'payPeriod'>('month');
   const [payPeriodType, setPayPeriodType] = useState<'current' | 'previous'>('current');
 
+  // Company timezone for consistent display
+  const [companyTimezone, setCompanyTimezone] = useState<string>('Africa/Cairo');
+
+  useEffect(() => {
+    let isMounted = true;
+    getCompanyTimezone()
+      .then((tz) => { if (isMounted) setCompanyTimezone(tz); })
+      .catch(() => {});
+    return () => { isMounted = false; };
+  }, []);
+
+  const formatCompanyDate = (dateStr: string) => {
+    try {
+      const date = new Date(`${dateStr}T00:00:00Z`);
+      return new Intl.DateTimeFormat('en-GB', {
+        timeZone: companyTimezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(date);
+    } catch {
+      return new Date(dateStr).toLocaleDateString();
+    }
+  };
+
+  const formatCompanyTimeAMPM = (dateStr?: string, timeStr?: string | null) => {
+    if (!dateStr || !timeStr) return '—';
+    const timeClean = (timeStr || '').split('.')[0] || '00:00:00';
+    const date = new Date(`${dateStr}T${timeClean}Z`);
+    try {
+      return new Intl.DateTimeFormat('en-US', {
+        timeZone: companyTimezone,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      }).format(date);
+    } catch {
+      return timeClean;
+    }
+  };
   // Calculate pay period dates (assuming pay period ends on 28th of each month)
   const getPayPeriodDates = (type: 'current' | 'previous') => {
     const today = new Date();
@@ -281,9 +322,9 @@ const MyTimesheetPage: React.FC = () => {
                 <div key={entry.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-1 sm:p-2 border rounded text-xs sm:text-sm space-y-0.5 sm:space-y-0">
                   <div className="flex items-center space-x-1 sm:space-x-2">
                     <Calendar className="h-3 w-3 text-muted-foreground" />
-                    <span className="font-medium">{new Date(entry.clock_in_date).toLocaleDateString()}</span>
+                    <span className="font-medium">{formatCompanyDate(entry.clock_in_date)}</span>
                     <span className="text-muted-foreground">
-                      {entry.clock_in_time} - {entry.clock_out_time}
+                      {formatCompanyTimeAMPM(entry.clock_in_date, entry.clock_in_time)} - {entry.clock_out_time ? formatCompanyTimeAMPM(entry.clock_out_date || entry.clock_in_date, entry.clock_out_time) : '—'}
                     </span>
                   </div>
                   <div className="flex flex-wrap items-center gap-0.5 sm:gap-1">
