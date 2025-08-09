@@ -10,7 +10,7 @@ import { useTimesheetTable } from '@/hooks/useTimesheetTable';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/hooks/useAuth';
 import { Edit, List, BarChart3 } from 'lucide-react';
-import { formatTimeToAMPM } from '@/utils/timeFormatter';
+import { useCompanyTimezone } from '@/hooks/useCompanyTimezone';
 import TimesheetTableFilters from './TimesheetTableFilters';
 import TimesheetTableActions from './TimesheetTableActions';
 import TimesheetMobileCard from './TimesheetMobileCard';
@@ -74,6 +74,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
   const { t } = useTranslation();
   const isMobile = useIsMobile();
   const [currentPage, setCurrentPage] = useState(1);
+  const { formatDate, formatTimeAMPM } = useCompanyTimezone();
 
   const handleEdit = (entry: any) => {
     setEditingEntry(entry);
@@ -312,16 +313,16 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
                           <div className="truncate pr-2">{entry.employee_name}</div>
                         </TableCell>
                         <TableCell>
-                          <div className="font-medium text-fluid-sm">{entry.clock_in_date}</div>
+                          <div className="font-medium text-fluid-sm">{formatDate(entry.clock_in_date)}</div>
                         </TableCell>
                         <TableCell>
-                          <div className="text-muted-foreground text-fluid-sm">{formatTimeToAMPM(entry.clock_in_time)}</div>
+                          <div className="text-muted-foreground text-fluid-sm">{formatTimeAMPM(entry.clock_in_date, entry.clock_in_time)}</div>
                         </TableCell>
                         <TableCell>
-                          <div className="font-medium text-fluid-sm">{entry.clock_out_date}</div>
+                          <div className="font-medium text-fluid-sm">{entry.clock_out_date ? formatDate(entry.clock_out_date) : '—'}</div>
                         </TableCell>
                         <TableCell>
-                          <div className="text-muted-foreground text-fluid-sm">{formatTimeToAMPM(entry.clock_out_time)}</div>
+                          <div className="text-muted-foreground text-fluid-sm">{entry.clock_out_time ? formatTimeAMPM(entry.clock_out_date || entry.clock_in_date, entry.clock_out_time) : '—'}</div>
                         </TableCell>
                         <TableCell>
                           <span className="font-mono font-bold text-primary">

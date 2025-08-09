@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Clock, MapPin, User, LogOut } from 'lucide-react';
 import ProfileAvatar from './ProfileAvatar';
+import { useCompanyTimezone } from '@/hooks/useCompanyTimezone';
 
 interface EmployeeStatus {
   employee_name: string;
@@ -35,6 +36,7 @@ export const EmployeeStatusCard: React.FC<EmployeeStatusCardProps> = ({
   onForceClockout,
   isProcessing = false
 }) => {
+  const { formatDate, formatTimeAMPM } = useCompanyTimezone();
   return (
     <Card className="transition-all hover:shadow-md">
       <CardContent className="p-4">
@@ -68,8 +70,8 @@ export const EmployeeStatusCard: React.FC<EmployeeStatusCardProps> = ({
               <Clock className="h-4 w-4 text-green-600" />
               <div>
                 <span className="text-gray-600">Clock In:</span>
-                <div className="font-medium">{status.clock_in_time}</div>
-                <div className="text-xs text-gray-500">{status.clock_in_date}</div>
+                <div className="font-medium">{formatTimeAMPM(status.clock_in_date, status.clock_in_time)}</div>
+                <div className="text-xs text-gray-500">{formatDate(status.clock_in_date)}</div>
               </div>
             </div>
             
@@ -92,8 +94,8 @@ export const EmployeeStatusCard: React.FC<EmployeeStatusCardProps> = ({
                 <Clock className="h-4 w-4 text-red-600" />
                 <div>
                   <span className="text-gray-600">Clock Out:</span>
-                  <div className="font-medium">{status.clock_out_time}</div>
-                  <div className="text-xs text-gray-500">{status.clock_out_date}</div>
+                  <div className="font-medium">{status.clock_out_time ? formatTimeAMPM(status.clock_out_date || status.clock_in_date, status.clock_out_time) : '—'}</div>
+                  <div className="text-xs text-gray-500">{status.clock_out_date ? formatDate(status.clock_out_date) : '—'}</div>
                 </div>
               </div>
               

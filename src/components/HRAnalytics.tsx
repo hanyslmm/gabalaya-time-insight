@@ -20,6 +20,7 @@ import {
 } from 'recharts';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, subDays, parseISO } from 'date-fns';
 import { Clock, Users, TrendingUp, Calendar } from 'lucide-react';
+import { getCompanyTimezone } from '@/utils/timezoneUtils';
 
 interface DateRange {
   from: Date;
@@ -56,6 +57,8 @@ export const HRAnalytics: React.FC<HRAnalyticsProps> = ({ dateRange }) => {
         .lte('clock_out_date', format(dateRange.to, 'yyyy-MM-dd'));
 
       if (error) throw error;
+
+      const tz = await getCompanyTimezone();
 
       // Process morning vs night hours
       const morningNightData = [];
@@ -115,8 +118,11 @@ export const HRAnalytics: React.FC<HRAnalyticsProps> = ({ dateRange }) => {
 
       timesheetData?.forEach(entry => {
         if (entry.clock_in_time) {
-          const hour = parseInt(entry.clock_in_time.split(':')[0]);
-          hourlyMap.set(hour, hourlyMap.get(hour) + 1);
+          const timeClean = (entry.clock_in_time || '').split('.')[0] || '00:00:00';
+          const dt = new Date(`${entry.clock_in_date}T${timeClean}Z`);
+          const hourStr = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', hour12: false }).format(dt);
+          const hour = parseInt(hourStr, 10);
+          hourlyMap.set(hour, (hourlyMap.get(hour) || 0) + 1);
         }
       });
 

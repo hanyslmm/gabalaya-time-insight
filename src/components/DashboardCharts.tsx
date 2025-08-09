@@ -10,6 +10,7 @@ import { Trophy, Medal, Award, Star, Calendar, TrendingUp, BarChart3, LineChart 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import InteractiveChart from './InteractiveChart';
+import { getCompanyTimezone } from '@/utils/timezoneUtils';
 
 interface MonthlyData {
   month: string;
@@ -96,6 +97,8 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
 
       if (error) throw error;
 
+      const tz = await getCompanyTimezone();
+
       // Process data for different chart types
       const monthlyDataMap = new Map<string, { hours: number; amount: number; shifts: number }>();
       const employeeDataMap = new Map<string, { hours: number; amount: number; shifts: number }>();
@@ -121,9 +124,12 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
         empData.amount += entry.total_card_amount_split || entry.total_card_amount_flat || 0;
         empData.shifts += 1;
 
-        // Hourly data
+        // Hourly data (company timezone)
         if (entry.clock_in_time) {
-          const hour = parseInt(entry.clock_in_time.split(':')[0]);
+          const timeClean = (entry.clock_in_time || '').split('.')[0] || '00:00:00';
+          const dt = new Date(`${entry.clock_in_date}T${timeClean}Z`);
+          const hourStr = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', hour12: false }).format(dt);
+          const hour = parseInt(hourStr, 10);
           hourlyDataMap.set(hour, (hourlyDataMap.get(hour) || 0) + 1);
         }
       });

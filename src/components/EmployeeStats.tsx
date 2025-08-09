@@ -143,7 +143,8 @@ const EmployeeStats: React.FC<EmployeeStatsProps> = ({ employee, onClose }) => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {new Date(employee.hiring_date).toLocaleDateString()}
+                    {/* Displayed in company timezone */}
+                    {new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Cairo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(employee.hiring_date))}
                   </div>
                 </CardContent>
               </Card>

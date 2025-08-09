@@ -5,7 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Clock, CalendarDays, DollarSign, User, Edit } from 'lucide-react';
-import { formatTimeToAMPM } from '@/utils/timeFormatter';
+import { useCompanyTimezone } from '@/hooks/useCompanyTimezone';
 import { useAuth } from '@/hooks/useAuth';
 import TimesheetEditDialog from './TimesheetEditDialog';
 
@@ -40,6 +40,7 @@ const TimesheetMobileCard: React.FC<TimesheetMobileCardProps> = ({
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   const [showEditDialog, setShowEditDialog] = React.useState(false);
+  const { formatDate, formatTimeAMPM } = useCompanyTimezone();
 
   return (
     <Card className={`mb-2 transition-all duration-300 hover:shadow-elegant card-interactive ${isSelected ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-muted/20'} rounded-lg border-border/30`}>
@@ -85,16 +86,16 @@ const TimesheetMobileCard: React.FC<TimesheetMobileCardProps> = ({
               <CalendarDays className="h-3 w-3 text-primary flex-shrink-0" />
               <div className="min-w-0 flex-1">
                 <p className="text-xs text-primary font-medium">Clock In</p>
-                <p className="text-sm font-semibold line-clamp-1">{entry.clock_in_date}</p>
-                <p className="text-xs text-muted-foreground">{formatTimeToAMPM(entry.clock_in_time)}</p>
+                <p className="text-sm font-semibold line-clamp-1">{formatDate(entry.clock_in_date)}</p>
+                <p className="text-xs text-muted-foreground">{formatTimeAMPM(entry.clock_in_date, entry.clock_in_time)}</p>
               </div>
             </div>
             <div className="flex items-center space-x-2 min-w-0">
               <CalendarDays className="h-3 w-3 text-primary flex-shrink-0" />
               <div className="min-w-0 flex-1">
                 <p className="text-xs text-primary font-medium">Clock Out</p>
-                <p className="text-sm font-semibold line-clamp-1">{entry.clock_out_date}</p>
-                <p className="text-xs text-muted-foreground">{formatTimeToAMPM(entry.clock_out_time)}</p>
+                <p className="text-sm font-semibold line-clamp-1">{entry.clock_out_date ? formatDate(entry.clock_out_date) : '—'}</p>
+                <p className="text-xs text-muted-foreground">{entry.clock_out_time ? formatTimeAMPM(entry.clock_out_date || entry.clock_in_date, entry.clock_out_time) : '—'}</p>
               </div>
             </div>
           </div>

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+import { useCompanyTimezone } from '@/hooks/useCompanyTimezone';
 
 interface TimesheetExportProps {
   selectedRows?: string[];
@@ -14,6 +15,7 @@ interface TimesheetExportProps {
 
 const TimesheetExport: React.FC<TimesheetExportProps> = ({ selectedRows = [] }) => {
   const { t } = useTranslation();
+  const { formatDate, formatTimeAMPM } = useCompanyTimezone();
 
   const { data: timesheetData } = useQuery({
     queryKey: ['export-timesheets', selectedRows],
@@ -42,7 +44,7 @@ const TimesheetExport: React.FC<TimesheetExportProps> = ({ selectedRows = [] }) 
     enabled: selectedRows.length > 0
   });
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     if (!timesheetData || timesheetData.length === 0) {
       toast.error('No data to export');
       return;
@@ -51,10 +53,10 @@ const TimesheetExport: React.FC<TimesheetExportProps> = ({ selectedRows = [] }) 
     const exportData = timesheetData.map(entry => ({
       'Employee Name': entry.employee_name,
       'Staff ID': entry.employees?.staff_id || 'N/A',
-      'Clock In Date': entry.clock_in_date,
-      'Clock In Time': entry.clock_in_time,
-      'Clock Out Date': entry.clock_out_date,
-      'Clock Out Time': entry.clock_out_time,
+      'Clock In Date': formatDate(entry.clock_in_date),
+      'Clock In Time': formatTimeAMPM(entry.clock_in_date, entry.clock_in_time),
+      'Clock Out Date': entry.clock_out_date ? formatDate(entry.clock_out_date) : '',
+      'Clock Out Time': entry.clock_out_time ? formatTimeAMPM(entry.clock_out_date || entry.clock_in_date, entry.clock_out_time) : '',
       'Total Hours': entry.total_hours,
       'Morning Hours': entry.morning_hours || 0,
       'Night Hours': entry.night_hours || 0,

@@ -3,6 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Clock, DollarSign, Users, TrendingUp } from 'lucide-react';
+import { useCompanyTimezone } from '@/hooks/useCompanyTimezone';
 
 interface TimesheetEntry {
   id: string;
@@ -22,6 +23,7 @@ interface TimesheetSummaryProps {
 }
 
 const TimesheetSummary: React.FC<TimesheetSummaryProps> = ({ data, dateRange }) => {
+  const { timezone } = useCompanyTimezone();
   const summary = React.useMemo(() => {
     const totalHours = data.reduce((sum, entry) => sum + entry.total_hours, 0);
     const totalAmount = data.reduce((sum, entry) => sum + entry.total_card_amount_flat, 0);
@@ -42,7 +44,13 @@ const TimesheetSummary: React.FC<TimesheetSummaryProps> = ({ data, dateRange }) 
 
   const formatDateRange = () => {
     if (!dateRange) return "All Time";
-    return `${dateRange.from.toLocaleDateString()} - ${dateRange.to.toLocaleDateString()}`;
+    try {
+      const fromStr = new Intl.DateTimeFormat('en-GB', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(dateRange.from);
+      const toStr = new Intl.DateTimeFormat('en-GB', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(dateRange.to);
+      return `${fromStr} - ${toStr}`;
+    } catch {
+      return `${dateRange.from.toLocaleDateString()} - ${dateRange.to.toLocaleDateString()}`;
+    }
   };
 
   return (

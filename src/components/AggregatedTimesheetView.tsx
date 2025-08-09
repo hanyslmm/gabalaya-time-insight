@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronRight, Clock, User, DollarSign } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { formatTimeToAMPM } from '@/utils/timeFormatter';
+import { useCompanyTimezone } from '@/hooks/useCompanyTimezone';
 import { useAuth } from '@/hooks/useAuth';
 import TimesheetEditDialog from './TimesheetEditDialog';
 
@@ -40,6 +40,7 @@ const AggregatedTimesheetView: React.FC<AggregatedTimesheetViewProps> = ({ data,
   const isAdmin = user?.role === 'admin';
   const [expandedEmployees, setExpandedEmployees] = useState<Set<string>>(new Set());
   const [editingEntry, setEditingEntry] = useState<TimesheetEntry | null>(null);
+  const { formatDate, formatTimeAMPM } = useCompanyTimezone();
 
   // Aggregate data by employee
   const aggregatedData = React.useMemo(() => {
@@ -165,9 +166,9 @@ const AggregatedTimesheetView: React.FC<AggregatedTimesheetViewProps> = ({ data,
                     <TableBody>
                       {employee.entries.map((entry) => (
                         <TableRow key={entry.id} className="hover:bg-gray-50">
-                          <TableCell>{entry.clock_in_date}</TableCell>
-                          <TableCell>{formatTimeToAMPM(entry.clock_in_time)}</TableCell>
-                          <TableCell>{formatTimeToAMPM(entry.clock_out_time)}</TableCell>
+                          <TableCell>{formatDate(entry.clock_in_date)}</TableCell>
+                          <TableCell>{formatTimeAMPM(entry.clock_in_date, entry.clock_in_time)}</TableCell>
+                          <TableCell>{entry.clock_out_time ? formatTimeAMPM(entry.clock_out_date || entry.clock_in_date, entry.clock_out_time) : '—'}</TableCell>
                           <TableCell>{entry.total_hours.toFixed(2)}h</TableCell>
                           <TableCell>{entry.morning_hours?.toFixed(2) || '0.00'}h</TableCell>
                           <TableCell>{entry.night_hours?.toFixed(2) || '0.00'}h</TableCell>
