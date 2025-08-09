@@ -69,7 +69,7 @@ const TimesheetsPage: React.FC = () => {
         // Build query with filters
         let query = supabase
           .from('timesheet_entries')
-          .select('*');
+          .select('*, employees(full_name, staff_id)');
 
         // Apply date range filter
         if (dateRange?.from && dateRange?.to) {

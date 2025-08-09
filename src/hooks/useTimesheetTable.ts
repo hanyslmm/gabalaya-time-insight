@@ -9,6 +9,7 @@ import { isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-fns';
 interface TimesheetEntry {
   id: string;
   employee_name: string;
+  employees?: { full_name?: string; staff_id?: string };
   clock_in_date: string;
   clock_in_time: string;
   clock_out_date: string;
@@ -121,11 +122,17 @@ export const useTimesheetTable = (
         // Column-specific filters
         const matchesColumnFilters = Object.entries(columnFilters).every(([column, filter]) => {
           if (!filter || filter.trim() === '') return true;
-          
+          const filterLower = filter.toLowerCase();
+
+          if (column === 'employee_name') {
+            const primary = (entry.employee_name || '').toString().toLowerCase();
+            const joined = (entry.employees?.full_name || '').toString().toLowerCase();
+            return primary.includes(filterLower) || joined.includes(filterLower);
+          }
+
           const value = entry[column as keyof TimesheetEntry];
           if (value === null || value === undefined) return false;
-          
-          return value.toString().toLowerCase().includes(filter.toLowerCase());
+          return value.toString().toLowerCase().includes(filterLower);
         });
         
         return matchesColumnFilters;

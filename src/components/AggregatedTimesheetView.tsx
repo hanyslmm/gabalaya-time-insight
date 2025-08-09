@@ -11,6 +11,7 @@ import TimesheetEditDialog from './TimesheetEditDialog';
 interface TimesheetEntry {
   id: string;
   employee_name: string;
+  employees?: { full_name?: string };
   clock_in_date: string;
   clock_in_time: string;
   clock_out_date: string;
@@ -47,9 +48,10 @@ const AggregatedTimesheetView: React.FC<AggregatedTimesheetViewProps> = ({ data,
     const aggregated: Record<string, AggregatedEmployee> = {};
     
     data.forEach(entry => {
-      if (!aggregated[entry.employee_name]) {
-        aggregated[entry.employee_name] = {
-          employee_name: entry.employee_name,
+      const displayName = entry.employees?.full_name || entry.employee_name;
+      if (!aggregated[displayName]) {
+        aggregated[displayName] = {
+          employee_name: displayName,
           total_hours: 0,
           total_amount: 0,
           shift_count: 0,
@@ -57,10 +59,10 @@ const AggregatedTimesheetView: React.FC<AggregatedTimesheetViewProps> = ({ data,
         };
       }
       
-      aggregated[entry.employee_name].total_hours += entry.total_hours;
-      aggregated[entry.employee_name].total_amount += (entry.total_card_amount_split || entry.total_card_amount_flat);
-      aggregated[entry.employee_name].shift_count += 1;
-      aggregated[entry.employee_name].entries.push(entry);
+      aggregated[displayName].total_hours += entry.total_hours;
+      aggregated[displayName].total_amount += (entry.total_card_amount_split || entry.total_card_amount_flat);
+      aggregated[displayName].shift_count += 1;
+      aggregated[displayName].entries.push(entry);
     });
     
     return Object.values(aggregated).sort((a, b) => b.total_hours - a.total_hours);

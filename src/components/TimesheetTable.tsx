@@ -21,6 +21,7 @@ import AggregatedTimesheetView from './AggregatedTimesheetView';
 interface TimesheetEntry {
   id: string;
   employee_name: string;
+  employees?: { full_name?: string; staff_id?: string };
   clock_in_date: string;
   clock_in_time: string;
   clock_out_date: string;
@@ -310,7 +311,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
                           />
                         </TableCell>
                         <TableCell className="font-medium sticky left-12 bg-background/95 backdrop-blur min-w-0">
-                          <div className="truncate pr-2">{entry.employee_name}</div>
+                          <div className="truncate pr-2">{entry.employees?.full_name || entry.employee_name}</div>
                         </TableCell>
                         <TableCell>
                           <div className="font-medium text-fluid-sm">{formatDate(entry.clock_in_date)}</div>

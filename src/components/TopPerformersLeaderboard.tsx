@@ -31,7 +31,7 @@ const TopPerformersLeaderboard: React.FC<TopPerformersProps> = ({
   const { data: topPerformers, isLoading } = useQuery({
     queryKey: ['top-performers', timePeriod, dateRange],
     queryFn: async () => {
-      let query = supabase.from('timesheet_entries').select('employee_name, total_hours, total_card_amount_flat');
+      let query = supabase.from('timesheet_entries').select('employee_name, total_hours, total_card_amount_flat, employees(full_name)');
       
       if (dateRange) {
         query = query
@@ -47,9 +47,10 @@ const TopPerformersLeaderboard: React.FC<TopPerformersProps> = ({
       const employeeStats: Record<string, EmployeePerformance> = {};
       
       timesheets?.forEach(entry => {
-        if (!employeeStats[entry.employee_name]) {
-          employeeStats[entry.employee_name] = {
-            name: entry.employee_name,
+        const displayName = entry.employees?.full_name || entry.employee_name;
+        if (!employeeStats[displayName]) {
+          employeeStats[displayName] = {
+            name: displayName,
             hours: 0,
             amount: 0,
             shifts: 0,
@@ -57,9 +58,9 @@ const TopPerformersLeaderboard: React.FC<TopPerformersProps> = ({
           };
         }
         
-        employeeStats[entry.employee_name].hours += entry.total_hours || 0;
-        employeeStats[entry.employee_name].amount += entry.total_card_amount_flat || 0;
-        employeeStats[entry.employee_name].shifts += 1;
+        employeeStats[displayName].hours += entry.total_hours || 0;
+        employeeStats[displayName].amount += entry.total_card_amount_flat || 0;
+        employeeStats[displayName].shifts += 1;
       });
 
       // Calculate averages and sort by total hours

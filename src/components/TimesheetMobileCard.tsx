@@ -12,6 +12,7 @@ import TimesheetEditDialog from './TimesheetEditDialog';
 interface TimesheetEntry {
   id: string;
   employee_name: string;
+  employees?: { full_name?: string; staff_id?: string };
   clock_in_date: string;
   clock_in_time: string;
   clock_out_date: string;
@@ -55,7 +56,7 @@ const TimesheetMobileCard: React.FC<TimesheetMobileCardProps> = ({
             <div className="flex items-center space-x-2 min-w-0 flex-1">
               <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               <h3 className="font-semibold text-sm text-card-foreground break-words-enhanced line-clamp-1">
-                {entry.employee_name}
+                {entry.employees?.full_name || entry.employee_name}
               </h3>
             </div>
           </div>
