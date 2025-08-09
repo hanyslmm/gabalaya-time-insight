@@ -14,6 +14,7 @@ import TimesheetExport from '@/components/TimesheetExport';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import MobilePageWrapper, { MobileSection, MobileHeader } from '@/components/MobilePageWrapper';
+import { useMemo } from 'react';
 
 interface DateRange {
   from: Date;
@@ -43,6 +44,19 @@ const TimesheetsPage: React.FC = () => {
         .from('employees')
         .select('id, staff_id, full_name')
         .order('full_name');
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Fetch wage settings for calculating missing fields
+  const { data: wageSettings } = useQuery({
+    queryKey: ['wage-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wage_settings')
+        .select('default_flat_wage_rate, morning_wage_rate, night_wage_rate, morning_start_time, morning_end_time, night_start_time, night_end_time')
+        .single();
       if (error) throw error;
       return data;
     }
@@ -99,6 +113,87 @@ const TimesheetsPage: React.FC = () => {
     staleTime: 30 * 1000, // 30 seconds
   });
 
+  // Compute fallback morning/night hours and total amount when missing
+  const processedTimesheets = useMemo(() => {
+    if (!timesheets || timesheets.length === 0) return [] as any[];
+
+    const morningStart = wageSettings?.morning_start_time || '08:00:00';
+    const morningEnd = wageSettings?.morning_end_time || '17:00:00';
+    const nightStart = wageSettings?.night_start_time || '17:00:00';
+    const nightEnd = wageSettings?.night_end_time || '01:00:00';
+    const morningRate = wageSettings?.morning_wage_rate ?? 17;
+    const nightRate = wageSettings?.night_wage_rate ?? 20;
+    const flatRate = wageSettings?.default_flat_wage_rate ?? 20;
+
+    const timeToMinutes = (timeStr?: string | null): number | null => {
+      if (!timeStr) return null;
+      const [h, m] = timeStr.split(':').map(Number);
+      if (Number.isNaN(h) || Number.isNaN(m)) return null;
+      return h * 60 + m;
+    };
+
+    return timesheets.map((entry: any) => {
+      let morningHours = entry.morning_hours || 0;
+      let nightHours = entry.night_hours || 0;
+
+      // If missing split hours but we have shift times and total hours, compute overlaps
+      if ((morningHours + nightHours) === 0 && (entry.total_hours || 0) > 0 && entry.clock_in_time && entry.clock_out_time) {
+        const shiftStart = timeToMinutes((entry.clock_in_time || '').split('.')[0]);
+        const shiftEndRaw = timeToMinutes((entry.clock_out_time || '').split('.')[0]);
+        const mStart = timeToMinutes(morningStart)!;
+        const mEnd = timeToMinutes(morningEnd)!;
+        const nStart = timeToMinutes(nightStart)!;
+        let nEnd = timeToMinutes(nightEnd)!;
+
+        if (shiftStart !== null && shiftEndRaw !== null) {
+          let shiftEnd = shiftEndRaw;
+          if (shiftEnd < shiftStart) shiftEnd += 24 * 60; // overnight shift
+          if (nEnd < nStart) nEnd += 24 * 60; // night crosses midnight
+
+          const morningOverlapStart = Math.max(shiftStart, mStart);
+          const morningOverlapEnd = Math.min(shiftEnd, mEnd);
+          if (morningOverlapStart < morningOverlapEnd) {
+            morningHours = (morningOverlapEnd - morningOverlapStart) / 60;
+          }
+
+          const nightOverlapStart = Math.max(shiftStart, nStart);
+          const nightOverlapEnd = Math.min(shiftEnd, nEnd);
+          if (nightOverlapStart < nightOverlapEnd) {
+            nightHours = (nightOverlapEnd - nightOverlapStart) / 60;
+          }
+
+          // Normalize to not exceed total hours; assign remainder to predominant period
+          const totalCalculated = morningHours + nightHours;
+          const finalHours = entry.actual_hours || entry.total_hours || 0;
+          if (totalCalculated > finalHours && totalCalculated > 0) {
+            const ratio = finalHours / totalCalculated;
+            morningHours *= ratio;
+            nightHours *= ratio;
+          } else if (totalCalculated < finalHours) {
+            const remaining = finalHours - totalCalculated;
+            if (morningHours >= nightHours) morningHours += remaining; else nightHours += remaining;
+          }
+        } else {
+          // Fallback: assign all hours to morning
+          morningHours = entry.total_hours || 0;
+        }
+      }
+
+      const hasAnyAmount = (entry.total_card_amount_split || 0) > 0 || (entry.total_card_amount_flat || 0) > 0;
+      const splitAmount = (morningHours * morningRate) + (nightHours * nightRate);
+      const flatAmount = (entry.total_hours || 0) * flatRate;
+
+      return {
+        ...entry,
+        morning_hours: morningHours,
+        night_hours: nightHours,
+        total_card_amount_split: (entry.total_card_amount_split && entry.total_card_amount_split > 0) ? entry.total_card_amount_split : splitAmount,
+        total_card_amount_flat: (entry.total_card_amount_flat && entry.total_card_amount_flat > 0) ? entry.total_card_amount_flat : flatAmount,
+        is_split_calculation: entry.is_split_calculation ?? true,
+      };
+    });
+  }, [timesheets, wageSettings]);
+
   const handleEmployeeChange = useCallback((value: string) => {
     setSelectedEmployee(value);
     setSelectedRows([]); // Clear selected rows when changing employee filter
@@ -125,7 +220,7 @@ const TimesheetsPage: React.FC = () => {
   }, [refetch]);
 
   // Calculate filter stats
-  const totalEntries = timesheets?.length || 0;
+  const totalEntries = processedTimesheets?.length || 0;
   const selectedEmployeeName = selectedEmployee === 'all' ? 'All Employees' : 
     employees?.find(emp => emp.id === selectedEmployee)?.full_name || 'Unknown Employee';
 
@@ -238,7 +333,7 @@ const TimesheetsPage: React.FC = () => {
       </MobileSection>
 
       {/* Summary Section - Morning vs Night Hours Analysis */}
-      {timesheets && timesheets.length > 0 && (
+      {processedTimesheets && processedTimesheets.length > 0 && (
         <Card className="mb-4 sm:mb-6">
           <CardHeader className="pb-3">
             <CardTitle className="text-base sm:text-lg">Timesheet Summary</CardTitle>
@@ -247,14 +342,14 @@ const TimesheetsPage: React.FC = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
               {(() => {
                 // Calculate totals
-                const totalHours = timesheets.reduce((sum, entry) => sum + (entry.total_hours || 0), 0);
-                const totalMorningHours = timesheets.reduce((sum, entry) => sum + (entry.morning_hours || 0), 0);
-                const totalNightHours = timesheets.reduce((sum, entry) => sum + (entry.night_hours || 0), 0);
+                const totalHours = processedTimesheets.reduce((sum: number, entry: any) => sum + (entry.total_hours || 0), 0);
+                const totalMorningHours = processedTimesheets.reduce((sum: number, entry: any) => sum + (entry.morning_hours || 0), 0);
+                const totalNightHours = processedTimesheets.reduce((sum: number, entry: any) => sum + (entry.night_hours || 0), 0);
                 
                 // Calculate percentages
                 const morningPercentage = totalHours > 0 ? (totalMorningHours / totalHours) * 100 : 0;
                 const nightPercentage = totalHours > 0 ? (totalNightHours / totalHours) * 100 : 0;
-                const totalEntries = timesheets.length;
+                const totalEntries = processedTimesheets.length;
                 
                 return (
                   <>
@@ -299,9 +394,9 @@ const TimesheetsPage: React.FC = () => {
               <div className="text-xs text-muted-foreground mb-2">Hours Distribution</div>
               <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
                 {(() => {
-                  const totalHours = timesheets.reduce((sum, entry) => sum + (entry.total_hours || 0), 0);
-                  const totalMorningHours = timesheets.reduce((sum, entry) => sum + (entry.morning_hours || 0), 0);
-                  const totalNightHours = timesheets.reduce((sum, entry) => sum + (entry.night_hours || 0), 0);
+                  const totalHours = processedTimesheets.reduce((sum: number, entry: any) => sum + (entry.total_hours || 0), 0);
+                  const totalMorningHours = processedTimesheets.reduce((sum: number, entry: any) => sum + (entry.morning_hours || 0), 0);
+                  const totalNightHours = processedTimesheets.reduce((sum: number, entry: any) => sum + (entry.night_hours || 0), 0);
                   
                   const morningPercentage = totalHours > 0 ? (totalMorningHours / totalHours) * 100 : 0;
                   const nightPercentage = totalHours > 0 ? (totalNightHours / totalHours) * 100 : 0;
@@ -323,8 +418,8 @@ const TimesheetsPage: React.FC = () => {
                 })()}
               </div>
               <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                <span>Morning ({((timesheets.reduce((sum, entry) => sum + (entry.morning_hours || 0), 0) / Math.max(timesheets.reduce((sum, entry) => sum + (entry.total_hours || 0), 0), 1)) * 100).toFixed(1)}%)</span>
-                <span>Night ({((timesheets.reduce((sum, entry) => sum + (entry.night_hours || 0), 0) / Math.max(timesheets.reduce((sum, entry) => sum + (entry.total_hours || 0), 0), 1)) * 100).toFixed(1)}%)</span>
+                <span>Morning ({((processedTimesheets.reduce((sum: number, entry: any) => sum + (entry.morning_hours || 0), 0) / Math.max(processedTimesheets.reduce((sum: number, entry: any) => sum + (entry.total_hours || 0), 0), 1)) * 100).toFixed(1)}%)</span>
+                <span>Night ({((processedTimesheets.reduce((sum: number, entry: any) => sum + (entry.night_hours || 0), 0) / Math.max(processedTimesheets.reduce((sum: number, entry: any) => sum + (entry.total_hours || 0), 0), 1)) * 100).toFixed(1)}%)</span>
               </div>
             </div>
           </CardContent>
@@ -350,7 +445,7 @@ const TimesheetsPage: React.FC = () => {
               </div>
             ) : (
               <TimesheetTable 
-                data={timesheets || []} 
+                data={processedTimesheets || []} 
                 selectedRows={selectedRows}
                 onSelectionChange={setSelectedRows}
                 onDataChange={refetch}
