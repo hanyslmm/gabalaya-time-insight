@@ -181,26 +181,31 @@ const ClockInOutPage: React.FC = () => {
 
       // Process team member statuses
       const statusMap = new Map<string, TeamMemberStatus>();
-      const currentTime = await getCurrentCompanyTime();
-      
-      timesheetData?.forEach(entry => {
+      const nowUtc = new Date();
+
+      for (const entry of timesheetData || []) {
         // Improved logic: Check for active entry (null, undefined, or empty string)
-        const isActive = entry.clock_out_time === null || 
+        const isActive = entry.clock_out_time === null ||
                          entry.clock_out_time === undefined ||
                          entry.clock_out_time === '';
-        const duration = isActive 
-          ? differenceInMinutes(currentTime, new Date(`${entry.clock_in_date}T${entry.clock_in_time}`))
+
+        // Parse clock-in in company timezone then convert to UTC for reliable diff
+        const baseTime = String(entry.clock_in_time || '').split('.')[0];
+        const clockInDateTimeStr = `${entry.clock_in_date} ${baseTime}`;
+        const clockInUtc = await parseCompanyDateTime(clockInDateTimeStr);
+
+        const duration = isActive
+          ? differenceInMinutes(nowUtc, clockInUtc)
           : entry.total_hours ? entry.total_hours * 60 : 0;
 
         // Map employee ID/name to display name
         let displayName = entry.employee_name;
-        
         if (employeeMap.has(entry.employee_name)) {
           displayName = employeeMap.get(entry.employee_name);
         } else if (entry.employee_id && employeeMap.has(entry.employee_id)) {
           displayName = employeeMap.get(entry.employee_id);
         } else {
-          const foundEmployee = (employeesData || []).find(emp => 
+          const foundEmployee = (employeesData || []).find(emp =>
             emp.staff_id === entry.employee_name || emp.full_name === entry.employee_name
           );
           if (foundEmployee) {
@@ -210,7 +215,7 @@ const ClockInOutPage: React.FC = () => {
 
         // Skip current user from team status
         if (displayName === user?.full_name || entry.employee_name === user?.username) {
-          return;
+          continue;
         }
 
         // Only show active entries or update with active entry if exists
@@ -224,7 +229,7 @@ const ClockInOutPage: React.FC = () => {
             is_active: isActive
           });
         }
-      });
+      }
 
       // Only show active team members
       const activeTeamMembers = Array.from(statusMap.values()).filter(status => status.is_active);

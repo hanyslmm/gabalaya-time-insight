@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { EmployeeSummaryCards } from '@/components/EmployeeSummaryCards';
 import { ActiveEmployeesList } from '@/components/ActiveEmployeesList';
 import { CompletedShiftsList } from '@/components/CompletedShiftsList';
+import { parseCompanyDateTime } from '@/utils/timezoneUtils';
 
 interface EmployeeStatus {
   employee_name: string;
@@ -68,7 +69,7 @@ const EmployeeMonitorPage: React.FC = () => {
       });
 
       // Fetch today's entries AND any active entries (without clock_out_time) from any date
-      const today = format(new Date(), 'yyyy-MM-dd');
+      const today = await (await import('@/utils/timezoneUtils')).then(m => m.getTodayInCompanyTimezone());
       const { data: timesheetData, error: timesheetError } = await supabase
         .from('timesheet_entries')
         .select('*')
@@ -82,10 +83,12 @@ const EmployeeMonitorPage: React.FC = () => {
       // Process employee statuses
       const statusMap = new Map<string, EmployeeStatus>();
       
-      timesheetData?.forEach(entry => {
+      for (const entry of timesheetData || []) {
         const isActive = !entry.clock_out_time || entry.clock_out_time === '00:00:00';
-        const duration = isActive 
-          ? differenceInMinutes(new Date(), new Date(`${entry.clock_in_date}T${entry.clock_in_time}`))
+        const baseTime = String(entry.clock_in_time || '').split('.')[0];
+        const clockInUtc = await parseCompanyDateTime(`${entry.clock_in_date} ${baseTime}`);
+        const duration = isActive
+          ? differenceInMinutes(new Date(), clockInUtc)
           : entry.total_hours ? entry.total_hours * 60 : 0;
 
         // Map employee ID/name to display name, check both employee_name and employee_id
@@ -123,7 +126,7 @@ const EmployeeMonitorPage: React.FC = () => {
             is_active: isActive
           });
         }
-      });
+      }
 
       setEmployeeStatuses(Array.from(statusMap.values()));
     } catch (error) {

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Bell, Clock, AlertTriangle, X } from 'lucide-react';
 import { format, differenceInHours } from 'date-fns';
+import { parseCompanyDateTime } from '@/utils/timezoneUtils';
 
 interface Notification {
   id: string;
@@ -53,8 +54,9 @@ const NotificationSystem: React.FC = () => {
 
       const newNotifications: Notification[] = [];
 
-      entries?.forEach(entry => {
-        const clockInTime = new Date(`${entry.clock_in_date}T${entry.clock_in_time}`);
+      for (const entry of entries || []) {
+        const baseTime = String(entry.clock_in_time || '').split('.')[0];
+        const clockInTime = await parseCompanyDateTime(`${entry.clock_in_date} ${baseTime}`);
         const now = new Date();
         const employeeName = entry.employees?.full_name || entry.employee_name;
         const employeeId = entry.employees?.staff_id || entry.employee_id;
@@ -88,21 +90,7 @@ const NotificationSystem: React.FC = () => {
             read: false
           });
         }
-
-        // Check for overtime (over 8 hours completed)
-        if (entry.total_hours && entry.total_hours > 8) {
-          newNotifications.push({
-            id: `overtime_${entry.id}`,
-            type: 'overtime',
-            title: 'Overtime Detected',
-            message: `${employeeName} worked ${entry.total_hours.toFixed(1)} hours`,
-            employee_name: employeeName,
-            employee_id: employeeId,
-            timestamp: now,
-            read: false
-          });
-        }
-      });
+      }
 
       setNotifications(prev => {
         const existingIds = new Set(prev.map(n => n.id));
