@@ -29,7 +29,8 @@ const LoginPage: React.FC = () => {
   };
 
   if (user) {
-    return <Navigate to="/dashboard" replace />;
+    const target = user.role === 'admin' ? '/dashboard' : '/clock-in-out';
+    return <Navigate to={target} replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
