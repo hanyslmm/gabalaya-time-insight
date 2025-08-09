@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 interface TimesheetEntry {
   id: string;
   employee_name: string;
+  employees?: { full_name?: string; staff_id?: string };
   clock_in_date: string;
   clock_in_time: string;
   clock_out_date: string;
@@ -106,7 +107,7 @@ const TimesheetEditDialog: React.FC<TimesheetEditDialogProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Timesheet Entry - {entry.employee_name}</DialogTitle>
+          <DialogTitle>Edit Timesheet Entry - {entry.employees?.full_name || entry.employee_name}</DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4 py-4">
