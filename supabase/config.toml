@@ -1,1 +1,37 @@
 project_id = "npmniesphobtsoftczeh"
+
+[api]
+enabled = true
+port = 54321
+
+[db]
+enabled = true
+port = 54322
+
+[studio]
+enabled = true
+port = 54323
+
+[functions.authenticate-user]
+verify_jwt = false
+
+[functions.change-admin-password]
+verify_jwt = false
+
+[functions.change-employee-password]
+verify_jwt = false
+
+[functions.fix-clock-in-issues]
+verify_jwt = false
+
+[functions.process-timesheet]
+verify_jwt = false
+
+[functions.unified-auth]
+verify_jwt = false
+
+[functions.update-admin-names]
+verify_jwt = false
+
+[functions.auto-clockout]
+verify_jwt = false

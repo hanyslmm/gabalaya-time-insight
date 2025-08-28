@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -76,22 +76,34 @@ export type Database = {
       }
       company_settings: {
         Row: {
+          auto_clockout_enabled: boolean | null
+          auto_clockout_location: string | null
+          auto_clockout_time: string | null
           created_at: string
           id: number
+          max_work_hours: number | null
           motivational_message: string | null
           timezone: string | null
           updated_at: string
         }
         Insert: {
+          auto_clockout_enabled?: boolean | null
+          auto_clockout_location?: string | null
+          auto_clockout_time?: string | null
           created_at?: string
           id?: number
+          max_work_hours?: number | null
           motivational_message?: string | null
           timezone?: string | null
           updated_at?: string
         }
         Update: {
+          auto_clockout_enabled?: boolean | null
+          auto_clockout_location?: string | null
+          auto_clockout_time?: string | null
           created_at?: string
           id?: number
+          max_work_hours?: number | null
           motivational_message?: string | null
           timezone?: string | null
           updated_at?: string
@@ -692,7 +704,7 @@ export type Database = {
     }
     Functions: {
       clock_in: {
-        Args: { p_staff_id: string; p_clock_in_location: string }
+        Args: { p_clock_in_location: string; p_staff_id: string }
         Returns: {
           actual_hours: number | null
           break_end: string | null
@@ -723,7 +735,7 @@ export type Database = {
         }
       }
       clock_out: {
-        Args: { p_entry_id: string; p_clock_out_location: string }
+        Args: { p_clock_out_location: string; p_entry_id: string }
         Returns: {
           actual_hours: number | null
           break_end: string | null
@@ -758,11 +770,11 @@ export type Database = {
         Returns: Json
       }
       get_monthly_summary: {
-        Args: { target_year: number; target_month: number }
+        Args: { target_month: number; target_year: number }
         Returns: {
-          total_income: number
-          total_expense: number
           net_profit: number
+          total_expense: number
+          total_income: number
           transaction_count: number
         }[]
       }

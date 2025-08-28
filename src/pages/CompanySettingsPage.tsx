@@ -6,9 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, Save, Settings, Clock } from 'lucide-react';
+import { MessageCircle, Save, Settings, Clock, Shield } from 'lucide-react';
 import { COMMON_TIMEZONES, clearTimezoneCache } from '@/utils/timezoneUtils';
 
 const CompanySettingsPage: React.FC = () => {
@@ -16,6 +18,10 @@ const CompanySettingsPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [message, setMessage] = useState('');
   const [timezone, setTimezone] = useState('Africa/Cairo');
+  const [autoClockoutEnabled, setAutoClockoutEnabled] = useState(true);
+  const [autoClockoutTime, setAutoClockoutTime] = useState('01:00');
+  const [maxWorkHours, setMaxWorkHours] = useState(8);
+  const [autoClockoutLocation, setAutoClockoutLocation] = useState('Auto Clock-Out');
 
   // Fetch current company settings
   const { data: currentSettings, isLoading } = useQuery({
@@ -23,33 +29,52 @@ const CompanySettingsPage: React.FC = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('company_settings')
-        .select('motivational_message, timezone')
+        .select('motivational_message, timezone, auto_clockout_enabled, auto_clockout_time, max_work_hours, auto_clockout_location')
         .single();
 
       if (error && error.code !== 'PGRST116') {
         // If no settings exist, return default
         return { 
           motivational_message: "Keep up the great work! Your dedication and effort make a real difference to our team.",
-          timezone: "Africa/Cairo"
+          timezone: "Africa/Cairo",
+          auto_clockout_enabled: true,
+          auto_clockout_time: "01:00:00",
+          max_work_hours: 8,
+          auto_clockout_location: "Auto Clock-Out"
         };
       }
       
       return data || { 
         motivational_message: "Keep up the great work! Your dedication and effort make a real difference to our team.",
-        timezone: "Africa/Cairo"
+        timezone: "Africa/Cairo",
+        auto_clockout_enabled: true,
+        auto_clockout_time: "01:00:00",
+        max_work_hours: 8,
+        auto_clockout_location: "Auto Clock-Out"
       };
     }
   });
 
   // Save company settings
   const saveMutation = useMutation({
-    mutationFn: async ({ newMessage, newTimezone }: { newMessage: string; newTimezone: string }) => {
+    mutationFn: async (settings: {
+      newMessage: string;
+      newTimezone: string;
+      autoClockoutEnabled: boolean;
+      autoClockoutTime: string;
+      maxWorkHours: number;
+      autoClockoutLocation: string;
+    }) => {
       const { data, error } = await supabase
         .from('company_settings')
         .upsert({ 
           id: 1, // Use a fixed ID for singleton settings
-          motivational_message: newMessage,
-          timezone: newTimezone
+          motivational_message: settings.newMessage,
+          timezone: settings.newTimezone,
+          auto_clockout_enabled: settings.autoClockoutEnabled,
+          auto_clockout_time: settings.autoClockoutTime + ':00', // Add seconds
+          max_work_hours: settings.maxWorkHours,
+          auto_clockout_location: settings.autoClockoutLocation
         }, {
           onConflict: 'id'
         });
@@ -80,7 +105,11 @@ const CompanySettingsPage: React.FC = () => {
     if (message.trim()) {
       saveMutation.mutate({ 
         newMessage: message.trim(),
-        newTimezone: timezone
+        newTimezone: timezone,
+        autoClockoutEnabled,
+        autoClockoutTime,
+        maxWorkHours,
+        autoClockoutLocation
       });
     }
   };
@@ -91,6 +120,19 @@ const CompanySettingsPage: React.FC = () => {
     }
     if (currentSettings?.timezone) {
       setTimezone(currentSettings.timezone);
+    }
+    if (currentSettings?.auto_clockout_enabled !== undefined) {
+      setAutoClockoutEnabled(currentSettings.auto_clockout_enabled);
+    }
+    if (currentSettings?.auto_clockout_time) {
+      // Convert time format from "HH:MM:SS" to "HH:MM"
+      setAutoClockoutTime(currentSettings.auto_clockout_time.substring(0, 5));
+    }
+    if (currentSettings?.max_work_hours !== undefined) {
+      setMaxWorkHours(currentSettings.max_work_hours);
+    }
+    if (currentSettings?.auto_clockout_location) {
+      setAutoClockoutLocation(currentSettings.auto_clockout_location);
     }
   }, [currentSettings]);
 
@@ -223,6 +265,114 @@ const CompanySettingsPage: React.FC = () => {
                 Existing timesheet entries will be converted to show in the new timezone.
               </p>
             </div>
+
+            <div className="flex justify-end gap-4">
+              <Button
+                onClick={handleSave}
+                disabled={saveMutation.isPending || !message.trim()}
+                className="bg-primary hover:bg-primary/90"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {saveMutation.isPending ? 'Saving...' : 'Save All Settings'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="mt-6 bg-gradient-to-br from-card via-card to-accent/5 border-border/50 shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-3">
+              <div className="p-2 bg-accent/10 rounded-lg">
+                <Shield className="h-5 w-5 text-accent" />
+              </div>
+              Auto Clock-Out Settings
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Label htmlFor="auto-clockout-enabled">
+                  Enable Auto Clock-Out
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Automatically clock out employees who forget or exceed work limits
+                </p>
+              </div>
+              <Switch
+                id="auto-clockout-enabled"
+                checked={autoClockoutEnabled}
+                onCheckedChange={setAutoClockoutEnabled}
+              />
+            </div>
+
+            {autoClockoutEnabled && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="max-work-hours">
+                      Maximum Work Hours
+                    </Label>
+                    <Input
+                      id="max-work-hours"
+                      type="number"
+                      min="1"
+                      max="24"
+                      step="0.5"
+                      value={maxWorkHours}
+                      onChange={(e) => setMaxWorkHours(parseFloat(e.target.value) || 8)}
+                      placeholder="8"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Employees will be auto clocked out after working this many hours
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="auto-clockout-time">
+                      Daily Auto Clock-Out Time
+                    </Label>
+                    <Input
+                      id="auto-clockout-time"
+                      type="time"
+                      value={autoClockoutTime}
+                      onChange={(e) => setAutoClockoutTime(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Employees still clocked in will be auto clocked out at this time the next day
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="auto-clockout-location">
+                    Auto Clock-Out Location
+                  </Label>
+                  <Input
+                    id="auto-clockout-location"
+                    type="text"
+                    value={autoClockoutLocation}
+                    onChange={(e) => setAutoClockoutLocation(e.target.value)}
+                    placeholder="Auto Clock-Out"
+                    maxLength={100}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    This location will be recorded for automatic clock-outs
+                  </p>
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4 rounded-lg">
+                  <h4 className="font-medium text-sm text-blue-800 dark:text-blue-200 mb-2">
+                    📋 Auto Clock-Out Rules:
+                  </h4>
+                  <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                    <li>• Employees are clocked out after working {maxWorkHours} hours</li>
+                    <li>• Employees are clocked out at {autoClockoutTime} the day after they clocked in</li>
+                    <li>• Only admins can manually add extra hours after auto clock-out</li>
+                    <li>• Auto clock-out runs automatically and cannot be disabled by employees</li>
+                  </ul>
+                </div>
+              </>
+            )}
 
             <div className="flex justify-end gap-4">
               <Button
