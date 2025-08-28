@@ -49,7 +49,7 @@ const ClockInOutPage: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [companyTime, setCompanyTime] = useState(new Date());
   const [workedHours, setWorkedHours] = useState(0);
-  const [targetHours] = useState(8); // Default 8-hour workday
+  const [targetHours] = useState(6); // Default 6-hour workday
   const [showDebug, setShowDebug] = useState(false);
   const [timezoneAbbr, setTimezoneAbbr] = useState('Local');
   const [initializationError, setInitializationError] = useState<string | null>(null);
