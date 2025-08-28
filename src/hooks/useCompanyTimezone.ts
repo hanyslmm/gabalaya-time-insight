@@ -6,11 +6,19 @@ export function useCompanyTimezone() {
 
   useEffect(() => {
     let mounted = true;
-    getCompanyTimezone()
-      .then((tz) => {
-        if (mounted && tz) setTimezone(tz);
-      })
-      .catch(() => {});
+    
+    const fetchTimezone = async () => {
+      try {
+        const tz = await getCompanyTimezone();
+        if (mounted && tz) {
+          setTimezone(tz);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch company timezone:', error);
+      }
+    };
+    
+    fetchTimezone();
     return () => {
       mounted = false;
     };

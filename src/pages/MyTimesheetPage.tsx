@@ -23,9 +23,17 @@ const MyTimesheetPage: React.FC = () => {
 
   useEffect(() => {
     let isMounted = true;
-    getCompanyTimezone()
-      .then((tz) => { if (isMounted) setCompanyTimezone(tz); })
-      .catch(() => {});
+    
+    const fetchTimezone = async () => {
+      try {
+        const tz = await getCompanyTimezone();
+        if (isMounted) setCompanyTimezone(tz);
+      } catch (error) {
+        console.warn('Failed to fetch timezone:', error);
+      }
+    };
+    
+    fetchTimezone();
     return () => { isMounted = false; };
   }, []);
 
