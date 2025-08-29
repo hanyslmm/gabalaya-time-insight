@@ -831,6 +831,15 @@ export type Database = {
           updated_at: string
         }
       }
+      get_current_user_info: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          organization_id: string
+          role: string
+          user_id: string
+          username: string
+        }[]
+      }
       get_dashboard_stats: {
         Args: { from_date: string; to_date: string }
         Returns: Json
