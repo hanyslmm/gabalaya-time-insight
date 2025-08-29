@@ -180,17 +180,119 @@ const MyTimesheetPage: React.FC = () => {
     enabled: !!user?.username
   });
 
+  const { data: wageSettings } = useQuery({
+    queryKey: ['wage-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wage_settings')
+        .select('*')
+        .single();
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
   const totalHours = timesheetData?.reduce((sum, entry) => sum + (entry.total_hours || 0), 0) || 0;
-  const totalMorningHours = timesheetData?.reduce((sum, entry) => sum + (entry.morning_hours || 0), 0) || 0;
-  const totalNightHours = timesheetData?.reduce((sum, entry) => sum + (entry.night_hours || 0), 0) || 0;
+  
+  // Calculate morning and night hours with fallback calculation
+  const totalMorningHours = timesheetData?.reduce((sum, entry) => {
+    if (entry.morning_hours > 0) {
+      return sum + entry.morning_hours;
+    }
+    // Fallback: calculate from time periods if wage settings available
+    if (wageSettings && entry.clock_in_time && entry.clock_out_time) {
+      const clockInDateTime = new Date(`${entry.clock_in_date}T${entry.clock_in_time}`);
+      const clockOutDateTime = entry.clock_out_date 
+        ? new Date(`${entry.clock_out_date}T${entry.clock_out_time}`)
+        : new Date(`${entry.clock_in_date}T${entry.clock_out_time}`);
+        
+      // Handle next day scenario
+      if (clockOutDateTime < clockInDateTime) {
+        clockOutDateTime.setDate(clockOutDateTime.getDate() + 1);
+      }
+
+      const baseDate = new Date(entry.clock_in_date);
+      const morningStart = new Date(baseDate);
+      const [morningStartHour, morningStartMin] = wageSettings.morning_start_time.split(':');
+      morningStart.setHours(parseInt(morningStartHour), parseInt(morningStartMin), 0, 0);
+      
+      const morningEnd = new Date(baseDate);
+      const [morningEndHour, morningEndMin] = wageSettings.morning_end_time.split(':');
+      morningEnd.setHours(parseInt(morningEndHour), parseInt(morningEndMin), 0, 0);
+      
+      const morningOverlapStart = new Date(Math.max(clockInDateTime.getTime(), morningStart.getTime()));
+      const morningOverlapEnd = new Date(Math.min(clockOutDateTime.getTime(), morningEnd.getTime()));
+      
+      if (morningOverlapEnd > morningOverlapStart) {
+        const morningHours = (morningOverlapEnd.getTime() - morningOverlapStart.getTime()) / (1000 * 60 * 60);
+        return sum + morningHours;
+      }
+    }
+    return sum;
+  }, 0) || 0;
+  
+  const totalNightHours = timesheetData?.reduce((sum, entry) => {
+    if (entry.night_hours > 0) {
+      return sum + entry.night_hours;
+    }
+    // Fallback: calculate from time periods if wage settings available
+    if (wageSettings && entry.clock_in_time && entry.clock_out_time) {
+      const clockInDateTime = new Date(`${entry.clock_in_date}T${entry.clock_in_time}`);
+      const clockOutDateTime = entry.clock_out_date 
+        ? new Date(`${entry.clock_out_date}T${entry.clock_out_time}`)
+        : new Date(`${entry.clock_in_date}T${entry.clock_out_time}`);
+        
+      // Handle next day scenario
+      if (clockOutDateTime < clockInDateTime) {
+        clockOutDateTime.setDate(clockOutDateTime.getDate() + 1);
+      }
+
+      const baseDate = new Date(entry.clock_in_date);
+      const nightStart = new Date(baseDate);
+      const [nightStartHour, nightStartMin] = wageSettings.night_start_time.split(':');
+      nightStart.setHours(parseInt(nightStartHour), parseInt(nightStartMin), 0, 0);
+      
+      const nightEnd = new Date(baseDate);
+      const [nightEndHour, nightEndMin] = wageSettings.night_end_time.split(':');
+      nightEnd.setHours(parseInt(nightEndHour), parseInt(nightEndMin), 0, 0);
+      
+      // Handle next day for night end time if it's earlier than night start
+      if (nightEnd <= nightStart) {
+        nightEnd.setDate(nightEnd.getDate() + 1);
+      }
+      
+      const nightOverlapStart = new Date(Math.max(clockInDateTime.getTime(), nightStart.getTime()));
+      const nightOverlapEnd = new Date(Math.min(clockOutDateTime.getTime(), nightEnd.getTime()));
+      
+      if (nightOverlapEnd > nightOverlapStart) {
+        const nightHours = (nightOverlapEnd.getTime() - nightOverlapStart.getTime()) / (1000 * 60 * 60);
+        return sum + nightHours;
+      }
+    }
+    return sum;
+  }, 0) || 0;
   
   const morningWageRate = employeeWageData?.morning_wage_rate || 17;
   const nightWageRate = employeeWageData?.night_wage_rate || 20;
   
-  // Calculate earnings from actual stored amounts (split takes precedence over flat)
+  // Calculate earnings: use stored amounts if available, otherwise calculate from hours
   const totalEarnings = timesheetData?.reduce((sum, entry) => {
-    const amount = entry.total_card_amount_split || entry.total_card_amount_flat || 0;
-    return sum + amount;
+    const storedAmount = entry.total_card_amount_split || entry.total_card_amount_flat;
+    if (storedAmount && storedAmount > 0) {
+      return sum + storedAmount;
+    }
+    // Fallback: calculate from hours and wage rates if no stored amount
+    const morningEarnings = (entry.morning_hours || 0) * morningWageRate;
+    const nightEarnings = (entry.night_hours || 0) * nightWageRate;
+    const totalHourlyEarnings = (entry.total_hours || 0) * morningWageRate; // Default rate for unspecified hours
+    
+    // Use split calculation if morning/night hours are specified, otherwise use total hours
+    const calculatedAmount = (entry.morning_hours > 0 || entry.night_hours > 0) 
+      ? morningEarnings + nightEarnings 
+      : totalHourlyEarnings;
+    
+    return sum + calculatedAmount;
   }, 0) || 0;
 
   const months = [
@@ -354,7 +456,22 @@ const MyTimesheetPage: React.FC = () => {
                       </Badge>
                     )}
                     <span className="text-xs font-medium text-green-600">
-                      LE{((entry.total_card_amount_split || entry.total_card_amount_flat) || 0).toFixed(2)}
+                      LE{(() => {
+                        const storedAmount = entry.total_card_amount_split || entry.total_card_amount_flat;
+                        if (storedAmount && storedAmount > 0) {
+                          return storedAmount.toFixed(2);
+                        }
+                        // Fallback calculation
+                        const morningEarnings = (entry.morning_hours || 0) * morningWageRate;
+                        const nightEarnings = (entry.night_hours || 0) * nightWageRate;
+                        const totalHourlyEarnings = (entry.total_hours || 0) * morningWageRate;
+                        
+                        const calculatedAmount = (entry.morning_hours > 0 || entry.night_hours > 0) 
+                          ? morningEarnings + nightEarnings 
+                          : totalHourlyEarnings;
+                        
+                        return calculatedAmount.toFixed(2);
+                      })()}
                     </span>
                   </div>
                 </div>
