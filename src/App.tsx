@@ -22,6 +22,7 @@ const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
 const ClockInOutPage = lazy(() => import('@/pages/ClockInOutPage'));
 const MyTimesheetPage = lazy(() => import('@/pages/MyTimesheetPage'));
 const CompanySettingsPage = lazy(() => import('@/pages/CompanySettingsPage'));
+const OrganizationManagement = lazy(() => import('@/components/OrganizationManagement'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -94,6 +95,11 @@ function App() {
                 <Route path="company-settings" element={
                   <Suspense fallback={<PageLoader />}>
                     <CompanySettingsPage />
+                  </Suspense>
+                } />
+                <Route path="organizations" element={
+                  <Suspense fallback={<PageLoader />}>
+                    <OrganizationManagement />
                   </Suspense>
                 } />
                 <Route path="settings" element={

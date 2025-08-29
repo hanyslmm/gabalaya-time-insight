@@ -27,11 +27,11 @@ const Index = () => {
       <div className="text-center space-y-6 p-8">
         <div className="flex items-center justify-center mb-8">
           <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center shadow-xl">
-            <span className="text-primary-foreground font-bold text-2xl">G</span>
+            <span className="text-primary-foreground font-bold text-2xl">C</span>
           </div>
         </div>
         <h1 className="text-5xl font-bold mb-6 bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
-          Welcome to Gabalaya HRM
+          Welcome to ChampTime
         </h1>
         <p className="text-xl text-muted-foreground max-w-2xl">
           A comprehensive Human Resource Management system designed to streamline your workforce operations with modern design and powerful features.

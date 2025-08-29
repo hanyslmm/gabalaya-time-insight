@@ -18,7 +18,7 @@ const resources = {
       username: 'Username',
       password: 'Password',
       welcomeBack: 'Welcome Back',
-      loginSubtitle: 'Sign in to access the Gabalaya Finance HRM System',
+      loginSubtitle: 'Sign in to access the ChampTime HRM System',
       
       // Dashboard
       overview: 'Overview',

@@ -243,7 +243,7 @@ const DashboardPage: React.FC = () => {
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">
-              Welcome to the Gabalaya Finance HRM System. Use the navigation menu to manage employees, timesheets, and system settings.
+              Welcome to the ChampTime HRM System. Use the navigation menu to manage employees, timesheets, and system settings.
             </p>
           </CardContent>
         </Card>

@@ -19,6 +19,7 @@ export type Database = {
           created_at: string
           full_name: string | null
           id: string
+          organization_id: string | null
           password_hash: string
           role: string
           updated_at: string
@@ -28,6 +29,7 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id?: string
+          organization_id?: string | null
           password_hash: string
           role?: string
           updated_at?: string
@@ -37,12 +39,21 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id?: string
+          organization_id?: string | null
           password_hash?: string
           role?: string
           updated_at?: string
           username?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "admin_users_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       categories: {
         Row: {
@@ -83,6 +94,7 @@ export type Database = {
           id: number
           max_work_hours: number | null
           motivational_message: string | null
+          organization_id: string | null
           timezone: string | null
           updated_at: string
         }
@@ -94,6 +106,7 @@ export type Database = {
           id?: number
           max_work_hours?: number | null
           motivational_message?: string | null
+          organization_id?: string | null
           timezone?: string | null
           updated_at?: string
         }
@@ -105,10 +118,19 @@ export type Database = {
           id?: number
           max_work_hours?: number | null
           motivational_message?: string | null
+          organization_id?: string | null
           timezone?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "company_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       courses: {
         Row: {
@@ -155,6 +177,7 @@ export type Database = {
           id: string
           morning_wage_rate: number | null
           night_wage_rate: number | null
+          organization_id: string | null
           phone_number: string | null
           role: string
           staff_id: string
@@ -168,6 +191,7 @@ export type Database = {
           id?: string
           morning_wage_rate?: number | null
           night_wage_rate?: number | null
+          organization_id?: string | null
           phone_number?: string | null
           role: string
           staff_id: string
@@ -181,12 +205,21 @@ export type Database = {
           id?: string
           morning_wage_rate?: number | null
           night_wage_rate?: number | null
+          organization_id?: string | null
           phone_number?: string | null
           role?: string
           staff_id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "employees_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       financial_categories: {
         Row: {
@@ -319,6 +352,27 @@ export type Database = {
           notes?: string | null
           status?: string | null
           total_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      organizations: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
           updated_at?: string
         }
         Relationships: []
@@ -464,6 +518,7 @@ export type Database = {
           morning_hours: number | null
           night_hours: number | null
           no_show_reason: string | null
+          organization_id: string | null
           payroll_id: string | null
           total_card_amount_flat: number
           total_card_amount_split: number | null
@@ -492,6 +547,7 @@ export type Database = {
           morning_hours?: number | null
           night_hours?: number | null
           no_show_reason?: string | null
+          organization_id?: string | null
           payroll_id?: string | null
           total_card_amount_flat?: number
           total_card_amount_split?: number | null
@@ -520,6 +576,7 @@ export type Database = {
           morning_hours?: number | null
           night_hours?: number | null
           no_show_reason?: string | null
+          organization_id?: string | null
           payroll_id?: string | null
           total_card_amount_flat?: number
           total_card_amount_split?: number | null
@@ -532,6 +589,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timesheet_entries_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -727,6 +791,7 @@ export type Database = {
           morning_hours: number | null
           night_hours: number | null
           no_show_reason: string | null
+          organization_id: string | null
           payroll_id: string | null
           total_card_amount_flat: number
           total_card_amount_split: number | null
@@ -758,6 +823,7 @@ export type Database = {
           morning_hours: number | null
           night_hours: number | null
           no_show_reason: string | null
+          organization_id: string | null
           payroll_id: string | null
           total_card_amount_flat: number
           total_card_amount_split: number | null

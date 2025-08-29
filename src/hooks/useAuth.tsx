@@ -6,6 +6,7 @@ interface User {
   username: string;
   full_name: string; // full_name is now guaranteed to be a string
   role: string;
+  organization_id?: string;
 }
 
 interface AuthContextType {

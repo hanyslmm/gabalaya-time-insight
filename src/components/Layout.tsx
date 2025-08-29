@@ -134,6 +134,13 @@ const Layout = () => {
       description: 'Company Setup',
       roles: ['admin']
     },
+    {
+      name: 'Organizations',
+      href: '/organizations',
+      icon: Building,
+      description: 'Multi-tenant Management',
+      roles: ['admin']
+    },
   ];
 
   const navigation = allNavigation.filter(item =>
@@ -179,10 +186,10 @@ const Layout = () => {
             sidebarCollapsed ? "lg:opacity-0 lg:w-0 lg:overflow-hidden" : "opacity-100"
           )}>
             <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center shadow-lg">
-              <span className="text-primary-foreground font-bold text-sm">G</span>
+              <span className="text-primary-foreground font-bold text-sm">C</span>
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-foreground tracking-tight">Gabalaya Finance</h1>
+              <h1 className="text-lg font-semibold text-foreground tracking-tight">ChampTime</h1>
               <p className="text-xs text-muted-foreground font-medium">HRM System</p>
             </div>
           </div>

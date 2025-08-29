@@ -18,6 +18,7 @@ function generateToken(user: any): string {
     username: user.username,
     role: user.role,
     full_name: user.full_name,
+    organization_id: user.organization_id,
     exp: Date.now() + (24 * 60 * 60 * 1000), // 24 hours
     iat: Date.now()
   };
@@ -77,7 +78,8 @@ Deno.serve(async (req) => {
             id: payload.id, 
             username: payload.username, 
             full_name: payload.full_name,
-            role: payload.role 
+            role: payload.role,
+            organization_id: payload.organization_id
           } 
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
@@ -163,7 +165,8 @@ Deno.serve(async (req) => {
         id: user.id,
         username: user.username,
         full_name: fullName,
-        role: finalRole
+        role: finalRole,
+        organization_id: user.organization_id
       }
 
       return new Response(

@@ -18,7 +18,7 @@ requestNotificationPermission();
 setupMobileViewport();
 
 createRoot(document.getElementById("root")!).render(
-  <ThemeProvider defaultTheme="system" storageKey="gabalaya-ui-theme">
+  <ThemeProvider defaultTheme="system" storageKey="champtime-ui-theme">
     <App />
   </ThemeProvider>
 );
