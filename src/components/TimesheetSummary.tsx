@@ -26,8 +26,13 @@ const TimesheetSummary: React.FC<TimesheetSummaryProps> = ({ data, dateRange }) 
   const { timezone } = useCompanyTimezone();
   const summary = React.useMemo(() => {
     const totalHours = data.reduce((sum, entry) => sum + entry.total_hours, 0);
-    const totalAmount = data.reduce((sum, entry) => sum + entry.total_card_amount_flat, 0);
+    // Calculate total amount using split amounts when available, fallback to flat amounts
+    const totalAmount = data.reduce((sum, entry) => {
+      const amount = entry.total_card_amount_split || entry.total_card_amount_flat || 0;
+      return sum + amount;
+    }, 0);
     const totalSplitAmount = data.reduce((sum, entry) => sum + (entry.total_card_amount_split || 0), 0);
+    const totalFlatAmount = data.reduce((sum, entry) => sum + (entry.total_card_amount_flat || 0), 0);
     const uniqueEmployees = new Set(data.map(entry => entry.employee_name)).size;
     const totalShifts = data.length;
     const averageHoursPerShift = totalShifts > 0 ? totalHours / totalShifts : 0;
@@ -36,6 +41,7 @@ const TimesheetSummary: React.FC<TimesheetSummaryProps> = ({ data, dateRange }) 
       totalHours,
       totalAmount,
       totalSplitAmount,
+      totalFlatAmount,
       uniqueEmployees,
       totalShifts,
       averageHoursPerShift
@@ -96,11 +102,16 @@ const TimesheetSummary: React.FC<TimesheetSummaryProps> = ({ data, dateRange }) 
           </div>
         </div>
         
-        {summary.totalSplitAmount > 0 && (
+        {(summary.totalSplitAmount > 0 || summary.totalFlatAmount > 0) && (
           <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-            <p className="text-sm text-blue-700">
-              Split calculation total: <span className="font-semibold">LE {summary.totalSplitAmount.toFixed(2)}</span>
-            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-blue-700">
+              {summary.totalFlatAmount > 0 && (
+                <p>Flat rate total: <span className="font-semibold">LE {summary.totalFlatAmount.toFixed(2)}</span></p>
+              )}
+              {summary.totalSplitAmount > 0 && (
+                <p>Split rate total: <span className="font-semibold">LE {summary.totalSplitAmount.toFixed(2)}</span></p>
+              )}
+            </div>
           </div>
         )}
       </CardContent>

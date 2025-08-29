@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Building, Users, UserPlus } from 'lucide-react';
+import { Plus, Building, Users, UserPlus, Trash2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 
 const OrganizationManagement: React.FC = () => {
@@ -122,6 +123,26 @@ const OrganizationManagement: React.FC = () => {
     }
   });
 
+  // Delete organization mutation
+  const deleteOrgMutation = useMutation({
+    mutationFn: async (organizationId: string) => {
+      const { error } = await supabase
+        .from('organizations')
+        .delete()
+        .eq('id', organizationId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organizations'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users-with-orgs'] });
+      toast.success('Organization deleted successfully');
+    },
+    onError: (error) => {
+      toast.error('Failed to delete organization: ' + error.message);
+    }
+  });
+
   // Update user organization mutation
   const updateUserOrgMutation = useMutation({
     mutationFn: async ({ userId, organizationId }: { userId: string, organizationId: string }) => {
@@ -159,6 +180,10 @@ const OrganizationManagement: React.FC = () => {
 
   const handleUpdateUserOrg = (userId: string, organizationId: string) => {
     updateUserOrgMutation.mutate({ userId, organizationId });
+  };
+
+  const handleDeleteOrg = (organizationId: string) => {
+    deleteOrgMutation.mutate(organizationId);
   };
 
   return (
@@ -305,9 +330,41 @@ const OrganizationManagement: React.FC = () => {
                       Created: {new Date(org.created_at).toLocaleDateString()}
                     </p>
                   </div>
-                  <Badge variant="secondary">
-                    {users?.filter(u => u.organization_id === org.id).length || 0} users
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">
+                      {users?.filter(u => u.organization_id === org.id).length || 0} users
+                    </Badge>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-red-600 border-red-200 hover:bg-red-50"
+                          disabled={deleteOrgMutation.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Organization</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete "{org.name}"? This action cannot be undone.
+                            All users assigned to this organization will have their organization assignment removed.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction 
+                            onClick={() => handleDeleteOrg(org.id)}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
               ))}
             </div>

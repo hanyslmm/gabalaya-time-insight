@@ -187,7 +187,11 @@ const MyTimesheetPage: React.FC = () => {
   const morningWageRate = employeeWageData?.morning_wage_rate || 17;
   const nightWageRate = employeeWageData?.night_wage_rate || 20;
   
-  const totalEarnings = (totalMorningHours * morningWageRate) + (totalNightHours * nightWageRate);
+  // Calculate earnings from actual stored amounts (split takes precedence over flat)
+  const totalEarnings = timesheetData?.reduce((sum, entry) => {
+    const amount = entry.total_card_amount_split || entry.total_card_amount_flat || 0;
+    return sum + amount;
+  }, 0) || 0;
 
   const months = [
     { value: 1, label: 'January' },
@@ -350,7 +354,7 @@ const MyTimesheetPage: React.FC = () => {
                       </Badge>
                     )}
                     <span className="text-xs font-medium text-green-600">
-                      LE{entry.total_card_amount_split || entry.total_card_amount_flat}
+                      LE{((entry.total_card_amount_split || entry.total_card_amount_flat) || 0).toFixed(2)}
                     </span>
                   </div>
                 </div>
