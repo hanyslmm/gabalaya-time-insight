@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
-import { supabase, setSupabaseAuth } from '@/integrations/supabase/client';
+import { supabase, setCurrentUser } from '@/integrations/supabase/client';
 
 interface User {
   id: string;
@@ -27,8 +27,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         const token = localStorage.getItem('auth_token');
         if (!token) {
-          // Clear any existing auth headers
-          setSupabaseAuth(null);
+          setCurrentUser(null);
           return; // No token, no user.
         }
 
@@ -40,17 +39,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (error || !data?.success) {
           // If token is invalid, clear it.
           localStorage.removeItem('auth_token');
-          setSupabaseAuth(null);
+          setCurrentUser(null);
           setUser(null);
         } else {
           // The user object from the backend is trusted completely.
           setUser(data.user);
-          // Set the auth headers for Supabase queries
-          setSupabaseAuth(token);
+          setCurrentUser(data.user);
         }
       } catch (e) {
         setUser(null);
-        setSupabaseAuth(null);
+        setCurrentUser(null);
       } finally {
         setLoading(false);
       }
@@ -74,8 +72,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // The user object and token from the backend are trusted completely.
       localStorage.setItem('auth_token', data.token);
       setUser(data.user);
-      // Set the auth headers for Supabase queries
-      setSupabaseAuth(data.token);
+      setCurrentUser(data.user);
       return {};
 
     } catch (e: any) {
@@ -88,8 +85,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async () => {
     localStorage.removeItem('auth_token');
     setUser(null);
-    // Clear auth headers
-    setSupabaseAuth(null);
+    setCurrentUser(null);
     // This ensures a clean state on logout.
     await supabase.auth.signOut(); 
   };

@@ -31,16 +31,13 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   },
 });
 
-// Function to set custom auth token for requests
-export const setSupabaseAuth = (token: string | null) => {
-  if (token) {
-    // Set Authorization header for API requests
-    (supabase as any).rest.headers['Authorization'] = `Bearer ${token}`;
-    // Set for realtime as well
-    supabase.realtime.setAuth(token);
-  } else {
-    // Clear auth headers
-    delete (supabase as any).rest.headers['Authorization'];
-    supabase.realtime.setAuth(null);
-  }
+// Store custom user data for RLS policies
+let currentUser: any = null;
+
+export const setCurrentUser = (user: any) => {
+  currentUser = user;
+};
+
+export const getCurrentUser = () => {
+  return currentUser;
 };
