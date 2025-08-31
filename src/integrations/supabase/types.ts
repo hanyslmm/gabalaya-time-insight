@@ -889,6 +889,14 @@ export type Database = {
           username: string
         }[]
       }
+      get_current_user_organization: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_current_user_role_safe: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_dashboard_stats: {
         Args: { from_date: string; to_date: string }
         Returns: Json
@@ -905,6 +913,10 @@ export type Database = {
       get_user_role: {
         Args: { user_username: string }
         Returns: string
+      }
+      is_current_user_owner: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
       }
     }
     Enums: {

@@ -92,10 +92,15 @@ const OrganizationSwitcher: React.FC = () => {
     onSuccess: (data) => {
       // Update local user state and refresh queries
       queryClient.invalidateQueries({ queryKey: ['current-user-org'] });
+      queryClient.invalidateQueries({ queryKey: ['current-org-name'] });
+      queryClient.invalidateQueries({ queryKey: ['available-organizations'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-data'] });
       toast.success('Organization switched successfully');
       
-      // Refresh the page to update all data
-      window.location.reload();
+      // Force a page refresh to ensure all data updates
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
     },
     onError: (error) => {
       toast.error('Failed to switch organization: ' + error.message);
