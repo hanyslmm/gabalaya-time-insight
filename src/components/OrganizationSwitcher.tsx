@@ -11,8 +11,8 @@ const OrganizationSwitcher: React.FC = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Only show for owners
-  if (!user || user.role !== 'owner') {
+  // Show for all authenticated users
+  if (!user) {
     return null;
   }
 
@@ -20,14 +20,26 @@ const OrganizationSwitcher: React.FC = () => {
   const { data: organizations, isLoading } = useQuery({
     queryKey: ['available-organizations', user.id],
     queryFn: async () => {
-      // Owners can see all organizations
-      const { data, error } = await supabase
-        .from('organizations')
-        .select('*')
-        .order('name');
-      
-      if (error) throw error;
-      return data;
+      if (user.role === 'owner') {
+        // Owners can see all organizations
+        const { data, error } = await supabase
+          .from('organizations')
+          .select('*')
+          .order('name');
+        
+        if (error) throw error;
+        return data;
+      } else {
+        // Admins and employees can only see their organization
+        const { data, error } = await supabase
+          .from('organizations')
+          .select('*')
+          .eq('id', user.organization_id)
+          .order('name');
+        
+        if (error) throw error;
+        return data;
+      }
     },
     enabled: !!user
   });
@@ -112,7 +124,19 @@ const OrganizationSwitcher: React.FC = () => {
     );
   }
 
-  // Owners always get the full switcher interface
+  // For non-owners, show current org name only (non-interactive)
+  if (user.role !== 'owner') {
+    return (
+      <Button variant="ghost" size="sm" className="hidden sm:flex cursor-default" disabled>
+        <Building className="h-4 w-4 mr-2 text-muted-foreground" />
+        <span className="text-sm truncate max-w-32 text-muted-foreground">
+          {getCurrentOrganizationName()}
+        </span>
+      </Button>
+    );
+  }
+
+  // Owners get the full switcher interface
 
   return (
     <Select
