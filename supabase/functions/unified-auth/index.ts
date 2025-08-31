@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
       // Verify password based on role - SIMPLIFIED VERSION
       let isValidPassword = false;
       
-      if (user.role === 'admin') {
+      if (user.role === 'admin' || user.role === 'owner') {
         // Simple password check - no bcrypt for now to avoid issues
         isValidPassword = password === user.password_hash;
       } else if (user.role === 'employee') {
