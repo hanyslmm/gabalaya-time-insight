@@ -17,8 +17,10 @@ export type Database = {
       admin_users: {
         Row: {
           created_at: string
+          current_organization_id: string | null
           full_name: string | null
           id: string
+          is_global_owner: boolean | null
           organization_id: string | null
           password_hash: string
           role: string
@@ -27,8 +29,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          current_organization_id?: string | null
           full_name?: string | null
           id?: string
+          is_global_owner?: boolean | null
           organization_id?: string | null
           password_hash: string
           role?: string
@@ -37,8 +41,10 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          current_organization_id?: string | null
           full_name?: string | null
           id?: string
+          is_global_owner?: boolean | null
           organization_id?: string | null
           password_hash?: string
           role?: string
@@ -46,6 +52,13 @@ export type Database = {
           username?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "admin_users_current_organization_id_fkey"
+            columns: ["current_organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "admin_users_organization_id_fkey"
             columns: ["organization_id"]
@@ -376,6 +389,42 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      owner_organization_access: {
+        Row: {
+          created_at: string | null
+          id: string
+          organization_id: string | null
+          owner_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          organization_id?: string | null
+          owner_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          organization_id?: string | null
+          owner_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owner_organization_access_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_organization_access_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       products: {
         Row: {

@@ -50,7 +50,7 @@ const OrganizationSwitcher: React.FC = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('admin_users')
-        .select('id, username, role, organization_id, current_organization_id, is_global_owner')
+        .select('*')
         .eq('id', user.id)
         .single();
       
@@ -62,7 +62,7 @@ const OrganizationSwitcher: React.FC = () => {
 
   // Get organization names separately
   const { data: currentOrgData } = useQuery({
-    queryKey: ['current-org-name', currentUser?.current_organization_id || currentUser?.organization_id],
+    queryKey: ['current-org-name', (currentUser as any)?.current_organization_id || currentUser?.organization_id],
     queryFn: async () => {
       const orgId = (currentUser as any)?.current_organization_id || currentUser?.organization_id;
       if (!orgId) return null;
