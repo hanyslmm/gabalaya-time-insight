@@ -70,7 +70,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
   const [editingEntry, setEditingEntry] = useState<any>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [viewMode, setViewMode] = useState<'detailed' | 'aggregated'>('detailed');
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'owner';
   const { t } = useTranslation();
   const isMobile = useIsMobile();
   const [currentPage, setCurrentPage] = useState(1);

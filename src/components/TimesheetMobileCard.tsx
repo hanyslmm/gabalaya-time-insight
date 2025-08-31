@@ -38,7 +38,7 @@ const TimesheetMobileCard: React.FC<TimesheetMobileCardProps> = ({
   onEdit
 }) => {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'owner';
   const [showEditDialog, setShowEditDialog] = React.useState(false);
   const { formatDate, formatTimeAMPM } = useCompanyTimezone();
 

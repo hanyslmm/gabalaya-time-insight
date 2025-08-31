@@ -37,7 +37,7 @@ interface AggregatedTimesheetViewProps {
 
 const AggregatedTimesheetView: React.FC<AggregatedTimesheetViewProps> = ({ data, onDataChange }) => {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'owner';
   const [expandedEmployees, setExpandedEmployees] = useState<Set<string>>(new Set());
   const [editingEntry, setEditingEntry] = useState<TimesheetEntry | null>(null);
   const { formatDate, formatTimeAMPM } = useCompanyTimezone();

@@ -292,7 +292,7 @@ const EmployeeMonitorPage: React.FC = () => {
   const completedToday = employeeStatuses.filter(status => !status.is_active);
 
   // Allow both admin and employee access, but with different features
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'owner';
   
   if (!user) {
     return (

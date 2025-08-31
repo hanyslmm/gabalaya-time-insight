@@ -29,7 +29,7 @@ const LoginPage: React.FC = () => {
   };
 
   if (user) {
-    const target = user.role === 'admin' ? '/dashboard' : '/clock-in-out';
+    const target = ['admin', 'owner'].includes(user.role) ? '/dashboard' : '/clock-in-out';
     return <Navigate to={target} replace />;
   }
 

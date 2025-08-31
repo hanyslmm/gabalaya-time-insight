@@ -34,7 +34,7 @@ const MobileNavigation: React.FC = () => {
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [isScrolling, setIsScrolling] = useState(false);
 
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'owner';
 
   const navigationItems: NavigationItem[] = [
     {

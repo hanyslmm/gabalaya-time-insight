@@ -82,8 +82,8 @@ const DashboardPage: React.FC = () => {
   // Fetch data for the active period
   const { data: activeData, isLoading: activeLoading } = useDashboardData(activePeriod);
 
-  // Check if user is admin - restrict dashboard access to admins only
-  if (!user || user.role !== 'admin') {
+  // Check if user is admin or owner - restrict dashboard access to admins and owners only
+  if (!user || !['admin', 'owner'].includes(user.role)) {
     return (
       <div className="w-full px-4 sm:px-6 lg:px-8 flex items-center justify-center min-h-[60vh]">
         <Alert variant="destructive" className="max-w-md">
