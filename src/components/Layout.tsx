@@ -34,6 +34,8 @@ const Layout = () => {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  
+  console.log('Layout: Rendering with user:', user, 'location:', location.pathname);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const isMobile = useIsMobile();

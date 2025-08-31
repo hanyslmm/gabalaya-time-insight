@@ -27,31 +27,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
+        console.log('useAuth: Checking auth status...');
         const token = localStorage.getItem('auth_token');
+        console.log('useAuth: Token exists:', !!token);
+        
         if (!token) {
+          console.log('useAuth: No token found, setting user to null');
           setCurrentUser(null);
+          setUser(null);
           return; // No token, no user.
         }
 
+        console.log('useAuth: Validating token with unified-auth...');
         // The unified-auth function is the single source of truth for user data.
         const { data, error } = await supabase.functions.invoke('unified-auth', {
           body: { action: 'validate-token', token }
         });
 
+        console.log('useAuth: Validation response:', { data, error });
+
         if (error || !data?.success) {
+          console.log('useAuth: Token validation failed, clearing token');
           // If token is invalid, clear it.
           localStorage.removeItem('auth_token');
           setCurrentUser(null);
           setUser(null);
         } else {
+          console.log('useAuth: Token valid, user:', data.user);
           // The user object from the backend is trusted completely.
           setUser(data.user);
           setCurrentUser(data.user);
         }
       } catch (e) {
+        console.error('useAuth: Error in checkAuthStatus:', e);
         setUser(null);
         setCurrentUser(null);
       } finally {
+        console.log('useAuth: Setting loading to false');
         setLoading(false);
       }
     };
