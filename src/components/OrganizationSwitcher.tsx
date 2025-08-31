@@ -124,10 +124,10 @@ const OrganizationSwitcher: React.FC = () => {
     );
   }
 
-  // For regular admins with only one organization, don't show switcher
+  // For regular admins with only one organization, show current org name only
   if (user.role === 'admin' && organizations.length <= 1) {
     return (
-      <Button variant="ghost" size="sm" disabled className="hidden sm:flex">
+      <Button variant="ghost" size="sm" className="hidden sm:flex">
         <Building className="h-4 w-4 mr-2" />
         <span className="text-sm truncate max-w-32">
           {getCurrentOrganizationName()}
