@@ -141,7 +141,7 @@ const Layout = () => {
       href: '/organizations',
       icon: Building,
       description: 'Multi-tenant Management',
-      roles: ['admin', 'owner']
+      roles: ['owner']
     },
   ];
 

@@ -27,8 +27,8 @@ const OrganizationManagement: React.FC = () => {
     organization_id: ''
   });
 
-  // Only admins and owners can access this component
-  if (!user || !['admin', 'owner'].includes(user.role)) {
+  // Only owners can access this component
+  if (!user || user.role !== 'owner') {
     return null;
   }
 
