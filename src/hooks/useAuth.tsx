@@ -7,6 +7,8 @@ interface User {
   full_name: string; // full_name is now guaranteed to be a string
   role: string;
   organization_id?: string;
+  current_organization_id?: string;
+  is_global_owner?: boolean;
 }
 
 interface AuthContextType {

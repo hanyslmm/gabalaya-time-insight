@@ -8,6 +8,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import NotificationSystem from '@/components/NotificationSystem';
 import OfflineIndicator from '@/components/OfflineIndicator';
 import GlobalSearch from '@/components/GlobalSearch';
+import OrganizationSwitcher from '@/components/OrganizationSwitcher';
 import { useIsMobile, useIsTablet, useDeviceType } from '@/hooks/use-mobile';
 import {
   LayoutDashboard,
@@ -62,6 +63,7 @@ const Layout = () => {
   };
 
   const isAdmin = user?.role === 'admin';
+  const isOwner = user?.role === 'owner';
 
   const allNavigation = [
     {
@@ -69,77 +71,77 @@ const Layout = () => {
       href: '/dashboard',
       icon: LayoutDashboard,
       description: 'Overview & Analytics',
-      roles: ['admin']
+      roles: ['admin', 'owner']
     },
     {
       name: 'Clock In/Out',
       href: '/clock-in-out',
       icon: Clock,
       description: 'Time Tracking',
-      roles: ['admin', 'employee']
+      roles: ['admin', 'employee', 'owner']
     },
     {
       name: 'My Timesheet',
       href: '/my-timesheet',
       icon: FileText,
       description: 'Your Records',
-      roles: ['admin', 'employee']
+      roles: ['admin', 'employee', 'owner']
     },
     {
       name: 'Employees',
       href: '/employees',
       icon: Users,
       description: 'Staff Management',
-      roles: ['admin']
+      roles: ['admin', 'owner']
     },
     {
       name: 'Timesheets',
       href: '/timesheets',
       icon: FileText,
       description: 'All Time Records',
-      roles: ['admin']
+      roles: ['admin', 'owner']
     },
     {
       name: 'Employee Monitor',
       href: '/employee-monitor',
       icon: Monitor,
       description: 'Live Tracking',
-      roles: ['admin']
+      roles: ['admin', 'owner']
     },
     {
       name: 'Reports',
       href: '/reports',
       icon: BarChart3,
       description: 'Analytics & Insights',
-      roles: ['admin']
+      roles: ['admin', 'owner']
     },
     {
       name: 'Profile',
       href: '/profile',
       icon: User,
       description: 'Account Settings',
-      roles: ['admin', 'employee']
+      roles: ['admin', 'employee', 'owner']
     },
     {
       name: 'Settings',
       href: '/settings',
       icon: Settings,
       description: 'System Configuration',
-      roles: ['admin']
+      roles: ['admin', 'owner']
     },
     {
       name: 'Company Settings',
       href: '/company-settings',
       icon: Building,
       description: 'Company Setup',
-      roles: ['admin']
+      roles: ['admin', 'owner']
     },
     {
       name: 'Organizations',
       href: '/organizations',
       icon: Building,
       description: 'Multi-tenant Management',
-      roles: ['admin']
+      roles: ['admin', 'owner']
     },
   ];
 
@@ -269,18 +271,28 @@ const Layout = () => {
           )}>
             <div className={cn(
               "px-3 py-2 rounded-lg border text-center",
-              isAdmin
+              isOwner
+                ? "border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-950"
+                : isAdmin
                 ? "border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950"
                 : "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950"
             )}>
               <div className="flex items-center justify-center gap-2">
                 <Shield className={cn(
                   "h-4 w-4",
-                  isAdmin ? "text-orange-600 dark:text-orange-400" : "text-blue-600 dark:text-blue-400"
+                  isOwner 
+                    ? "text-purple-600 dark:text-purple-400" 
+                    : isAdmin 
+                    ? "text-orange-600 dark:text-orange-400" 
+                    : "text-blue-600 dark:text-blue-400"
                 )} />
                 <span className={cn(
                   "text-sm font-medium capitalize",
-                  isAdmin ? "text-orange-600 dark:text-orange-400" : "text-blue-600 dark:text-blue-400"
+                  isOwner 
+                    ? "text-purple-600 dark:text-purple-400" 
+                    : isAdmin 
+                    ? "text-orange-600 dark:text-orange-400" 
+                    : "text-blue-600 dark:text-blue-400"
                 )}>
                   {user?.role}
                 </span>
@@ -365,6 +377,8 @@ const Layout = () => {
               <div className="hidden lg:block max-w-md">
                 <GlobalSearch />
               </div>
+              {/* Organization Switcher */}
+              <OrganizationSwitcher />
               {/* Notifications */}
               <NotificationSystem />
               {/* Theme Toggle */}

@@ -27,8 +27,8 @@ const OrganizationManagement: React.FC = () => {
     organization_id: ''
   });
 
-  // Only admins can access this component
-  if (user?.role !== 'admin') {
+  // Only admins and owners can access this component
+  if (!user || !['admin', 'owner'].includes(user.role)) {
     return null;
   }
 
@@ -46,19 +46,26 @@ const OrganizationManagement: React.FC = () => {
     }
   });
 
-  // Fetch users
+  // Fetch users based on user role
   const { data: users, isLoading: usersLoading } = useQuery({
     queryKey: ['admin-users-with-orgs'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('admin_users')
         .select(`
           *,
           organizations!admin_users_organization_id_fkey (
             name
           )
-        `)
-        .order('username');
+        `);
+
+      // If user is admin (not owner), only show users from their organization
+      if (user?.role === 'admin' && user?.organization_id) {
+        query = query.eq('organization_id', user.organization_id);
+      }
+      // Owners can see all users
+      
+      const { data, error } = await query.order('username');
       
       if (error) throw error;
       return data;
@@ -275,6 +282,9 @@ const OrganizationManagement: React.FC = () => {
                     <SelectContent>
                       <SelectItem value="employee">Employee</SelectItem>
                       <SelectItem value="admin">Admin</SelectItem>
+                      {user?.role === 'owner' && (
+                        <SelectItem value="owner">Owner</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
