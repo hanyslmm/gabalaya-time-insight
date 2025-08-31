@@ -149,13 +149,13 @@ const OrganizationSwitcher: React.FC = () => {
       onValueChange={handleOrganizationSwitch}
       disabled={switchOrgMutation.isPending}
     >
-      <SelectTrigger asChild>
-        <Button variant="ghost" size="sm" className="w-auto min-w-fit max-w-48">
-          <Building className="h-4 w-4 mr-2 flex-shrink-0" />
+      <SelectTrigger className="w-auto min-w-fit max-w-48 bg-transparent border-none shadow-none hover:bg-accent">
+        <div className="flex items-center gap-2">
+          <Building className="h-4 w-4 flex-shrink-0" />
           <span className="text-sm truncate">
             {switchOrgMutation.isPending ? 'Switching...' : getCurrentOrganizationName()}
           </span>
-        </Button>
+        </div>
       </SelectTrigger>
       <SelectContent align="end" className="w-64">
         {organizations.map((org) => (
