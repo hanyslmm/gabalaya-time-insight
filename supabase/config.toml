@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.auto-clockout]
 verify_jwt = false
+
+[functions.switch-organization]
+verify_jwt = false
