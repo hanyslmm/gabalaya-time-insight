@@ -65,6 +65,8 @@ serve(async (req) => {
 
     const { username, role } = tokenPayload
 
+    console.log('Switch organization request:', { username, role, organizationId });
+
     if (!organizationId) {
       return new Response(
         JSON.stringify({ success: false, error: 'Organization ID is required' }),
@@ -161,8 +163,12 @@ serve(async (req) => {
     )
 
   } catch (error) {
+    console.error('Switch organization error:', error);
     return new Response(
-      JSON.stringify({ success: false, error: 'Server error' }),
+      JSON.stringify({ 
+        success: false, 
+        error: 'Server error: ' + (error?.message || 'Unknown error')
+      }),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

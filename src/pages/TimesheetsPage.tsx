@@ -11,6 +11,7 @@ import TimesheetUpload from '@/components/TimesheetUpload';
 import TimesheetTable from '@/components/TimesheetTable';
 import TimesheetDateFilter from '@/components/TimesheetDateFilter';
 import TimesheetExport from '@/components/TimesheetExport';
+import AutoCalculateWages from '@/components/AutoCalculateWages';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import MobilePageWrapper, { MobileSection, MobileHeader } from '@/components/MobilePageWrapper';
@@ -366,6 +367,8 @@ const TimesheetsPage: React.FC = () => {
             <CardTitle>Actions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            <AutoCalculateWages />
+            
             <Button 
               variant="destructive" 
               size="sm" 
