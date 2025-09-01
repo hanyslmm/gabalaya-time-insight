@@ -82,12 +82,21 @@ const OrganizationSwitcher: React.FC = () => {
   // Switch organization mutation
   const switchOrgMutation = useMutation({
     mutationFn: async (organizationId: string) => {
-      const { data, error } = await supabase.functions.invoke('switch-organization', {
-        body: { organizationId }
-      });
+      console.log('Attempting to switch to organization:', organizationId);
       
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase.functions.invoke('switch-organization', {
+          body: { organizationId }
+        });
+        
+        console.log('Switch org response:', { data, error });
+        
+        if (error) throw error;
+        return data;
+      } catch (err) {
+        console.error('Switch org error:', err);
+        throw err;
+      }
     },
     onSuccess: (data) => {
       // Update local user state and refresh queries
