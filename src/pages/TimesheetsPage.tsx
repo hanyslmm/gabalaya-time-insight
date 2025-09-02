@@ -249,8 +249,96 @@ const TimesheetsPage: React.FC = () => {
               {(() => {
                 // Calculate totals
                 const totalHours = timesheets.reduce((sum, entry) => sum + (entry.total_hours || 0), 0);
-                const totalMorningHours = timesheets.reduce((sum, entry) => sum + (entry.morning_hours || 0), 0);
-                const totalNightHours = timesheets.reduce((sum, entry) => sum + (entry.night_hours || 0), 0);
+                
+                // Calculate morning and night hours dynamically
+                const totalMorningHours = timesheets.reduce((sum, entry) => {
+                  // Use stored morning_hours if available and greater than 0
+                  if (entry.morning_hours && entry.morning_hours > 0) {
+                    return sum + entry.morning_hours;
+                  }
+                  
+                  // Calculate from time periods - simplified calculation for admin view
+                  if (entry.clock_in_time && entry.clock_out_time && entry.clock_in_date) {
+                    try {
+                      const clockInTime = entry.clock_in_time.includes('.') 
+                        ? entry.clock_in_time.split('.')[0] 
+                        : entry.clock_in_time;
+                      const clockOutTime = entry.clock_out_time.includes('.') 
+                        ? entry.clock_out_time.split('.')[0] 
+                        : entry.clock_out_time;
+                      
+                      const clockInDateTime = new Date(`${entry.clock_in_date}T${clockInTime}`);
+                      const clockOutDateTime = new Date(`${entry.clock_out_date || entry.clock_in_date}T${clockOutTime}`);
+                      
+                      // Handle overnight shifts
+                      if (clockOutDateTime < clockInDateTime) {
+                        clockOutDateTime.setDate(clockOutDateTime.getDate() + 1);
+                      }
+                      
+                      // Morning hours: 08:00 - 17:00
+                      const morningStart = new Date(entry.clock_in_date);
+                      morningStart.setHours(8, 0, 0, 0);
+                      const morningEnd = new Date(entry.clock_in_date);
+                      morningEnd.setHours(17, 0, 0, 0);
+                      
+                      const overlapStart = new Date(Math.max(clockInDateTime.getTime(), morningStart.getTime()));
+                      const overlapEnd = new Date(Math.min(clockOutDateTime.getTime(), morningEnd.getTime()));
+                      
+                      if (overlapEnd > overlapStart) {
+                        const morningHours = (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60);
+                        return sum + morningHours;
+                      }
+                    } catch (error) {
+                      console.warn('Error calculating morning hours:', error);
+                    }
+                  }
+                  return sum;
+                }, 0);
+
+                const totalNightHours = timesheets.reduce((sum, entry) => {
+                  // Use stored night_hours if available and greater than 0
+                  if (entry.night_hours && entry.night_hours > 0) {
+                    return sum + entry.night_hours;
+                  }
+                  
+                  // Calculate from time periods - simplified calculation for admin view
+                  if (entry.clock_in_time && entry.clock_out_time && entry.clock_in_date) {
+                    try {
+                      const clockInTime = entry.clock_in_time.includes('.') 
+                        ? entry.clock_in_time.split('.')[0] 
+                        : entry.clock_in_time;
+                      const clockOutTime = entry.clock_out_time.includes('.') 
+                        ? entry.clock_out_time.split('.')[0] 
+                        : entry.clock_out_time;
+                      
+                      const clockInDateTime = new Date(`${entry.clock_in_date}T${clockInTime}`);
+                      const clockOutDateTime = new Date(`${entry.clock_out_date || entry.clock_in_date}T${clockOutTime}`);
+                      
+                      // Handle overnight shifts
+                      if (clockOutDateTime < clockInDateTime) {
+                        clockOutDateTime.setDate(clockOutDateTime.getDate() + 1);
+                      }
+                      
+                      // Night hours: 17:00 - 01:00 next day
+                      const nightStart = new Date(entry.clock_in_date);
+                      nightStart.setHours(17, 0, 0, 0);
+                      const nightEnd = new Date(entry.clock_in_date);
+                      nightEnd.setDate(nightEnd.getDate() + 1);
+                      nightEnd.setHours(1, 0, 0, 0);
+                      
+                      const overlapStart = new Date(Math.max(clockInDateTime.getTime(), nightStart.getTime()));
+                      const overlapEnd = new Date(Math.min(clockOutDateTime.getTime(), nightEnd.getTime()));
+                      
+                      if (overlapEnd > overlapStart) {
+                        const nightHours = (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60);
+                        return sum + nightHours;
+                      }
+                    } catch (error) {
+                      console.warn('Error calculating night hours:', error);
+                    }
+                  }
+                  return sum;
+                }, 0);
                 
                 // Calculate percentages
                 const morningPercentage = totalHours > 0 ? (totalMorningHours / totalHours) * 100 : 0;
@@ -300,32 +388,92 @@ const TimesheetsPage: React.FC = () => {
               <div className="text-xs text-muted-foreground mb-2">Hours Distribution</div>
               <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
                 {(() => {
-                  const totalHours = timesheets.reduce((sum, entry) => sum + (entry.total_hours || 0), 0);
-                  const totalMorningHours = timesheets.reduce((sum, entry) => sum + (entry.morning_hours || 0), 0);
-                  const totalNightHours = timesheets.reduce((sum, entry) => sum + (entry.night_hours || 0), 0);
+                  // Recalculate morning hours for visual bar
+                  const calculatedMorningHours = timesheets.reduce((sum, entry) => {
+                    if (entry.morning_hours && entry.morning_hours > 0) {
+                      return sum + entry.morning_hours;
+                    }
+                    if (entry.clock_in_time && entry.clock_out_time && entry.clock_in_date) {
+                      try {
+                        const clockInTime = entry.clock_in_time.includes('.') ? entry.clock_in_time.split('.')[0] : entry.clock_in_time;
+                        const clockOutTime = entry.clock_out_time.includes('.') ? entry.clock_out_time.split('.')[0] : entry.clock_out_time;
+                        const clockInDateTime = new Date(`${entry.clock_in_date}T${clockInTime}`);
+                        const clockOutDateTime = new Date(`${entry.clock_out_date || entry.clock_in_date}T${clockOutTime}`);
+                        if (clockOutDateTime < clockInDateTime) {
+                          clockOutDateTime.setDate(clockOutDateTime.getDate() + 1);
+                        }
+                        const morningStart = new Date(entry.clock_in_date);
+                        morningStart.setHours(8, 0, 0, 0);
+                        const morningEnd = new Date(entry.clock_in_date);
+                        morningEnd.setHours(17, 0, 0, 0);
+                        const overlapStart = new Date(Math.max(clockInDateTime.getTime(), morningStart.getTime()));
+                        const overlapEnd = new Date(Math.min(clockOutDateTime.getTime(), morningEnd.getTime()));
+                        if (overlapEnd > overlapStart) {
+                          const morningHours = (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60);
+                          return sum + morningHours;
+                        }
+                      } catch (error) {
+                        console.warn('Error calculating morning hours:', error);
+                      }
+                    }
+                    return sum;
+                  }, 0);
+
+                  // Recalculate night hours for visual bar
+                  const calculatedNightHours = timesheets.reduce((sum, entry) => {
+                    if (entry.night_hours && entry.night_hours > 0) {
+                      return sum + entry.night_hours;
+                    }
+                    if (entry.clock_in_time && entry.clock_out_time && entry.clock_in_date) {
+                      try {
+                        const clockInTime = entry.clock_in_time.includes('.') ? entry.clock_in_time.split('.')[0] : entry.clock_in_time;
+                        const clockOutTime = entry.clock_out_time.includes('.') ? entry.clock_out_time.split('.')[0] : entry.clock_out_time;
+                        const clockInDateTime = new Date(`${entry.clock_in_date}T${clockInTime}`);
+                        const clockOutDateTime = new Date(`${entry.clock_out_date || entry.clock_in_date}T${clockOutTime}`);
+                        if (clockOutDateTime < clockInDateTime) {
+                          clockOutDateTime.setDate(clockOutDateTime.getDate() + 1);
+                        }
+                        const nightStart = new Date(entry.clock_in_date);
+                        nightStart.setHours(17, 0, 0, 0);
+                        const nightEnd = new Date(entry.clock_in_date);
+                        nightEnd.setDate(nightEnd.getDate() + 1);
+                        nightEnd.setHours(1, 0, 0, 0);
+                        const overlapStart = new Date(Math.max(clockInDateTime.getTime(), nightStart.getTime()));
+                        const overlapEnd = new Date(Math.min(clockOutDateTime.getTime(), nightEnd.getTime()));
+                        if (overlapEnd > overlapStart) {
+                          const nightHours = (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60);
+                          return sum + nightHours;
+                        }
+                      } catch (error) {
+                        console.warn('Error calculating night hours:', error);
+                      }
+                    }
+                    return sum;
+                  }, 0);
                   
-                  const morningPercentage = totalHours > 0 ? (totalMorningHours / totalHours) * 100 : 0;
-                  const nightPercentage = totalHours > 0 ? (totalNightHours / totalHours) * 100 : 0;
+                  const calculatedTotalHours = timesheets.reduce((sum, entry) => sum + (entry.total_hours || 0), 0);
+                  const barMorningPercentage = calculatedTotalHours > 0 ? (calculatedMorningHours / calculatedTotalHours) * 100 : 0;
+                  const barNightPercentage = calculatedTotalHours > 0 ? (calculatedNightHours / calculatedTotalHours) * 100 : 0;
                   
                   return (
                     <div className="flex h-full">
                       <div 
                         className="bg-orange-500 h-full transition-all duration-300"
-                        style={{ width: `${morningPercentage}%` }}
-                        title={`Morning: ${morningPercentage.toFixed(1)}%`}
+                        style={{ width: `${barMorningPercentage}%` }}
+                        title={`Morning: ${barMorningPercentage.toFixed(1)}%`}
                       />
                       <div 
                         className="bg-purple-500 h-full transition-all duration-300"
-                        style={{ width: `${nightPercentage}%` }}
-                        title={`Night: ${nightPercentage.toFixed(1)}%`}
+                        style={{ width: `${barNightPercentage}%` }}
+                        title={`Night: ${barNightPercentage.toFixed(1)}%`}
                       />
                     </div>
                   );
                 })()}
               </div>
               <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                <span>Morning ({((timesheets.reduce((sum, entry) => sum + (entry.morning_hours || 0), 0) / Math.max(timesheets.reduce((sum, entry) => sum + (entry.total_hours || 0), 0), 1)) * 100).toFixed(1)}%)</span>
-                <span>Night ({((timesheets.reduce((sum, entry) => sum + (entry.night_hours || 0), 0) / Math.max(timesheets.reduce((sum, entry) => sum + (entry.total_hours || 0), 0), 1)) * 100).toFixed(1)}%)</span>
+                <span>Morning</span>
+                <span>Night</span>
               </div>
             </div>
           </CardContent>
