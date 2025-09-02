@@ -195,79 +195,103 @@ const MyTimesheetPage: React.FC = () => {
 
   const totalHours = timesheetData?.reduce((sum, entry) => sum + (entry.total_hours || 0), 0) || 0;
   
-  // Calculate morning and night hours with fallback calculation
+  // Calculate morning and night hours with proper fallback calculation
   const totalMorningHours = timesheetData?.reduce((sum, entry) => {
-    if (entry.morning_hours > 0) {
+    // Use stored morning_hours if available and greater than 0
+    if (entry.morning_hours && entry.morning_hours > 0) {
       return sum + entry.morning_hours;
     }
-    // Fallback: calculate from time periods if wage settings available
-    if (wageSettings && entry.clock_in_time && entry.clock_out_time) {
-      const clockInDateTime = new Date(`${entry.clock_in_date}T${entry.clock_in_time}`);
-      const clockOutDateTime = entry.clock_out_date 
-        ? new Date(`${entry.clock_out_date}T${entry.clock_out_time}`)
-        : new Date(`${entry.clock_in_date}T${entry.clock_out_time}`);
+    
+    // Calculate from time periods if we have complete shift data
+    if (wageSettings && entry.clock_in_time && entry.clock_out_time && entry.clock_in_date) {
+      try {
+        // Parse clock-in and clock-out times properly
+        const clockInTime = entry.clock_in_time.split('.')[0]; // Remove microseconds
+        const clockOutTime = entry.clock_out_time.split('.')[0];
+        const clockOutDate = entry.clock_out_date || entry.clock_in_date;
         
-      // Handle next day scenario
-      if (clockOutDateTime < clockInDateTime) {
-        clockOutDateTime.setDate(clockOutDateTime.getDate() + 1);
-      }
+        const clockInDateTime = new Date(`${entry.clock_in_date}T${clockInTime}`);
+        const clockOutDateTime = new Date(`${clockOutDate}T${clockOutTime}`);
+        
+        // Handle next day scenario for overnight shifts
+        if (clockOutDateTime < clockInDateTime) {
+          clockOutDateTime.setDate(clockOutDateTime.getDate() + 1);
+        }
 
-      const baseDate = new Date(entry.clock_in_date);
-      const morningStart = new Date(baseDate);
-      const [morningStartHour, morningStartMin] = wageSettings.morning_start_time.split(':');
-      morningStart.setHours(parseInt(morningStartHour), parseInt(morningStartMin), 0, 0);
-      
-      const morningEnd = new Date(baseDate);
-      const [morningEndHour, morningEndMin] = wageSettings.morning_end_time.split(':');
-      morningEnd.setHours(parseInt(morningEndHour), parseInt(morningEndMin), 0, 0);
-      
-      const morningOverlapStart = new Date(Math.max(clockInDateTime.getTime(), morningStart.getTime()));
-      const morningOverlapEnd = new Date(Math.min(clockOutDateTime.getTime(), morningEnd.getTime()));
-      
-      if (morningOverlapEnd > morningOverlapStart) {
-        const morningHours = (morningOverlapEnd.getTime() - morningOverlapStart.getTime()) / (1000 * 60 * 60);
-        return sum + morningHours;
+        // Create morning time boundaries for the clock-in date
+        const baseDate = new Date(entry.clock_in_date);
+        const morningStartTime = wageSettings.morning_start_time.split(':');
+        const morningEndTime = wageSettings.morning_end_time.split(':');
+        
+        const morningStart = new Date(baseDate);
+        morningStart.setHours(parseInt(morningStartTime[0]), parseInt(morningStartTime[1]), 0, 0);
+        
+        const morningEnd = new Date(baseDate);
+        morningEnd.setHours(parseInt(morningEndTime[0]), parseInt(morningEndTime[1]), 0, 0);
+        
+        // Calculate overlap between work shift and morning period
+        const overlapStart = new Date(Math.max(clockInDateTime.getTime(), morningStart.getTime()));
+        const overlapEnd = new Date(Math.min(clockOutDateTime.getTime(), morningEnd.getTime()));
+        
+        if (overlapEnd > overlapStart) {
+          const morningHours = (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60);
+          return sum + morningHours;
+        }
+      } catch (error) {
+        console.warn('Error calculating morning hours for entry:', entry.id, error);
       }
     }
     return sum;
   }, 0) || 0;
   
   const totalNightHours = timesheetData?.reduce((sum, entry) => {
-    if (entry.night_hours > 0) {
+    // Use stored night_hours if available and greater than 0
+    if (entry.night_hours && entry.night_hours > 0) {
       return sum + entry.night_hours;
     }
-    // Fallback: calculate from time periods if wage settings available
-    if (wageSettings && entry.clock_in_time && entry.clock_out_time) {
-      const clockInDateTime = new Date(`${entry.clock_in_date}T${entry.clock_in_time}`);
-      const clockOutDateTime = entry.clock_out_date 
-        ? new Date(`${entry.clock_out_date}T${entry.clock_out_time}`)
-        : new Date(`${entry.clock_in_date}T${entry.clock_out_time}`);
+    
+    // Calculate from time periods if we have complete shift data
+    if (wageSettings && entry.clock_in_time && entry.clock_out_time && entry.clock_in_date) {
+      try {
+        // Parse clock-in and clock-out times properly
+        const clockInTime = entry.clock_in_time.split('.')[0]; // Remove microseconds
+        const clockOutTime = entry.clock_out_time.split('.')[0];
+        const clockOutDate = entry.clock_out_date || entry.clock_in_date;
         
-      // Handle next day scenario
-      if (clockOutDateTime < clockInDateTime) {
-        clockOutDateTime.setDate(clockOutDateTime.getDate() + 1);
-      }
+        const clockInDateTime = new Date(`${entry.clock_in_date}T${clockInTime}`);
+        const clockOutDateTime = new Date(`${clockOutDate}T${clockOutTime}`);
+        
+        // Handle next day scenario for overnight shifts
+        if (clockOutDateTime < clockInDateTime) {
+          clockOutDateTime.setDate(clockOutDateTime.getDate() + 1);
+        }
 
-      const baseDate = new Date(entry.clock_in_date);
-      const nightStart = new Date(baseDate);
-      const [nightStartHour, nightStartMin] = wageSettings.night_start_time.split(':');
-      nightStart.setHours(parseInt(nightStartHour), parseInt(nightStartMin), 0, 0);
-      
-      const nightEnd = new Date(baseDate);
-      const [nightEndHour, nightEndMin] = wageSettings.night_end_time.split(':');
-      nightEnd.setHours(parseInt(nightEndHour), parseInt(nightEndMin), 0, 0);
-      
-      // Handle next day for night end time if it's earlier than night start
-      if (nightEnd <= nightStart) {
-        nightEnd.setDate(nightEnd.getDate() + 1);
-      }
-      
-      const nightOverlapStart = new Date(Math.max(clockInDateTime.getTime(), nightStart.getTime()));
-      const nightOverlapEnd = new Date(Math.min(clockOutDateTime.getTime(), nightEnd.getTime()));
-      
-      if (nightOverlapEnd > nightOverlapStart) {
-        const nightHours = (nightOverlapEnd.getTime() - nightOverlapStart.getTime()) / (1000 * 60 * 60);
-        return sum + nightHours;
+        // Create night time boundaries
+        const baseDate = new Date(entry.clock_in_date);
+        const nightStartTime = wageSettings.night_start_time.split(':');
+        const nightEndTime = wageSettings.night_end_time.split(':');
+        
+        const nightStart = new Date(baseDate);
+        nightStart.setHours(parseInt(nightStartTime[0]), parseInt(nightStartTime[1]), 0, 0);
+        
+        const nightEnd = new Date(baseDate);
+        nightEnd.setHours(parseInt(nightEndTime[0]), parseInt(nightEndTime[1]), 0, 0);
+        
+        // Handle next day for night end time (e.g., 17:00 to 01:00 next day)
+        if (nightEnd <= nightStart) {
+          nightEnd.setDate(nightEnd.getDate() + 1);
+        }
+        
+        // Calculate overlap between work shift and night period
+        const overlapStart = new Date(Math.max(clockInDateTime.getTime(), nightStart.getTime()));
+        const overlapEnd = new Date(Math.min(clockOutDateTime.getTime(), nightEnd.getTime()));
+        
+        if (overlapEnd > overlapStart) {
+          const nightHours = (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60);
+          return sum + nightHours;
+        }
+      } catch (error) {
+        console.warn('Error calculating night hours for entry:', entry.id, error);
       }
     }
     return sum;
