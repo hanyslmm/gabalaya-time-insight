@@ -205,11 +205,16 @@ const MyTimesheetPage: React.FC = () => {
     // Calculate from time periods if we have complete shift data
     if (wageSettings && entry.clock_in_time && entry.clock_out_time && entry.clock_in_date) {
       try {
-        // Parse clock-in and clock-out times properly
-        const clockInTime = entry.clock_in_time.split('.')[0]; // Remove microseconds
-        const clockOutTime = entry.clock_out_time.split('.')[0];
+        // Parse clock-in and clock-out times properly - handle microseconds
+        const clockInTime = entry.clock_in_time.includes('.') 
+          ? entry.clock_in_time.split('.')[0] 
+          : entry.clock_in_time;
+        const clockOutTime = entry.clock_out_time.includes('.') 
+          ? entry.clock_out_time.split('.')[0] 
+          : entry.clock_out_time;
         const clockOutDate = entry.clock_out_date || entry.clock_in_date;
         
+        // Create proper Date objects in local time
         const clockInDateTime = new Date(`${entry.clock_in_date}T${clockInTime}`);
         const clockOutDateTime = new Date(`${clockOutDate}T${clockOutTime}`);
         
@@ -218,16 +223,27 @@ const MyTimesheetPage: React.FC = () => {
           clockOutDateTime.setDate(clockOutDateTime.getDate() + 1);
         }
 
-        // Create morning time boundaries for the clock-in date
-        const baseDate = new Date(entry.clock_in_date);
+        // Create morning time boundaries using the same date as clock-in
         const morningStartTime = wageSettings.morning_start_time.split(':');
         const morningEndTime = wageSettings.morning_end_time.split(':');
         
-        const morningStart = new Date(baseDate);
+        const morningStart = new Date(entry.clock_in_date);
         morningStart.setHours(parseInt(morningStartTime[0]), parseInt(morningStartTime[1]), 0, 0);
         
-        const morningEnd = new Date(baseDate);
+        const morningEnd = new Date(entry.clock_in_date);
         morningEnd.setHours(parseInt(morningEndTime[0]), parseInt(morningEndTime[1]), 0, 0);
+        
+        // Debug logging for first entry
+        if (sum === 0) {
+          console.log('Morning calculation debug:', {
+            entry: entry.id,
+            clockInDateTime: clockInDateTime.toISOString(),
+            clockOutDateTime: clockOutDateTime.toISOString(),
+            morningStart: morningStart.toISOString(),
+            morningEnd: morningEnd.toISOString(),
+            wageSettings: wageSettings
+          });
+        }
         
         // Calculate overlap between work shift and morning period
         const overlapStart = new Date(Math.max(clockInDateTime.getTime(), morningStart.getTime()));
@@ -235,7 +251,10 @@ const MyTimesheetPage: React.FC = () => {
         
         if (overlapEnd > overlapStart) {
           const morningHours = (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60);
+          console.log('Morning hours calculated:', morningHours, 'for entry:', entry.id);
           return sum + morningHours;
+        } else {
+          console.log('No morning overlap for entry:', entry.id);
         }
       } catch (error) {
         console.warn('Error calculating morning hours for entry:', entry.id, error);
@@ -253,11 +272,16 @@ const MyTimesheetPage: React.FC = () => {
     // Calculate from time periods if we have complete shift data
     if (wageSettings && entry.clock_in_time && entry.clock_out_time && entry.clock_in_date) {
       try {
-        // Parse clock-in and clock-out times properly
-        const clockInTime = entry.clock_in_time.split('.')[0]; // Remove microseconds
-        const clockOutTime = entry.clock_out_time.split('.')[0];
+        // Parse clock-in and clock-out times properly - handle microseconds
+        const clockInTime = entry.clock_in_time.includes('.') 
+          ? entry.clock_in_time.split('.')[0] 
+          : entry.clock_in_time;
+        const clockOutTime = entry.clock_out_time.includes('.') 
+          ? entry.clock_out_time.split('.')[0] 
+          : entry.clock_out_time;
         const clockOutDate = entry.clock_out_date || entry.clock_in_date;
         
+        // Create proper Date objects in local time
         const clockInDateTime = new Date(`${entry.clock_in_date}T${clockInTime}`);
         const clockOutDateTime = new Date(`${clockOutDate}T${clockOutTime}`);
         
@@ -266,20 +290,30 @@ const MyTimesheetPage: React.FC = () => {
           clockOutDateTime.setDate(clockOutDateTime.getDate() + 1);
         }
 
-        // Create night time boundaries
-        const baseDate = new Date(entry.clock_in_date);
+        // Create night time boundaries - night can span across days
         const nightStartTime = wageSettings.night_start_time.split(':');
         const nightEndTime = wageSettings.night_end_time.split(':');
         
-        const nightStart = new Date(baseDate);
+        const nightStart = new Date(entry.clock_in_date);
         nightStart.setHours(parseInt(nightStartTime[0]), parseInt(nightStartTime[1]), 0, 0);
         
-        const nightEnd = new Date(baseDate);
+        const nightEnd = new Date(entry.clock_in_date);
         nightEnd.setHours(parseInt(nightEndTime[0]), parseInt(nightEndTime[1]), 0, 0);
         
         // Handle next day for night end time (e.g., 17:00 to 01:00 next day)
         if (nightEnd <= nightStart) {
           nightEnd.setDate(nightEnd.getDate() + 1);
+        }
+        
+        // Debug logging for first entry
+        if (sum === 0) {
+          console.log('Night calculation debug:', {
+            entry: entry.id,
+            clockInDateTime: clockInDateTime.toISOString(),
+            clockOutDateTime: clockOutDateTime.toISOString(),
+            nightStart: nightStart.toISOString(),
+            nightEnd: nightEnd.toISOString()
+          });
         }
         
         // Calculate overlap between work shift and night period
@@ -288,7 +322,10 @@ const MyTimesheetPage: React.FC = () => {
         
         if (overlapEnd > overlapStart) {
           const nightHours = (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60);
+          console.log('Night hours calculated:', nightHours, 'for entry:', entry.id);
           return sum + nightHours;
+        } else {
+          console.log('No night overlap for entry:', entry.id);
         }
       } catch (error) {
         console.warn('Error calculating night hours for entry:', entry.id, error);
