@@ -141,12 +141,12 @@ const OrganizationSwitcher: React.FC = () => {
   // For non-owners, show current org name only (non-interactive)
   if (user.role !== 'owner') {
     return (
-      <Button variant="ghost" size="sm" className="hidden sm:flex cursor-default" disabled>
-        <Building className="h-4 w-4 mr-2 text-muted-foreground" />
-        <span className="text-sm truncate max-w-32 text-muted-foreground">
+      <div className="flex items-center gap-2 px-2 py-1 rounded-md bg-muted/50">
+        <Building className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium text-foreground">
           {getCurrentOrganizationName()}
         </span>
-      </Button>
+      </div>
     );
   }
 

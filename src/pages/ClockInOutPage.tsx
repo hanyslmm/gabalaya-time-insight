@@ -321,11 +321,11 @@ const ClockInOutPage: React.FC = () => {
         
         // Calculate worked hours if clocked in
         if (currentEntry) {
-          // Parse the clock-in time as company timezone and convert to UTC for proper comparison
-          const clockInDateTimeStr = `${currentEntry.clock_in_date} ${currentEntry.clock_in_time.split('.')[0]}`;
-          const clockInDateTime = await parseCompanyDateTime(clockInDateTimeStr);
+          // Clock-in time in DB is stored as UTC, so parse it directly as UTC
+          const clockInDateTimeStr = `${currentEntry.clock_in_date}T${currentEntry.clock_in_time.split('.')[0]}Z`;
+          const clockInDateTime = new Date(clockInDateTimeStr);
           const minutesWorked = differenceInMinutes(utcNow, clockInDateTime);
-          setWorkedHours(minutesWorked / 60);
+          setWorkedHours(Math.max(0, minutesWorked / 60)); // Ensure non-negative
         }
       } catch (error) {
         // Fallback to local time if company time fails
