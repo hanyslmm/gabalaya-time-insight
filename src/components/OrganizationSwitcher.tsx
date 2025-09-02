@@ -8,7 +8,7 @@ import { Building } from 'lucide-react';
 import { toast } from 'sonner';
 
 const OrganizationSwitcher: React.FC = () => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const queryClient = useQueryClient();
 
   // Show for all authenticated users
@@ -20,8 +20,8 @@ const OrganizationSwitcher: React.FC = () => {
   const { data: organizations, isLoading } = useQuery({
     queryKey: ['available-organizations', user.id],
     queryFn: async () => {
-      if (user.role === 'owner') {
-        // Owners can see all organizations
+      if (user.role === 'owner' || user.is_global_owner) {
+        // Owners and global owners can see all organizations
         const { data, error } = await supabase
           .from('organizations')
           .select('*')
@@ -85,31 +85,50 @@ const OrganizationSwitcher: React.FC = () => {
       console.log('Attempting to switch to organization:', organizationId);
       
       try {
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+          throw new Error('No authentication token found');
+        }
+
         const { data, error } = await supabase.functions.invoke('switch-organization', {
-          body: { organizationId }
+          body: { organizationId },
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         });
         
         console.log('Switch org response:', { data, error });
         
         if (error) throw error;
+        if (!data?.success) {
+          throw new Error(data?.error || 'Failed to switch organization');
+        }
         return data;
       } catch (err) {
         console.error('Switch org error:', err);
         throw err;
       }
     },
-    onSuccess: (data) => {
-      // Update local user state and refresh queries
+    onSuccess: async (data) => {
+      // Refresh user data first to get updated organization info
+      await refreshUser();
+      
+      // Then invalidate and refetch all organization-dependent queries
       queryClient.invalidateQueries({ queryKey: ['current-user-org'] });
       queryClient.invalidateQueries({ queryKey: ['current-org-name'] });
       queryClient.invalidateQueries({ queryKey: ['available-organizations'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-data'] });
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheet-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['company-settings'] });
+      
       toast.success('Organization switched successfully');
       
-      // Force a page refresh to ensure all data updates
+      // Force a page refresh to ensure all data updates properly
       setTimeout(() => {
         window.location.reload();
-      }, 100);
+      }, 500);
     },
     onError: (error) => {
       toast.error('Failed to switch organization: ' + error.message);
@@ -138,8 +157,8 @@ const OrganizationSwitcher: React.FC = () => {
     );
   }
 
-  // For non-owners, show current org name only (non-interactive)
-  if (user.role !== 'owner') {
+  // For non-owners and non-global-owners, show current org name only (non-interactive)
+  if (user.role !== 'owner' && !user.is_global_owner) {
     return (
       <div className="flex items-center gap-2 px-2 py-1 rounded-md bg-muted/50">
         <Building className="h-4 w-4 text-muted-foreground" />
@@ -150,7 +169,7 @@ const OrganizationSwitcher: React.FC = () => {
     );
   }
 
-  // Owners get the full switcher interface
+  // Owners and global owners get the full switcher interface
 
   return (
     <Select

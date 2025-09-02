@@ -71,15 +71,31 @@ Deno.serve(async (req) => {
         )
       }
 
+      // Instead of just returning token payload, fetch fresh user data
+      const { data: freshUser, error: userError } = await supabaseAdmin
+        .from('admin_users')
+        .select('*')
+        .eq('username', payload.username)
+        .single();
+
+      if (userError || !freshUser) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'User not found' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+        )
+      }
+
       return new Response(
         JSON.stringify({ 
           success: true, 
           user: { 
-            id: payload.id, 
-            username: payload.username, 
-            full_name: payload.full_name,
-            role: payload.role,
-            organization_id: payload.organization_id
+            id: freshUser.id, 
+            username: freshUser.username, 
+            full_name: freshUser.full_name || 'Unknown User',
+            role: freshUser.role,
+            organization_id: freshUser.organization_id,
+            current_organization_id: freshUser.current_organization_id,
+            is_global_owner: freshUser.is_global_owner
           } 
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
@@ -166,7 +182,9 @@ Deno.serve(async (req) => {
         username: user.username,
         full_name: fullName,
         role: finalRole,
-        organization_id: user.organization_id
+        organization_id: user.organization_id,
+        current_organization_id: user.current_organization_id,
+        is_global_owner: user.is_global_owner
       }
 
       return new Response(

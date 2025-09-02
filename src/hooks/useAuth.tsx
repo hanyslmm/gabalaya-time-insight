@@ -16,6 +16,7 @@ interface AuthContextType {
   loading: boolean;
   login: (username: string, password: string) => Promise<{ error?: string }>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -96,6 +97,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const refreshUser = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        setUser(null);
+        setCurrentUser(null);
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('unified-auth', {
+        body: { action: 'validate-token', token }
+      });
+
+      if (error || !data?.success) {
+        localStorage.removeItem('auth_token');
+        setCurrentUser(null);
+        setUser(null);
+      } else {
+        setUser(data.user);
+        setCurrentUser(data.user);
+      }
+    } catch (e) {
+      console.error('useAuth: Error refreshing user:', e);
+      setUser(null);
+      setCurrentUser(null);
+    }
+  };
+
   const logout = async () => {
     localStorage.removeItem('auth_token');
     setUser(null);
@@ -105,7 +134,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
