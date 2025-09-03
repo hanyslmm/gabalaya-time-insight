@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
 
 interface WageSettings {
   id: string;
@@ -22,14 +23,18 @@ interface WageSettings {
 const WageSettings: React.FC = () => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
   const [settings, setSettings] = useState<Partial<WageSettings>>({});
 
   const { data: wageSettings, isLoading } = useQuery({
-    queryKey: ['wage-settings'],
+    queryKey: ['wage-settings', activeOrganizationId],
+    enabled: !!activeOrganizationId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('wage_settings')
         .select('*')
+        .eq('organization_id', activeOrganizationId)
         .single();
       
       if (error) throw error;
@@ -39,10 +44,11 @@ const WageSettings: React.FC = () => {
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (updatedSettings: Partial<WageSettings>) => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('wage_settings')
-        .update(updatedSettings)
+        .update({ ...updatedSettings, organization_id: activeOrganizationId })
         .eq('id', wageSettings?.id)
+        .eq('organization_id', activeOrganizationId)
         .select()
         .single();
       
@@ -50,7 +56,7 @@ const WageSettings: React.FC = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['wage-settings'] });
+      queryClient.invalidateQueries({ queryKey: ['wage-settings', activeOrganizationId] });
       toast.success(t('settingsUpdated') || 'Settings updated successfully');
     },
     onError: (error) => {

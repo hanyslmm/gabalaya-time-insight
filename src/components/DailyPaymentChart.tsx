@@ -2,6 +2,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
@@ -27,8 +28,10 @@ const DailyPaymentChart: React.FC<DailyPaymentChartProps> = ({
   timePeriod = 'current',
   dateRange 
 }) => {
+  const { user } = useAuth();
+  const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
   const { data: weeklyData, isLoading } = useQuery({
-    queryKey: ['weekly-payment-chart', timePeriod, dateRange],
+    queryKey: ['weekly-payment-chart', timePeriod, dateRange, activeOrganizationId],
     queryFn: async () => {
       // Get current week starting from Saturday
       const today = new Date();
@@ -43,18 +46,39 @@ const DailyPaymentChart: React.FC<DailyPaymentChartProps> = ({
       
       // Fetch both timesheet entries and employee data for wage calculations
       const [timesheetResponse, employeeResponse, wageSettingsResponse] = await Promise.all([
-        supabase
-          .from('timesheet_entries')
-          .select('clock_in_date, employee_id, total_hours')
-          .gte('clock_in_date', format(currentWeekStart, 'yyyy-MM-dd'))
-          .lte('clock_in_date', format(currentWeekEnd, 'yyyy-MM-dd')),
-        supabase
-          .from('employees')
-          .select('id, morning_wage_rate, night_wage_rate'),
-        supabase
-          .from('wage_settings')
-          .select('default_flat_wage_rate')
-          .single()
+        (activeOrganizationId
+          ? supabase
+              .from('timesheet_entries')
+              .select('clock_in_date, employee_id, total_hours')
+              .gte('clock_in_date', format(currentWeekStart, 'yyyy-MM-dd'))
+              .lte('clock_in_date', format(currentWeekEnd, 'yyyy-MM-dd'))
+              .eq('organization_id', activeOrganizationId)
+          : supabase
+              .from('timesheet_entries')
+              .select('clock_in_date, employee_id, total_hours')
+              .gte('clock_in_date', format(currentWeekStart, 'yyyy-MM-dd'))
+              .lte('clock_in_date', format(currentWeekEnd, 'yyyy-MM-dd'))
+        ),
+        (activeOrganizationId
+          ? supabase
+              .from('employees')
+              .select('id, morning_wage_rate, night_wage_rate')
+              .eq('organization_id', activeOrganizationId)
+          : supabase
+              .from('employees')
+              .select('id, morning_wage_rate, night_wage_rate')
+        ),
+        (activeOrganizationId
+          ? supabase
+              .from('wage_settings')
+              .select('default_flat_wage_rate')
+              .eq('organization_id', activeOrganizationId)
+              .single()
+          : supabase
+              .from('wage_settings')
+              .select('default_flat_wage_rate')
+              .single()
+        )
       ]);
 
       if (timesheetResponse.error) throw timesheetResponse.error;

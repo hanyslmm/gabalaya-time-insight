@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -40,6 +41,7 @@ const employeeSchema = z.object({
 const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [formData, setFormData] = useState<Employee>({
     staff_id: '',
     full_name: '',
@@ -121,11 +123,13 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
         phone_number: data.phone_number?.trim() || null
       };
 
+      const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
+
       if (employee?.id) {
         // Update existing employee
         const { error } = await supabase
           .from('employees')
-          .update(cleanData)
+          .update({ ...cleanData, organization_id: activeOrganizationId })
           .eq('id', employee.id);
         
         if (error) throw error;
@@ -133,7 +137,7 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
         // Create new employee
         const { error } = await supabase
           .from('employees')
-          .insert(cleanData);
+          .insert({ ...cleanData, organization_id: activeOrganizationId });
         
         if (error) throw error;
       }

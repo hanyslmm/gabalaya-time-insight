@@ -5,6 +5,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { format, subMonths, subDays, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns';
 import { Trophy, Medal, Award, Star, Calendar, TrendingUp, BarChart3, LineChart as LineChartIcon, Activity, Zap, Target, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -82,18 +83,22 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
 
   const effectiveDateRange = calculateDateRange();
 
+  const { user } = useAuth();
+  const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
   const { data: chartData, isLoading } = useQuery({
-    queryKey: ['dashboard-charts', effectiveDateRange.from, effectiveDateRange.to, timePeriod],
+    queryKey: ['dashboard-charts', effectiveDateRange.from, effectiveDateRange.to, timePeriod, activeOrganizationId],
     queryFn: async () => {
       const fromDate = format(effectiveDateRange.from, 'yyyy-MM-dd');
       const toDate = format(effectiveDateRange.to, 'yyyy-MM-dd');
 
-      const { data: timesheetData, error } = await supabase
+      let tsQuery = supabase
         .from('timesheet_entries')
         .select('*')
         .gte('clock_in_date', fromDate)
         .lte('clock_in_date', toDate)
         .order('clock_in_date');
+      if (activeOrganizationId) tsQuery = tsQuery.eq('organization_id', activeOrganizationId);
+      const { data: timesheetData, error } = await tsQuery;
 
       if (error) throw error;
 

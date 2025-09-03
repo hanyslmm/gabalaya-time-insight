@@ -1,25 +1,20 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { corsHeaders as sharedCorsHeaders } from '../_shared/cors.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+const corsHeaders = sharedCorsHeaders
 
 // Token verification utility
 const verifyToken = (token: string): any => {
   try {
-    const [header, payload, signature] = token.split('.');
-    if (!header || !payload || !signature) return null;
-    
-    const decodedPayload = JSON.parse(atob(payload));
+    const payload = JSON.parse(atob(token));
     
     // Check if token is expired
-    if (decodedPayload.exp && Date.now() >= decodedPayload.exp * 1000) {
+    if (payload.exp && payload.exp < Date.now()) {
       return null;
     }
     
-    return decodedPayload;
+    return payload;
   } catch {
     return null;
   }
@@ -36,28 +31,33 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    const { organizationId } = await req.json()
+    const { organizationId, token } = await req.json()
     
-    // Get token from Authorization header
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Get token from body (fallback to Authorization header)
+    let authToken = token
+    if (!authToken) {
+      const authHeader = req.headers.get('Authorization')
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        authToken = authHeader.replace('Bearer ', '')
+      }
+    }
+    
+    if (!authToken) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Missing or invalid authorization header' }),
+        JSON.stringify({ success: false, error: 'Missing authentication token' }),
         { 
-          status: 401,
+          status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
     }
-
-    const token = authHeader.replace('Bearer ', '')
-    const tokenPayload = verifyToken(token)
+    const tokenPayload = verifyToken(authToken)
     
     if (!tokenPayload) {
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid or expired token' }),
         { 
-          status: 401,
+          status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
@@ -71,7 +71,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ success: false, error: 'Organization ID is required' }),
         { 
-          status: 400,
+          status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
@@ -88,7 +88,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ success: false, error: 'User not found' }),
         { 
-          status: 404,
+          status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
@@ -108,7 +108,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ success: false, error: 'Organization not found' }),
           { 
-            status: 404,
+            status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           }
         )
@@ -119,7 +119,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ success: false, error: 'You can only access your own organization' }),
           { 
-            status: 403,
+            status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           }
         )
@@ -129,7 +129,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ success: false, error: 'Insufficient permissions' }),
         { 
-          status: 403,
+          status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
@@ -145,7 +145,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to update current organization' }),
         { 
-          status: 500,
+          status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
@@ -170,7 +170,7 @@ serve(async (req) => {
         error: 'Server error: ' + (error?.message || 'Unknown error')
       }),
       { 
-        status: 500,
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
@@ -28,9 +29,11 @@ const WeeklyHoursTrend: React.FC<WeeklyHoursTrendProps> = ({
   dateRange 
 }) => {
   const [currentWeekOffset, setCurrentWeekOffset] = useState(0);
+  const { user } = useAuth();
+  const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
   
   const { data: weeklyData, isLoading } = useQuery({
-    queryKey: ['weekly-hours-trend', timePeriod, dateRange, currentWeekOffset],
+    queryKey: ['weekly-hours-trend', timePeriod, dateRange, currentWeekOffset, activeOrganizationId],
     queryFn: async () => {
       // Get target week starting from Saturday with offset
       const today = new Date();
@@ -52,6 +55,10 @@ const WeeklyHoursTrend: React.FC<WeeklyHoursTrendProps> = ({
       query = query
         .gte('clock_in_date', format(currentWeekStart, 'yyyy-MM-dd'))
         .lte('clock_in_date', format(currentWeekEnd, 'yyyy-MM-dd'));
+
+      if (activeOrganizationId) {
+        query = query.eq('organization_id', activeOrganizationId);
+      }
 
       const { data: timesheets, error } = await query;
 

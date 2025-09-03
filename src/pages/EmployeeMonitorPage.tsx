@@ -52,9 +52,14 @@ const EmployeeMonitorPage: React.FC = () => {
       setRefreshing(true);
       
       // Fetch all employees to map IDs to names
-      const { data: employeesData, error: employeesError } = await supabase
+      const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
+      let empQuery = supabase
         .from('employees')
         .select('staff_id, full_name, role');
+      if (activeOrganizationId) {
+        empQuery = empQuery.eq('organization_id', activeOrganizationId);
+      }
+      const { data: employeesData, error: employeesError } = await empQuery;
 
       if (employeesError) throw employeesError;
 
@@ -69,11 +74,15 @@ const EmployeeMonitorPage: React.FC = () => {
 
       // Fetch today's entries AND any active entries (without clock_out_time) from any date
       const today = format(new Date(), 'yyyy-MM-dd');
-      const { data: timesheetData, error: timesheetError } = await supabase
+      let tsQuery = supabase
         .from('timesheet_entries')
         .select('*')
         .or(`clock_in_date.eq.${today},clock_out_time.is.null`)
         .order('clock_in_time', { ascending: false });
+      if (activeOrganizationId) {
+        tsQuery = tsQuery.eq('organization_id', activeOrganizationId);
+      }
+      const { data: timesheetData, error: timesheetError } = await tsQuery;
 
       if (timesheetError) throw timesheetError;
 

@@ -11,6 +11,7 @@ import EmployeeForm from '@/components/EmployeeForm';
 import EmployeeStats from '@/components/EmployeeStats';
 import EmployeeWageRates from '@/components/EmployeeWageRates';
 import AdminPasswordChange from '@/components/AdminPasswordChange';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Employee {
   id: string;
@@ -27,6 +28,7 @@ interface Employee {
 const EmployeesPage: React.FC = () => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
@@ -35,21 +37,35 @@ const EmployeesPage: React.FC = () => {
   const [passwordChangeEmployee, setPasswordChangeEmployee] = useState<Employee | null>(null);
 
   const { data: employees, isLoading } = useQuery({
-    queryKey: ['employees'],
+    queryKey: ['employees', (user as any)?.current_organization_id || user?.organization_id],
     queryFn: async () => {
+      const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
+
       // Fetch regular employees
-      const { data: employeeData, error: employeeError } = await supabase
+      let employeeQuery = supabase
         .from('employees')
         .select('*')
         .order('created_at', { ascending: false });
+
+      if (activeOrganizationId) {
+        employeeQuery = employeeQuery.eq('organization_id', activeOrganizationId);
+      }
+
+      const { data: employeeData, error: employeeError } = await employeeQuery;
       
       if (employeeError) throw employeeError;
 
       // Fetch admin users
-      const { data: adminData, error: adminError } = await supabase
+      let adminQuery = supabase
         .from('admin_users')
         .select('*')
         .order('created_at', { ascending: false });
+
+      if (activeOrganizationId) {
+        adminQuery = adminQuery.eq('organization_id', activeOrganizationId);
+      }
+
+      const { data: adminData, error: adminError } = await adminQuery;
       
       if (adminError) throw adminError;
 

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 
 interface DateRange {
@@ -15,16 +16,19 @@ interface DashboardData {
 }
 
 export const useDashboardData = (dateRange: DateRange, enabled: boolean = true) => {
+  const { user } = useAuth();
+  const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
   return useQuery({
-    queryKey: ['dashboard-data', format(dateRange.from, 'yyyy-MM-dd'), format(dateRange.to, 'yyyy-MM-dd')],
+    queryKey: ['dashboard-data', format(dateRange.from, 'yyyy-MM-dd'), format(dateRange.to, 'yyyy-MM-dd'), activeOrganizationId],
     queryFn: async (): Promise<DashboardData> => {
       const fromDate = format(dateRange.from, 'yyyy-MM-dd');
       const toDate = format(dateRange.to, 'yyyy-MM-dd');
 
-      // Call the dashboard stats function for all metrics including employee count
-      const { data, error } = await supabase.rpc('get_dashboard_stats', {
+      // Call the dashboard stats function scoped by organization
+      const { data, error } = await (supabase as any).rpc('get_dashboard_stats', {
         from_date: fromDate,
         to_date: toDate,
+        organization_id: activeOrganizationId,
       });
 
       if (error) {

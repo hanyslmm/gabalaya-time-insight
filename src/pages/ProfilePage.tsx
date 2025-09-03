@@ -84,11 +84,15 @@ const ProfilePage: React.FC = () => {
       }
 
       // For employees, check employees table
-      const { data: employeeData, error: employeeError } = await supabase
+      const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
+      let profileQuery = supabase
         .from('employees')
         .select('*')
-        .eq('staff_id', user?.username)
-        .single();
+        .eq('staff_id', user?.username);
+      if (activeOrganizationId) {
+        profileQuery = profileQuery.eq('organization_id', activeOrganizationId);
+      }
+      const { data: employeeData, error: employeeError } = await profileQuery.single();
 
       if (employeeError) {
         toast.error('Error loading profile data');

@@ -1,4 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,26 +17,40 @@ interface Role {
 }
 
 const RoleManagement: React.FC = () => {
-  const [roles, setRoles] = useState<Role[]>([
-    { id: '1', name: 'Champion', is_default: true },
-    { id: '2', name: 'Barista', is_default: true },
-    { id: '3', name: 'Host', is_default: true }
-  ]);
-  const [newRoleName, setNewRoleName] = useState('');
-
-  // Load roles from localStorage
-  useEffect(() => {
-    const savedRoles = localStorage.getItem('employee-roles');
-    if (savedRoles) {
-      setRoles(JSON.parse(savedRoles));
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
+  const { data: roles = [] } = useQuery<Role[]>({
+    queryKey: ['employee-roles', activeOrganizationId],
+    enabled: !!activeOrganizationId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('employee_roles')
+        .select('*')
+        .eq('organization_id', activeOrganizationId)
+        .order('is_default', { ascending: false })
+        .order('name');
+      if (error) throw error;
+      return data as Role[];
     }
-  }, []);
-
-  // Save roles to localStorage
-  const saveRoles = (updatedRoles: Role[]) => {
-    setRoles(updatedRoles);
-    localStorage.setItem('employee-roles', JSON.stringify(updatedRoles));
-  };
+  });
+  const [newRoleName, setNewRoleName] = useState('');
+  
+  const addRoleMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const trimmed = name.trim();
+      const { error } = await (supabase as any)
+        .from('employee_roles')
+        .insert({ name: trimmed, is_default: false, organization_id: activeOrganizationId });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setNewRoleName('');
+      queryClient.invalidateQueries({ queryKey: ['employee-roles', activeOrganizationId] });
+      toast.success('Role added successfully');
+    },
+    onError: (err: any) => toast.error(err?.message || 'Failed to add role')
+  });
 
   const handleAddRole = () => {
     if (!newRoleName.trim()) {
@@ -46,27 +63,29 @@ const RoleManagement: React.FC = () => {
       return;
     }
 
-    const newRole: Role = {
-      id: Date.now().toString(),
-      name: newRoleName.trim(),
-      is_default: false
-    };
-
-    saveRoles([...roles, newRole]);
-    setNewRoleName('');
-    toast.success('Role added successfully');
+    addRoleMutation.mutate(newRoleName);
   };
 
   const handleDeleteRole = (roleId: string) => {
     const role = roles.find(r => r.id === roleId);
+    if (!role) return;
     if (role?.is_default) {
       toast.error('Cannot delete default roles');
       return;
     }
-
-    const updatedRoles = roles.filter(r => r.id !== roleId);
-    saveRoles(updatedRoles);
-    toast.success('Role deleted successfully');
+    (async () => {
+      const { error } = await (supabase as any)
+        .from('employee_roles')
+        .delete()
+        .eq('id', roleId)
+        .eq('organization_id', activeOrganizationId);
+      if (error) {
+        toast.error('Failed to delete role');
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['employee-roles', activeOrganizationId] });
+        toast.success('Role deleted successfully');
+      }
+    })();
   };
 
   return (
@@ -76,7 +95,7 @@ const RoleManagement: React.FC = () => {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap gap-2">
-          {roles.map((role) => (
+          {(roles || []).map((role) => (
             <div key={role.id} className="flex items-center gap-2">
               <Badge variant={role.is_default ? "default" : "secondary"}>
                 {role.name}
@@ -107,7 +126,7 @@ const RoleManagement: React.FC = () => {
             />
           </div>
           <div className="flex items-end">
-            <Button onClick={handleAddRole} size="sm">
+            <Button onClick={handleAddRole} size="sm" disabled={!activeOrganizationId || addRoleMutation.isPending}>
               <Plus className="h-4 w-4 mr-2" />
               Add Role
             </Button>

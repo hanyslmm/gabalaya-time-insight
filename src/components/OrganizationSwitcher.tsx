@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -86,27 +87,33 @@ const OrganizationSwitcher: React.FC = () => {
       
       try {
         const token = localStorage.getItem('auth_token');
+        console.log('Token exists:', !!token);
         if (!token) {
           throw new Error('No authentication token found');
         }
 
+        console.log('Making request to switch-organization function...');
         const { data, error } = await supabase.functions.invoke('switch-organization', {
-          body: { organizationId },
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+          body: { organizationId, token }
         });
         
-        console.log('Switch org response:', { data, error });
+        console.log('Switch org response - data:', data);
+        console.log('Switch org response - error:', error);
+        console.log('Switch org response - error type:', typeof error);
+        console.log('Switch org response - error details:', error ? JSON.stringify(error) : 'no error');
         
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase function error:', error);
+          throw error;
+        }
         if (!data?.success) {
           throw new Error(data?.error || 'Failed to switch organization');
         }
         return data;
       } catch (err) {
-        console.error('Switch org error:', err);
+        console.error('Switch org error details:', err);
+        console.error('Error type:', typeof err);
+        console.error('Error message:', err instanceof Error ? err.message : 'Unknown error');
         throw err;
       }
     },

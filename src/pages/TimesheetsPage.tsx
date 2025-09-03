@@ -38,12 +38,17 @@ const TimesheetsPage: React.FC = () => {
 
   // Fetch employees for the filter dropdown
   const { data: employees, isLoading: employeesLoading } = useQuery({
-    queryKey: ['employees-filter'],
+    queryKey: ['employees-filter', (user as any)?.current_organization_id || user?.organization_id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
+      let q = supabase
         .from('employees')
         .select('id, staff_id, full_name')
         .order('full_name');
+      if (activeOrganizationId) {
+        q = q.eq('organization_id', activeOrganizationId);
+      }
+      const { data, error } = await q;
       if (error) throw error;
       return data;
     }
@@ -57,6 +62,11 @@ const TimesheetsPage: React.FC = () => {
         let query = supabase
           .from('timesheet_entries')
           .select('*');
+
+        const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
+        if (activeOrganizationId) {
+          query = query.eq('organization_id', activeOrganizationId);
+        }
 
         // Apply date range filter
         if (dateRange?.from && dateRange?.to) {
