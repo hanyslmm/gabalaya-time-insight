@@ -309,14 +309,20 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
                             onCheckedChange={(checked) => handleSelectRow(entry.id, !!checked)}
                           />
                         </TableCell>
-                        <TableCell className="font-medium sticky left-12 bg-background/95 backdrop-blur min-w-0">
-                          <div className="truncate pr-2">{entry.employee_name}</div>
+                        <TableCell className="font-medium sticky left-12 bg-background/95 backdrop-blur min-w-0 z-10 p-2">
+                          <div className="truncate pr-2 text-xs sm:text-sm" title={entry.employee_name}>
+                            {entry.employee_name}
+                          </div>
                         </TableCell>
                         <TableCell>
-                          <div className="font-medium text-fluid-sm">{formatDate(entry.clock_in_date)}</div>
+                          <div className="font-medium text-xs sm:text-sm truncate" title={formatDate(entry.clock_in_date)}>
+                            {formatDate(entry.clock_in_date)}
+                          </div>
                         </TableCell>
                         <TableCell>
-                          <div className="text-muted-foreground text-fluid-sm">{formatTimeAMPM(entry.clock_in_date, entry.clock_in_time)}</div>
+                          <div className="text-muted-foreground text-xs sm:text-sm truncate">
+                            {formatTimeAMPM(entry.clock_in_date, entry.clock_in_time)}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="font-medium text-fluid-sm">{entry.clock_out_date ? formatDate(entry.clock_out_date) : '—'}</div>

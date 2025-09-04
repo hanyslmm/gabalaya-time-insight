@@ -214,21 +214,25 @@ const DashboardPage: React.FC = () => {
           <CardHeader>
             <CardTitle className="text-lg font-bold">Quick Actions</CardTitle>
           </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <CardContent className="p-4 sm:p-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
               {quickActions.map((action, index) => (
                 <Button
                   key={index}
                   variant="outline"
-                  className="h-auto min-h-[120px] p-4 flex flex-col items-center justify-center space-y-3 hover:bg-accent/10 transition-all duration-300"
+                  className="h-auto min-h-[100px] sm:min-h-[120px] p-3 sm:p-4 flex flex-col items-center justify-center space-y-2 sm:space-y-3 hover:bg-accent/10 transition-all duration-300 text-center group"
                   onClick={action.action}
                 >
-                  <div className={`p-3 rounded-xl ${action.color} text-white shadow-lg`}>
-                    <action.icon className="h-5 w-5" />
+                  <div className={`p-2 sm:p-3 rounded-xl ${action.color} text-white shadow-lg group-hover:shadow-xl transition-shadow`}>
+                    <action.icon className="h-4 w-4 sm:h-5 sm:w-5" />
                   </div>
-                  <div className="space-y-1 text-center">
-                    <div className="font-semibold text-sm leading-tight">{action.title}</div>
-                    <div className="text-xs text-muted-foreground leading-tight">{action.description}</div>
+                  <div className="space-y-1 text-center w-full">
+                    <div className="font-semibold text-xs sm:text-sm leading-tight truncate w-full" title={action.title}>
+                      {action.title}
+                    </div>
+                    <div className="text-xs text-muted-foreground leading-tight line-clamp-2 break-words" title={action.description}>
+                      {action.description}
+                    </div>
                   </div>
                 </Button>
               ))}

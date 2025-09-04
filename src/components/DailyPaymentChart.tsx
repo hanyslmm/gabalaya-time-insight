@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
-import { DollarSign, TrendingUp } from 'lucide-react';
+import { DollarSign } from 'lucide-react';
 
 interface WeeklyData {
   date: string;
@@ -29,14 +28,15 @@ const DailyPaymentChart: React.FC<DailyPaymentChartProps> = ({
   dateRange 
 }) => {
   const { user } = useAuth();
-  const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
+  const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
+
   const { data: weeklyData, isLoading } = useQuery({
     queryKey: ['weekly-payment-chart', timePeriod, dateRange, activeOrganizationId],
     queryFn: async () => {
       // Get current week starting from Saturday
       const today = new Date();
-      const currentWeekStart = startOfWeek(today, { weekStartsOn: 6 }); // Saturday = 6
-      const currentWeekEnd = endOfWeek(today, { weekStartsOn: 6 }); // Friday = 5
+      const currentWeekStart = startOfWeek(today, { weekStartsOn: 6 });
+      const currentWeekEnd = endOfWeek(today, { weekStartsOn: 6 });
       
       // Get all days in the current week (Saturday to Friday)
       const weekDays = eachDayOfInterval({
@@ -44,98 +44,54 @@ const DailyPaymentChart: React.FC<DailyPaymentChartProps> = ({
         end: currentWeekEnd
       });
       
-      // Fetch both timesheet entries and employee data for wage calculations
-      const [timesheetResponse, employeeResponse, wageSettingsResponse] = await Promise.all([
-        (activeOrganizationId
-          ? supabase
-              .from('timesheet_entries')
-              .select('clock_in_date, employee_id, total_hours')
-              .gte('clock_in_date', format(currentWeekStart, 'yyyy-MM-dd'))
-              .lte('clock_in_date', format(currentWeekEnd, 'yyyy-MM-dd'))
-              .eq('organization_id', activeOrganizationId)
-          : supabase
-              .from('timesheet_entries')
-              .select('clock_in_date, employee_id, total_hours')
-              .gte('clock_in_date', format(currentWeekStart, 'yyyy-MM-dd'))
-              .lte('clock_in_date', format(currentWeekEnd, 'yyyy-MM-dd'))
-        ),
-        (activeOrganizationId
-          ? supabase
-              .from('employees')
-              .select('id, morning_wage_rate, night_wage_rate')
-              .eq('organization_id', activeOrganizationId)
-          : supabase
-              .from('employees')
-              .select('id, morning_wage_rate, night_wage_rate')
-        ),
-        (activeOrganizationId
-          ? supabase
-              .from('wage_settings')
-              .select('default_flat_wage_rate')
-              .eq('organization_id', activeOrganizationId)
-              .single()
-          : supabase
-              .from('wage_settings')
-              .select('default_flat_wage_rate')
-              .single()
-        )
-      ]);
+      // Initialize data structure
+      const dailyStats = weekDays.map(date => ({
+        date: format(date, 'yyyy-MM-dd'),
+        displayDay: format(date, 'EEE'),
+        amount: 0
+      }));
 
-      if (timesheetResponse.error) throw timesheetResponse.error;
-      if (employeeResponse.error) throw employeeResponse.error;
-      
-      const timesheets = timesheetResponse.data || [];
-      const employees = employeeResponse.data || [];
-      const wageSettings = wageSettingsResponse.data;
-      
-      // Default wage rate fallback
-      const defaultWageRate = wageSettings?.default_flat_wage_rate || 20;
-      
-      // Create employee wage rate lookup
-      const employeeWageRates: Record<string, { morning: number, night: number }> = {};
-      employees.forEach(emp => {
-        employeeWageRates[emp.id] = {
-          morning: emp.morning_wage_rate || defaultWageRate,
-          night: emp.night_wage_rate || defaultWageRate
-        };
-      });
-
-      // Initialize all days with 0 amount
-      const dailyStats: Record<string, WeeklyData> = {};
-      
-      weekDays.forEach(date => {
-        const dateKey = format(date, 'yyyy-MM-dd');
-        dailyStats[dateKey] = {
-          date: dateKey,
-          displayDay: format(date, 'EEE'), // Sat, Sun, Mon, etc.
-          amount: 0
-        };
-      });
-
-      // Calculate daily payment based on hours worked and employee wage rates
-      timesheets.forEach(entry => {
-        const dateKey = entry.clock_in_date;
-        if (dailyStats[dateKey]) {
-          // Get employee wage rates, default to system rate if employee not found
-          const employeeRates = entry.employee_id ? 
-            employeeWageRates[entry.employee_id] : 
-            { morning: defaultWageRate, night: defaultWageRate };
-          
-          // Calculate payment based on hours and average rate
-          // Using average wage rate as a simplification since we don't have morning/night hour split here
-          const avgRate = (employeeRates.morning + employeeRates.night) / 2;
-          const payment = (entry.total_hours || 0) * avgRate;
-          
-          dailyStats[dateKey].amount += payment;
+      try {
+        if (!activeOrganizationId) {
+          return dailyStats;
         }
-      });
 
-      // Return days in order: Saturday to Friday
-      return weekDays.map(date => {
-        const dateKey = format(date, 'yyyy-MM-dd');
-        return dailyStats[dateKey];
-      });
-    }
+        // Simplified query approach
+        const startDate = format(currentWeekStart, 'yyyy-MM-dd');
+        const endDate = format(currentWeekEnd, 'yyyy-MM-dd');
+        
+        const { data: entries } = await supabase
+          .from('timesheet_entries')
+          .select(`
+            clock_in_date,
+            total_hours,
+            employee_id,
+            employees!inner(morning_wage_rate, night_wage_rate)
+          `)
+          .gte('clock_in_date', startDate)
+          .lte('clock_in_date', endDate)
+          .eq('organization_id', activeOrganizationId);
+
+        // Process the data
+        const dailyMap = new Map(dailyStats.map(day => [day.date, day]));
+        
+        (entries || []).forEach((entry: any) => {
+          const dayData = dailyMap.get(entry.clock_in_date);
+          if (dayData && entry.total_hours) {
+            const morningRate = entry.employees?.morning_wage_rate || 20;
+            const nightRate = entry.employees?.night_wage_rate || 20;
+            const avgRate = (morningRate + nightRate) / 2;
+            dayData.amount += entry.total_hours * avgRate;
+          }
+        });
+
+        return Array.from(dailyMap.values());
+      } catch (error) {
+        console.error('Chart data fetch error:', error);
+        return dailyStats;
+      }
+    },
+    enabled: !!activeOrganizationId
   });
 
   const chartConfig = {
