@@ -189,7 +189,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setIsOpen(true)}
           onKeyDown={handleKeyDown}
-          className="pl-10 pr-4 h-10 mobile-text focus-ring"
+          className="pl-12 pr-4 h-10 mobile-text focus-ring"
         />
         {query && (
           <Button

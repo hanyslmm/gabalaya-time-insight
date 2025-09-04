@@ -26,7 +26,7 @@ const TimesheetTableFilters: React.FC<TimesheetTableFiltersProps> = ({
         placeholder={t('searchTimesheet') || 'Search timesheet entries...'}
         value={searchTerm}
         onChange={(e) => onSearchChange(e.target.value)}
-        className="pl-10"
+        className="pl-12"
       />
     </div>
   );
