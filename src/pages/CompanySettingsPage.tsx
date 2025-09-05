@@ -12,10 +12,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { MessageCircle, Save, Settings, Clock, Shield } from 'lucide-react';
 import { COMMON_TIMEZONES, clearTimezoneCache } from '@/utils/timezoneUtils';
+import { useAuth } from '@/hooks/useAuth';
 
 const CompanySettingsPage: React.FC = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
   const [message, setMessage] = useState('');
   const [timezone, setTimezone] = useState('Africa/Cairo');
   const [autoClockoutEnabled, setAutoClockoutEnabled] = useState(true);
@@ -25,12 +28,18 @@ const CompanySettingsPage: React.FC = () => {
 
   // Fetch current company settings
   const { data: currentSettings, isLoading } = useQuery({
-    queryKey: ['company-settings'],
+    queryKey: ['company-settings', activeOrganizationId],
+    enabled: !!activeOrganizationId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('company_settings')
-        .select('motivational_message, timezone, auto_clockout_enabled, auto_clockout_time, max_work_hours, auto_clockout_location')
-        .single();
+        .select('motivational_message, timezone, auto_clockout_enabled, auto_clockout_time, max_work_hours, auto_clockout_location');
+      
+      if (activeOrganizationId) {
+        query = query.eq('organization_id', activeOrganizationId);
+      }
+      
+      const { data, error } = await query.single();
 
       if (error && error.code !== 'PGRST116') {
         // If no settings exist, return default
@@ -68,7 +77,7 @@ const CompanySettingsPage: React.FC = () => {
       const { data, error } = await supabase
         .from('company_settings')
         .upsert({ 
-          id: 1, // Use a fixed ID for singleton settings
+          organization_id: activeOrganizationId,
           motivational_message: settings.newMessage,
           timezone: settings.newTimezone,
           auto_clockout_enabled: settings.autoClockoutEnabled,
@@ -76,7 +85,7 @@ const CompanySettingsPage: React.FC = () => {
           max_work_hours: settings.maxWorkHours,
           auto_clockout_location: settings.autoClockoutLocation
         }, {
-          onConflict: 'id'
+          onConflict: 'organization_id'
         });
 
       if (error) throw error;
@@ -89,7 +98,7 @@ const CompanySettingsPage: React.FC = () => {
       });
       // Clear timezone cache to force reload
       clearTimezoneCache();
-      queryClient.invalidateQueries({ queryKey: ['company-settings'] });
+      queryClient.invalidateQueries({ queryKey: ['company-settings', activeOrganizationId] });
       queryClient.invalidateQueries({ queryKey: ['motivational-message'] });
     },
     onError: (error) => {

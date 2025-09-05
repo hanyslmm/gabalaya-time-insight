@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -46,6 +47,8 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
 
   // Load recent searches from localStorage
   useEffect(() => {
@@ -57,18 +60,23 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
 
   // Search query with debouncing
   const { data: searchResults = [], isLoading } = useQuery({
-    queryKey: ['global-search', query],
+    queryKey: ['global-search', query, activeOrganizationId],
+    enabled: query.length >= 2 && !!activeOrganizationId,
     queryFn: async () => {
       if (!query.trim()) return [];
       
       const results: SearchResult[] = [];
       
       // Search employees
-      const { data: employees } = await supabase
+      let empQuery = supabase
         .from('employees')
         .select('*')
         .ilike('full_name', `%${query}%`)
         .limit(5);
+      if (activeOrganizationId) {
+        empQuery = empQuery.eq('organization_id', activeOrganizationId);
+      }
+      const { data: employees } = await empQuery;
       
       if (employees) {
         results.push(...employees.map(emp => ({
@@ -83,11 +91,15 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
       }
       
       // Search timesheets
-      const { data: timesheets } = await supabase
+      let tsQuery = supabase
         .from('timesheet_entries')
         .select('*, employees(full_name)')
         .ilike('employee_name', `%${query}%`)
         .limit(5);
+      if (activeOrganizationId) {
+        tsQuery = tsQuery.eq('organization_id', activeOrganizationId);
+      }
+      const { data: timesheets } = await tsQuery;
       
       if (timesheets) {
         results.push(...timesheets.map(ts => ({
@@ -127,7 +139,6 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
       // Sort by relevance
       return results.sort((a, b) => b.relevance - a.relevance);
     },
-    enabled: query.length > 0,
     staleTime: 30000, // 30 seconds
   });
 

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Clock, DollarSign, Calendar, TrendingUp } from 'lucide-react';
 import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Employee {
   id: string;
@@ -24,6 +25,8 @@ interface EmployeeStatsProps {
 
 const EmployeeStats: React.FC<EmployeeStatsProps> = ({ employee, onClose }) => {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
   const [viewMode, setViewMode] = useState<'current' | 'previous'>('current');
 
   // Calculate date ranges for current and previous pay periods
@@ -55,18 +58,25 @@ const EmployeeStats: React.FC<EmployeeStatsProps> = ({ employee, onClose }) => {
   };
 
   const { data: stats, isLoading } = useQuery({
-    queryKey: ['employee-stats', employee.id, viewMode],
+    queryKey: ['employee-stats', employee.id, viewMode, activeOrganizationId],
+    enabled: !!activeOrganizationId,
     queryFn: async () => {
       
       const payPeriod = viewMode === 'current' ? getCurrentPayPeriod() : getPreviousPayPeriod();
       
-      // Query timesheet entries by employee name with date filtering
-      const { data, error } = await supabase
+      // Query timesheet entries by employee name with date filtering and organization
+      let query = supabase
         .from('timesheet_entries')
         .select('*')
         .eq('employee_name', employee.full_name)
         .gte('clock_in_date', format(payPeriod.from, 'yyyy-MM-dd'))
         .lte('clock_in_date', format(payPeriod.to, 'yyyy-MM-dd'));
+        
+      if (activeOrganizationId) {
+        query = query.eq('organization_id', activeOrganizationId);
+      }
+      
+      const { data, error } = await query;
 
       if (error) {
         throw error;

@@ -7,6 +7,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { format, subMonths } from 'date-fns';
 import { Activity, TrendingUp } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 interface MonthlyShiftsData {
   month: string;
@@ -27,8 +28,12 @@ const MonthlyShiftsActivity: React.FC<MonthlyShiftsActivityProps> = ({
   timePeriod = 'current',
   dateRange 
 }) => {
+  const { user } = useAuth();
+  const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
+  
   const { data: shiftsData, isLoading } = useQuery({
-    queryKey: ['monthly-shifts-activity', timePeriod, dateRange],
+    queryKey: ['monthly-shifts-activity', timePeriod, dateRange, activeOrganizationId],
+    enabled: !!activeOrganizationId,
     queryFn: async () => {
       // Get data for the last 6 months or use provided date range
       const months = Array.from({ length: 6 }, (_, i) => {
@@ -40,6 +45,10 @@ const MonthlyShiftsActivity: React.FC<MonthlyShiftsActivityProps> = ({
       }).reverse();
 
       let query = supabase.from('timesheet_entries').select('clock_in_date');
+      
+      if (activeOrganizationId) {
+        query = query.eq('organization_id', activeOrganizationId);
+      }
       
       if (dateRange && timePeriod !== 'alltime') {
         query = query

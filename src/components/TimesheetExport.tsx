@@ -8,6 +8,7 @@ import { Download } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { useCompanyTimezone } from '@/hooks/useCompanyTimezone';
+import { useAuth } from '@/hooks/useAuth';
 
 interface TimesheetExportProps {
   selectedRows?: string[];
@@ -16,9 +17,12 @@ interface TimesheetExportProps {
 const TimesheetExport: React.FC<TimesheetExportProps> = ({ selectedRows = [] }) => {
   const { t } = useTranslation();
   const { formatDate, formatTimeAMPM } = useCompanyTimezone();
+  const { user } = useAuth();
+  const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
 
   const { data: timesheetData } = useQuery({
-    queryKey: ['export-timesheets', selectedRows],
+    queryKey: ['export-timesheets', selectedRows, activeOrganizationId],
+    enabled: selectedRows.length > 0 && !!activeOrganizationId,
     queryFn: async () => {
       let query = supabase
         .from('timesheet_entries')
@@ -32,6 +36,10 @@ const TimesheetExport: React.FC<TimesheetExportProps> = ({ selectedRows = [] }) 
           )
         `)
         .order('created_at', { ascending: false });
+      
+      if (activeOrganizationId) {
+        query = query.eq('organization_id', activeOrganizationId);
+      }
 
       if (selectedRows.length > 0) {
         query = query.in('id', selectedRows);
@@ -40,8 +48,7 @@ const TimesheetExport: React.FC<TimesheetExportProps> = ({ selectedRows = [] }) 
       const { data, error } = await query;
       if (error) throw error;
       return data;
-    },
-    enabled: selectedRows.length > 0
+    }
   });
 
   const exportToExcel = async () => {

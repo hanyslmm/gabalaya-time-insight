@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Trophy, Medal, Award, Star, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
+import { useAuth } from '@/hooks/useAuth';
 
 interface TopPerformersProps {
   timePeriod?: string;
@@ -28,10 +29,18 @@ const TopPerformersLeaderboard: React.FC<TopPerformersProps> = ({
   timePeriod = 'current',
   dateRange 
 }) => {
+  const { user } = useAuth();
+  const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
+  
   const { data: topPerformers, isLoading } = useQuery({
-    queryKey: ['top-performers', timePeriod, dateRange],
+    queryKey: ['top-performers', timePeriod, dateRange, activeOrganizationId],
+    enabled: !!activeOrganizationId,
     queryFn: async () => {
       let query = supabase.from('timesheet_entries').select('employee_name, total_hours, total_card_amount_flat');
+      
+      if (activeOrganizationId) {
+        query = query.eq('organization_id', activeOrganizationId);
+      }
       
       if (dateRange) {
         query = query
