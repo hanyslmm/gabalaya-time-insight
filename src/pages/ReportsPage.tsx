@@ -20,6 +20,7 @@ import {
 import { toast } from 'sonner';
 import MobilePageWrapper, { MobileSection, MobileHeader } from '@/components/MobilePageWrapper';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/hooks/useAuth';
 
 interface DateRange {
   from: Date;
@@ -28,6 +29,8 @@ interface DateRange {
 
 const ReportsPage: React.FC = () => {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
   
   // Set default date range to cover more data - last 6 months
   const [dateRange, setDateRange] = useState<DateRange>(() => {
@@ -50,37 +53,61 @@ const ReportsPage: React.FC = () => {
     }
   });
 
-  // Get wage settings for calculations
+  // Get wage settings for calculations (scoped to org with fallback)
   const { data: wageSettings, isLoading: wageLoading, error: wageError } = useQuery({
-    queryKey: ['wage-settings'],
+    queryKey: ['wage-settings', activeOrganizationId],
+    enabled: !!activeOrganizationId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Try org-specific first
+      const { data: orgSettings, error: orgError } = await (supabase as any)
         .from('wage_settings')
         .select('*')
-        .single();
-      
-      if (error) {
-        throw error;
-      }
-      return data;
+        .eq('organization_id', activeOrganizationId)
+        .maybeSingle();
+
+      if (orgSettings) return orgSettings;
+
+      // Fallback to a global row (organization_id IS NULL) or any single row
+      const { data: globalSettings } = await (supabase as any)
+        .from('wage_settings')
+        .select('*')
+        .is('organization_id', null)
+        .maybeSingle();
+
+      if (globalSettings) return globalSettings;
+
+      // As last resort, pick first available row
+      const { data: anySettings } = await (supabase as any)
+        .from('wage_settings')
+        .select('*')
+        .limit(1)
+        .maybeSingle();
+
+      if (!anySettings && orgError) throw orgError;
+      return anySettings;
     }
   });
 
   // Raw timesheet data query with better debugging
   const { data: rawTimesheetData, isLoading: timesheetLoading, error: timesheetError } = useQuery({
-    queryKey: ['raw-timesheet-data', dateRange],
+    queryKey: ['raw-timesheet-data', dateRange, activeOrganizationId],
     queryFn: async () => {
       try {
         const fromDate = format(dateRange.from, 'yyyy-MM-dd');
         const toDate = format(dateRange.to, 'yyyy-MM-dd');
         
-        
-        const { data, error } = await supabase
+        let query = supabase
           .from('timesheet_entries')
           .select('*')
           .gte('clock_in_date', fromDate)
           .lte('clock_in_date', toDate)
           .order('clock_in_date', { ascending: false });
+
+        if (activeOrganizationId) {
+          query = query.eq('organization_id', activeOrganizationId);
+        }
+
+        const { data, error } = await query;
         
         if (error) {
           throw error;
@@ -92,21 +119,22 @@ const ReportsPage: React.FC = () => {
         throw error;
       }
     },
-    enabled: !!(dateRange?.from && dateRange?.to)
+    enabled: !!(dateRange?.from && dateRange?.to && activeOrganizationId)
   });
 
   // Get all employees for name mapping
   const { data: employees, isLoading: employeesLoading } = useQuery({
-    queryKey: ['employees-for-reports'],
+    queryKey: ['employees-for-reports', activeOrganizationId],
+    enabled: !!activeOrganizationId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from('employees')
         .select('id, staff_id, full_name');
-      
+      if (activeOrganizationId) q = q.eq('organization_id', activeOrganizationId);
+      const { data, error } = await q;
       if (error) {
         throw error;
       }
-      
       return data || [];
     }
   });
