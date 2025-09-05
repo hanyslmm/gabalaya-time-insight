@@ -24,11 +24,10 @@ export const useDashboardData = (dateRange: DateRange, enabled: boolean = true) 
       const fromDate = format(dateRange.from, 'yyyy-MM-dd');
       const toDate = format(dateRange.to, 'yyyy-MM-dd');
 
-      // Call the dashboard stats function scoped by organization
+      // Call the dashboard stats function
       const { data, error } = await (supabase as any).rpc('get_dashboard_stats', {
         from_date: fromDate,
-        to_date: toDate,
-        organization_id: activeOrganizationId,
+        to_date: toDate
       });
 
       if (error) {

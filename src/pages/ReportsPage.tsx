@@ -196,34 +196,36 @@ const ReportsPage: React.FC = () => {
     }
   }, [attendanceReport]);
 
-  // Export functionality
+  // Export functionality with cleaner format
   const exportReport = (type: string) => {
     try {
       let data: any[] = [];
       let filename = '';
 
       if (type === 'attendance') {
-        data = attendanceReport.map(entry => ({
-          'Employee': entry.display_name,
+        data = attendanceReport.map((entry, index) => ({
+          '#': index + 1,
+          'Employee Name': entry.display_name,
           'Date': entry.clock_in_date,
           'Clock In': entry.clock_in_time,
-          'Clock Out': entry.clock_out_time,
-          'Total Hours': entry.total_hours?.toFixed(2),
-          'Morning Hours': entry.calculated_morning_hours?.toFixed(2),
-          'Night Hours': entry.calculated_night_hours?.toFixed(2),
-          'Amount (LE)': entry.total_card_amount_flat
+          'Clock Out': entry.clock_out_time || 'N/A',
+          'Total Hours': Number(entry.total_hours || 0).toFixed(2),
+          'Morning Hours': Number(entry.calculated_morning_hours || 0).toFixed(2),
+          'Night Hours': Number(entry.calculated_night_hours || 0).toFixed(2),
+          'Total Amount (LE)': Number(entry.total_card_amount_flat || 0).toFixed(2)
         }));
-        filename = `attendance_report_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+        filename = `Attendance_Report_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
       } else if (type === 'payroll') {
-        data = payrollSummary.map((summary: any) => ({
-          'Employee': summary.employee_name,
-          'Total Hours': summary.total_hours?.toFixed(2),
-          'Morning Hours': summary.morning_hours?.toFixed(2),
-          'Night Hours': summary.night_hours?.toFixed(2),
-          'Shifts': summary.shifts,
-          'Total Amount (LE)': Math.round(summary.total_split_amount || 0)
+        data = payrollSummary.map((summary: any, index) => ({
+          '#': index + 1,
+          'Employee Name': summary.employee_name,
+          'Total Hours': Number(summary.total_hours || 0).toFixed(2),
+          'Morning Hours': Number(summary.morning_hours || 0).toFixed(2),
+          'Night Hours': Number(summary.night_hours || 0).toFixed(2),
+          'Total Shifts': summary.shifts,
+          'Total Amount (LE)': Number(summary.total_split_amount || summary.total_flat_amount || 0).toFixed(2)
         }));
-        filename = `payroll_summary_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+        filename = `Payroll_Summary_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
       }
 
       if (data.length === 0) {
@@ -231,13 +233,25 @@ const ReportsPage: React.FC = () => {
         return;
       }
 
+      // Create worksheet with proper formatting
       const ws = XLSX.utils.json_to_sheet(data);
+      
+      // Auto-size columns
+      const cols = Object.keys(data[0]).map(key => ({
+        wch: Math.max(key.length, 12)
+      }));
+      ws['!cols'] = cols;
+
+      // Create workbook and add worksheet
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, type === 'attendance' ? 'Attendance' : 'Payroll');
+      XLSX.utils.book_append_sheet(wb, ws, type === 'attendance' ? 'Attendance Report' : 'Payroll Summary');
+      
+      // Write file
       XLSX.writeFile(wb, filename);
       
-      toast.success(`${type} report exported successfully`);
+      toast.success(`${filename} exported successfully`);
     } catch (error) {
+      console.error('Export error:', error);
       toast.error('Failed to export report');
     }
   };
