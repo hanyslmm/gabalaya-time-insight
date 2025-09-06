@@ -396,8 +396,8 @@ const TimesheetsPage: React.FC = () => {
                 const unassignedHours = Math.max(0, storedTotalHours - derivedTotalHours);
                 
                 // Calculate percentages
-                const morningPercentage = totalHours > 0 ? (totalMorningHours / totalHours) * 100 : 0;
-                const nightPercentage = totalHours > 0 ? (totalNightHours / totalHours) * 100 : 0;
+                const morningPercentage = derivedTotalHours > 0 ? (totalMorningHours / derivedTotalHours) * 100 : 0;
+                const nightPercentage = derivedTotalHours > 0 ? (totalNightHours / derivedTotalHours) * 100 : 0;
                 const totalEntries = timesheets.length;
                 
                 return (
