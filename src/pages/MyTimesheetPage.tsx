@@ -320,6 +320,54 @@ const MyTimesheetPage: React.FC = () => {
 
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
 
+  // Auto-calculate missing morning/night hours once data is available
+  useEffect(() => {
+    let cancelled = false;
+    const autoCalculate = async () => {
+      try {
+        if (!wageSettings || !timesheetData || timesheetData.length === 0) return;
+        const entriesToUpdate = timesheetData.filter(entry =>
+          entry.clock_out_time &&
+          ((entry.morning_hours === 0 || entry.morning_hours === null) &&
+           (entry.night_hours === 0 || entry.night_hours === null))
+        );
+        if (entriesToUpdate.length === 0) return;
+
+        for (const entry of entriesToUpdate) {
+          const shiftStart = timeToMinutes(entry.clock_in_time);
+          let shiftEnd = timeToMinutes(entry.clock_out_time!);
+          if (shiftEnd < shiftStart) shiftEnd += 24 * 60;
+
+          const morningStart = timeToMinutes(wageSettings.morning_start_time || '08:00:00');
+          const morningEnd = timeToMinutes(wageSettings.morning_end_time || '17:00:00');
+          const nightStart = timeToMinutes(wageSettings.night_start_time || '17:00:00');
+          let nightEnd = timeToMinutes(wageSettings.night_end_time || '01:00:00');
+          if (nightEnd < nightStart) nightEnd += 24 * 60;
+
+          const morningMinutes = overlapMinutes(shiftStart, shiftEnd, morningStart, morningEnd);
+          const nightMinutes = overlapMinutes(shiftStart, shiftEnd, nightStart, nightEnd);
+
+          await supabase
+            .from('timesheet_entries')
+            .update({
+              morning_hours: morningMinutes / 60,
+              night_hours: nightMinutes / 60,
+              is_split_calculation: true
+            })
+            .eq('id', entry.id);
+        }
+
+        if (!cancelled) {
+          queryClient.invalidateQueries({ queryKey: ['my-timesheet'] });
+        }
+      } catch {
+        // non-blocking
+      }
+    };
+    autoCalculate();
+    return () => { cancelled = true; };
+  }, [wageSettings, timesheetData, queryClient]);
+
   // Mutation to calculate and store missing morning/night hours
   const calculateHoursMutation = useMutation({
     mutationFn: async () => {
@@ -327,16 +375,11 @@ const MyTimesheetPage: React.FC = () => {
         throw new Error('Missing wage settings or timesheet data');
       }
 
-      console.log('Wage settings:', wageSettings);
-      console.log('Timesheet data:', timesheetData);
-
       const entriesToUpdate = timesheetData.filter(entry => 
         entry.clock_out_time && 
         (entry.morning_hours === 0 || entry.morning_hours === null) && 
         (entry.night_hours === 0 || entry.night_hours === null)
       );
-
-      console.log('Entries to update:', entriesToUpdate.length);
 
       if (entriesToUpdate.length === 0) {
         throw new Error('No entries need calculation');
@@ -356,8 +399,6 @@ const MyTimesheetPage: React.FC = () => {
         const morningMinutes = overlapMinutes(shiftStart, shiftEnd, morningStart, morningEnd);
         const nightMinutes = overlapMinutes(shiftStart, shiftEnd, nightStart, nightEnd);
 
-        console.log(`Entry ${entry.id}: shift ${shiftStart}-${shiftEnd}, morning ${morningStart}-${morningEnd} = ${morningMinutes}min, night ${nightStart}-${nightEnd} = ${nightMinutes}min`);
-
         const { error } = await supabase
           .from('timesheet_entries')
           .update({
@@ -369,7 +410,6 @@ const MyTimesheetPage: React.FC = () => {
 
         if (error) {
           console.error(`Failed to update entry ${entry.id}:`, error);
-          throw error;
         }
       }
 

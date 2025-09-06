@@ -64,25 +64,19 @@ const EmployeeStats: React.FC<EmployeeStatsProps> = ({ employee, onClose }) => {
       
       const payPeriod = viewMode === 'current' ? getCurrentPayPeriod() : getPreviousPayPeriod();
       
-      // Query timesheet entries by employee name with date filtering and organization
-      let query = supabase
+      // Query timesheet entries for this employee. Match by staff_id or full_name to be robust
+      const { data, error } = await supabase
         .from('timesheet_entries')
         .select('*')
-        .eq('employee_name', employee.full_name)
+        .or(`employee_name.eq.${employee.staff_id},employee_name.eq.${employee.full_name}`)
         .gte('clock_in_date', format(payPeriod.from, 'yyyy-MM-dd'))
         .lte('clock_in_date', format(payPeriod.to, 'yyyy-MM-dd'));
-        
-      if (activeOrganizationId) {
-        query = query.eq('organization_id', activeOrganizationId);
-      }
-      
-      const { data, error } = await query;
 
       if (error) {
         throw error;
       }
 
-      const entries = data || [];
+      const entries = (data || []).filter((e: any) => !activeOrganizationId || e.organization_id === activeOrganizationId);
       const totalShifts = entries.length;
       
       // Calculate total hours from all available hour fields
