@@ -46,39 +46,26 @@ const OrganizationSwitcher: React.FC = () => {
     enabled: !!user
   });
 
-  // Get current organization info
-  const { data: currentUser } = useQuery({
-    queryKey: ['current-user-org', user.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('admin_users')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user
-  });
+  // Resolve current org id directly from authenticated user (works for employees and admins)
+  const resolveCurrentOrgId = () => {
+    return (user as any)?.current_organization_id || user?.organization_id || null;
+  };
 
   // Get organization names separately
   const { data: currentOrgData } = useQuery({
-    queryKey: ['current-org-name', (currentUser as any)?.current_organization_id || currentUser?.organization_id],
+    queryKey: ['current-org-name', resolveCurrentOrgId()],
     queryFn: async () => {
-      const orgId = (currentUser as any)?.current_organization_id || currentUser?.organization_id;
+      const orgId = resolveCurrentOrgId();
       if (!orgId) return null;
-      
       const { data, error } = await supabase
         .from('organizations')
         .select('name')
         .eq('id', orgId)
         .single();
-      
       if (error) throw error;
       return data;
     },
-    enabled: !!((currentUser as any)?.current_organization_id || currentUser?.organization_id)
+    enabled: !!resolveCurrentOrgId()
   });
 
   // Switch organization mutation
@@ -123,7 +110,6 @@ const OrganizationSwitcher: React.FC = () => {
       await refreshUser();
       
       // Then invalidate and refetch all organization-dependent queries
-      queryClient.invalidateQueries({ queryKey: ['current-user-org'] });
       queryClient.invalidateQueries({ queryKey: ['current-org-name'] });
       queryClient.invalidateQueries({ queryKey: ['available-organizations'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-data'] });
@@ -149,9 +135,7 @@ const OrganizationSwitcher: React.FC = () => {
     }
   };
 
-  const getCurrentOrganizationId = () => {
-    return (currentUser as any)?.current_organization_id || currentUser?.organization_id;
-  };
+  const getCurrentOrganizationId = () => resolveCurrentOrgId();
 
   const getCurrentOrganizationName = () => {
     return currentOrgData?.name || 'No Organization';
