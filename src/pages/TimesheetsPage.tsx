@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -74,6 +74,59 @@ const TimesheetsPage: React.FC = () => {
       return anySettings as any;
     }
   });
+
+  // Auto-calculate missing morning/night hours for visible entries (org-scoped)
+  useEffect(() => {
+    const autoCalculateSplits = async () => {
+      try {
+        if (!timesheets || timesheets.length === 0 || !wageSettings) return;
+        const timeToMinutes = (timeStr: string): number => {
+          const clean = (timeStr || '00:00:00').split('.')[0];
+          const [h, m] = clean.split(':').map((v) => parseInt(v, 10));
+          return (isNaN(h) ? 0 : h % 24) * 60 + (isNaN(m) ? 0 : m % 60);
+        };
+        const overlapMinutes = (aStart: number, aEnd: number, bStart: number, bEnd: number): number => {
+          const start = Math.max(aStart, bStart);
+          const end = Math.min(aEnd, bEnd);
+          return Math.max(0, end - start);
+        };
+
+        const morningStart = timeToMinutes(wageSettings.morning_start_time || '08:00:00');
+        const morningEnd = timeToMinutes(wageSettings.morning_end_time || '17:00:00');
+        const nightStart = timeToMinutes(wageSettings.night_start_time || '17:00:00');
+        let nightEnd = timeToMinutes(wageSettings.night_end_time || '01:00:00');
+        if (nightEnd < nightStart) nightEnd += 24 * 60;
+
+        const candidates = timesheets.filter((entry: any) =>
+          entry.clock_out_time &&
+          (entry.morning_hours === 0 || entry.morning_hours === null) &&
+          (entry.night_hours === 0 || entry.night_hours === null)
+        );
+        if (candidates.length === 0) return;
+
+        for (const entry of candidates) {
+          const shiftStart = timeToMinutes(entry.clock_in_time);
+          let shiftEnd = timeToMinutes(entry.clock_out_time);
+          if (shiftEnd < shiftStart) shiftEnd += 24 * 60;
+          const morningMinutes = overlapMinutes(shiftStart, shiftEnd, morningStart, morningEnd);
+          const nightMinutes = overlapMinutes(shiftStart, shiftEnd, nightStart, nightEnd);
+          await supabase
+            .from('timesheet_entries')
+            .update({
+              morning_hours: morningMinutes / 60,
+              night_hours: nightMinutes / 60,
+              is_split_calculation: true
+            })
+            .eq('id', entry.id);
+        }
+
+        refetch();
+      } catch {
+        // non-blocking
+      }
+    };
+    autoCalculateSplits();
+  }, [timesheets, wageSettings, refetch]);
 
   // Fetch employees for the filter dropdown
   const { data: employees, isLoading: employeesLoading } = useQuery({
