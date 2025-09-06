@@ -11,6 +11,7 @@ import EmployeeForm from '@/components/EmployeeForm';
 import EmployeeStats from '@/components/EmployeeStats';
 import EmployeeWageRates from '@/components/EmployeeWageRates';
 import AdminPasswordChange from '@/components/AdminPasswordChange';
+import AdminRoleChange from '@/components/AdminRoleChange';
 import { useAuth } from '@/hooks/useAuth';
 
 interface Employee {
@@ -36,6 +37,7 @@ const EmployeesPage: React.FC = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [wageRateEmployee, setWageRateEmployee] = useState<Employee | null>(null);
   const [passwordChangeEmployee, setPasswordChangeEmployee] = useState<Employee | null>(null);
+  const [roleChangeAdmin, setRoleChangeAdmin] = useState<any>(null);
 
   const { data: employees, isLoading } = useQuery({
     queryKey: ['employees', (user as any)?.current_organization_id || user?.organization_id],
@@ -211,6 +213,15 @@ const EmployeesPage: React.FC = () => {
                       <Button
                         variant="ghost"
                         size="sm"
+                        onClick={() => setRoleChangeAdmin(admin)}
+                        className="text-green-600 hover:text-green-800"
+                        title="Change Role"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleChangePassword({
                           id: admin.id,
                           staff_id: admin.username,
@@ -220,6 +231,7 @@ const EmployeesPage: React.FC = () => {
                           is_admin_user: true
                         })}
                         className="text-blue-600 hover:text-blue-800"
+                        title="Change Password"
                       >
                         <Lock className="h-4 w-4" />
                       </Button>
@@ -405,6 +417,13 @@ const EmployeesPage: React.FC = () => {
         <AdminPasswordChange
           employee={passwordChangeEmployee}
           onClose={() => setPasswordChangeEmployee(null)}
+        />
+      )}
+
+      {roleChangeAdmin && (
+        <AdminRoleChange
+          adminUser={roleChangeAdmin}
+          onClose={() => setRoleChangeAdmin(null)}
         />
       )}
     </div>
