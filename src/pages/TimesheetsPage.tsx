@@ -65,7 +65,8 @@ const TimesheetsPage: React.FC = () => {
 
         const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
         if (activeOrganizationId) {
-          query = query.eq('organization_id', activeOrganizationId);
+          // Include legacy entries that have organization_id = null
+          query = query.or(`organization_id.eq.${activeOrganizationId},organization_id.is.null`);
         }
 
         // Apply date range filter
@@ -208,7 +209,7 @@ const TimesheetsPage: React.FC = () => {
         />
         
         {/* Employee Filter - Only show for admins */}
-        {user?.role === 'admin' && (
+        {(user?.role === 'admin' || user?.role === 'owner') && (
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
