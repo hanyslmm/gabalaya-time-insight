@@ -55,7 +55,7 @@ const EmployeeMonitorPage: React.FC = () => {
       const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
       let empQuery = supabase
         .from('employees')
-        .select('staff_id, full_name, role');
+        .select('id, staff_id, full_name, role');
       if (activeOrganizationId) {
         empQuery = empQuery.eq('organization_id', activeOrganizationId);
       }
@@ -74,24 +74,33 @@ const EmployeeMonitorPage: React.FC = () => {
 
       // Fetch today's entries AND any active entries (without clock_out_time) from any date
       const today = format(new Date(), 'yyyy-MM-dd');
-      let tsQuery = supabase
+      const { data: timesheetData, error: timesheetError } = await supabase
         .from('timesheet_entries')
         .select('*')
         .or(`clock_in_date.eq.${today},clock_out_time.is.null`)
         .order('clock_in_time', { ascending: false });
-      if (activeOrganizationId) {
-        tsQuery = tsQuery.eq('organization_id', activeOrganizationId);
-      }
-      const { data: timesheetData, error: timesheetError } = await tsQuery;
 
       if (timesheetError) throw timesheetError;
 
       setEmployees(employeesData);
 
-      // Process employee statuses
+      // Build quick lookup sets for org employees
+      const idSet = new Set((employeesData || []).map((e: any) => e.id));
+      const staffIdSet = new Set((employeesData || []).map((e: any) => e.staff_id));
+      const fullNameSet = new Set((employeesData || []).map((e: any) => e.full_name));
+
+      // Process employee statuses (only for employees that belong to the active organization)
       const statusMap = new Map<string, EmployeeStatus>();
       
       timesheetData?.forEach(entry => {
+        // Skip entries not belonging to this organization
+        if (
+          !(entry.employee_id && idSet.has(entry.employee_id)) &&
+          !staffIdSet.has(entry.employee_name) &&
+          !fullNameSet.has(entry.employee_name)
+        ) {
+          return;
+        }
         const isActive = !entry.clock_out_time || entry.clock_out_time === '00:00:00';
         const duration = isActive 
           ? differenceInMinutes(new Date(), new Date(`${entry.clock_in_date}T${entry.clock_in_time}`))
