@@ -343,8 +343,8 @@ const TimesheetsPage: React.FC = () => {
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
               {(() => {
-                // Calculate totals
-                const totalHours = timesheets.reduce((sum, entry) => sum + (entry.total_hours || 0), 0);
+                // Calculate totals (we will derive total from assigned morning+night to ensure org-scoped consistency)
+                const storedTotalHours = timesheets.reduce((sum, entry) => sum + (entry.total_hours || 0), 0);
                 // Helpers using minute math like MyTimesheet
                 const timeToMinutes = (timeStr: string): number => {
                   const clean = (timeStr || '00:00:00').split('.')[0];
@@ -391,7 +391,9 @@ const TimesheetsPage: React.FC = () => {
                   return sum;
                 }, 0);
 
-                const unassignedHours = Math.max(0, totalHours - (totalMorningHours + totalNightHours));
+                // Derive displayed total from assigned hours so it aligns with org-scoped morning/night
+                const derivedTotalHours = totalMorningHours + totalNightHours;
+                const unassignedHours = Math.max(0, storedTotalHours - derivedTotalHours);
                 
                 // Calculate percentages
                 const morningPercentage = totalHours > 0 ? (totalMorningHours / totalHours) * 100 : 0;
@@ -410,7 +412,7 @@ const TimesheetsPage: React.FC = () => {
                     {/* Total Hours */}
                     <div className="bg-card border rounded-lg p-3 sm:p-4">
                       <div className="text-xs sm:text-sm text-muted-foreground mb-1">Total Hours</div>
-                      <div className="text-lg sm:text-2xl font-bold text-blue-600">{totalHours.toFixed(1)}h</div>
+                      <div className="text-lg sm:text-2xl font-bold text-blue-600">{derivedTotalHours.toFixed(1)}h</div>
                       <div className="text-xs text-muted-foreground">All worked hours</div>
                     </div>
 
