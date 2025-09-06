@@ -181,15 +181,32 @@ const MyTimesheetPage: React.FC = () => {
   });
 
   const { data: wageSettings } = useQuery({
-    queryKey: ['wage-settings'],
+    queryKey: ['wage-settings', (user as any)?.current_organization_id || user?.organization_id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
+      // Try organization-specific settings first
+      if (activeOrganizationId) {
+        const { data: orgSettings } = await supabase
+          .from('wage_settings')
+          .select('*')
+          .eq('organization_id', activeOrganizationId)
+          .maybeSingle();
+        if (orgSettings) return orgSettings as any;
+      }
+      // Fallback to global/default row
+      const { data: globalSettings } = await supabase
         .from('wage_settings')
         .select('*')
-        .single();
-      
-      if (error) throw error;
-      return data;
+        .is('organization_id', null)
+        .maybeSingle();
+      if (globalSettings) return globalSettings as any;
+      // Final fallback: any row
+      const { data: anySettings } = await supabase
+        .from('wage_settings')
+        .select('*')
+        .limit(1)
+        .maybeSingle();
+      return anySettings as any;
     }
   });
 
