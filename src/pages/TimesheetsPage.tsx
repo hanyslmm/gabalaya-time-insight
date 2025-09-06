@@ -27,13 +27,22 @@ const TimesheetsPage: React.FC = () => {
   const [showUpload, setShowUpload] = useState(false);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
-  // Initialize with a proper date range - last 30 days by default
-  const [dateRange, setDateRange] = useState<DateRange>(() => {
+  // Helper: compute current pay period based on end-day (default 28)
+  const computeCurrentPayPeriod = (endDay: number): DateRange => {
     const today = new Date();
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(today.getDate() - 30);
-    return { from: thirtyDaysAgo, to: today };
-  });
+    // Previous pay period end
+    let prevEnd = new Date(today.getFullYear(), today.getMonth(), endDay);
+    if (today.getDate() <= endDay) {
+      prevEnd = new Date(today.getFullYear(), today.getMonth() - 1, endDay);
+    }
+    const nextEnd = new Date(prevEnd.getFullYear(), prevEnd.getMonth() + 1, endDay);
+    const startDate = new Date(prevEnd);
+    startDate.setDate(prevEnd.getDate() + 1); // day after previous end
+    return { from: startDate, to: nextEnd };
+  };
+
+  // Default to current pay period
+  const [dateRange, setDateRange] = useState<DateRange>(() => computeCurrentPayPeriod(28));
   const [payPeriodEndDay, setPayPeriodEndDay] = useState(28);
 
   // Fetch employees for the filter dropdown
@@ -55,7 +64,7 @@ const TimesheetsPage: React.FC = () => {
   });
 
   const { data: timesheets, isLoading, refetch, error } = useQuery({
-    queryKey: ['timesheets', dateRange, selectedEmployee],
+    queryKey: ['timesheets', dateRange, selectedEmployee, (user as any)?.current_organization_id || user?.organization_id],
     queryFn: async () => {
       try {
         // Build query with filters
@@ -65,8 +74,8 @@ const TimesheetsPage: React.FC = () => {
 
         const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
         if (activeOrganizationId) {
-          // Include legacy entries that have organization_id = null
-          query = query.or(`organization_id.eq.${activeOrganizationId},organization_id.is.null`);
+          // Strict isolation: only current organization
+          query = query.eq('organization_id', activeOrganizationId);
         }
 
         // Apply date range filter
