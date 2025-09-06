@@ -15,6 +15,7 @@ import SimpleWageCalculator from '@/components/SimpleWageCalculator';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import MobilePageWrapper, { MobileSection, MobileHeader } from '@/components/MobilePageWrapper';
+import { getCompanyTimezone } from '@/utils/timezoneUtils';
 
 interface DateRange {
   from: Date;
@@ -44,6 +45,35 @@ const TimesheetsPage: React.FC = () => {
   // Default to current pay period
   const [dateRange, setDateRange] = useState<DateRange>(() => computeCurrentPayPeriod(28));
   const [payPeriodEndDay, setPayPeriodEndDay] = useState(28);
+
+  // Load wage settings for accurate split calculations
+  const { data: wageSettings } = useQuery({
+    queryKey: ['wage-settings', (user as any)?.current_organization_id || user?.organization_id],
+    queryFn: async () => {
+      const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
+      if (activeOrganizationId) {
+        const { data: orgSettings } = await supabase
+          .from('wage_settings')
+          .select('*')
+          .eq('organization_id', activeOrganizationId)
+          .maybeSingle();
+        if (orgSettings) return orgSettings as any;
+      }
+      // Fallbacks
+      const { data: globalSettings } = await supabase
+        .from('wage_settings')
+        .select('*')
+        .is('organization_id', null)
+        .maybeSingle();
+      if (globalSettings) return globalSettings as any;
+      const { data: anySettings } = await supabase
+        .from('wage_settings')
+        .select('*')
+        .limit(1)
+        .maybeSingle();
+      return anySettings as any;
+    }
+  });
 
   // Fetch employees for the filter dropdown
   const { data: employees, isLoading: employeesLoading } = useQuery({
@@ -313,96 +343,53 @@ const TimesheetsPage: React.FC = () => {
               {(() => {
                 // Calculate totals
                 const totalHours = timesheets.reduce((sum, entry) => sum + (entry.total_hours || 0), 0);
+                // Helpers using minute math like MyTimesheet
+                const timeToMinutes = (timeStr: string): number => {
+                  const clean = (timeStr || '00:00:00').split('.')[0];
+                  const [h, m] = clean.split(':').map((v) => parseInt(v, 10));
+                  return (h % 24) * 60 + (m % 60);
+                };
+                const overlapMinutes = (aStart: number, aEnd: number, bStart: number, bEnd: number): number => {
+                  const start = Math.max(aStart, bStart);
+                  const end = Math.min(aEnd, bEnd);
+                  return Math.max(0, end - start);
+                };
                 
-                // Calculate morning and night hours dynamically
+                // Calculate morning and night using wage settings windows when needed
                 const totalMorningHours = timesheets.reduce((sum, entry) => {
-                  // Use stored morning_hours if available and greater than 0
                   if (entry.morning_hours && entry.morning_hours > 0) {
                     return sum + entry.morning_hours;
                   }
-                  
-                  // Calculate from time periods - simplified calculation for admin view
-                  if (entry.clock_in_time && entry.clock_out_time && entry.clock_in_date) {
-                    try {
-                      const clockInTime = entry.clock_in_time.includes('.') 
-                        ? entry.clock_in_time.split('.')[0] 
-                        : entry.clock_in_time;
-                      const clockOutTime = entry.clock_out_time.includes('.') 
-                        ? entry.clock_out_time.split('.')[0] 
-                        : entry.clock_out_time;
-                      
-                      const clockInDateTime = new Date(`${entry.clock_in_date}T${clockInTime}`);
-                      const clockOutDateTime = new Date(`${entry.clock_out_date || entry.clock_in_date}T${clockOutTime}`);
-                      
-                      // Handle overnight shifts
-                      if (clockOutDateTime < clockInDateTime) {
-                        clockOutDateTime.setDate(clockOutDateTime.getDate() + 1);
-                      }
-                      
-                      // Morning hours: 08:00 - 17:00
-                      const morningStart = new Date(entry.clock_in_date);
-                      morningStart.setHours(8, 0, 0, 0);
-                      const morningEnd = new Date(entry.clock_in_date);
-                      morningEnd.setHours(17, 0, 0, 0);
-                      
-                      const overlapStart = new Date(Math.max(clockInDateTime.getTime(), morningStart.getTime()));
-                      const overlapEnd = new Date(Math.min(clockOutDateTime.getTime(), morningEnd.getTime()));
-                      
-                      if (overlapEnd > overlapStart) {
-                        const morningHours = (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60);
-                        return sum + morningHours;
-                      }
-                    } catch (error) {
-                      console.warn('Error calculating morning hours:', error);
-                    }
+                  if (wageSettings && entry.clock_in_time && entry.clock_out_time) {
+                    const shiftStart = timeToMinutes(entry.clock_in_time);
+                    let shiftEnd = timeToMinutes(entry.clock_out_time);
+                    if (shiftEnd < shiftStart) shiftEnd += 24 * 60;
+                    const morningStart = timeToMinutes(wageSettings.morning_start_time || '08:00:00');
+                    const morningEnd = timeToMinutes(wageSettings.morning_end_time || '17:00:00');
+                    const minutes = overlapMinutes(shiftStart, shiftEnd, morningStart, morningEnd);
+                    return sum + minutes / 60;
                   }
                   return sum;
                 }, 0);
 
                 const totalNightHours = timesheets.reduce((sum, entry) => {
-                  // Use stored night_hours if available and greater than 0
                   if (entry.night_hours && entry.night_hours > 0) {
                     return sum + entry.night_hours;
                   }
-                  
-                  // Calculate from time periods - simplified calculation for admin view
-                  if (entry.clock_in_time && entry.clock_out_time && entry.clock_in_date) {
-                    try {
-                      const clockInTime = entry.clock_in_time.includes('.') 
-                        ? entry.clock_in_time.split('.')[0] 
-                        : entry.clock_in_time;
-                      const clockOutTime = entry.clock_out_time.includes('.') 
-                        ? entry.clock_out_time.split('.')[0] 
-                        : entry.clock_out_time;
-                      
-                      const clockInDateTime = new Date(`${entry.clock_in_date}T${clockInTime}`);
-                      const clockOutDateTime = new Date(`${entry.clock_out_date || entry.clock_in_date}T${clockOutTime}`);
-                      
-                      // Handle overnight shifts
-                      if (clockOutDateTime < clockInDateTime) {
-                        clockOutDateTime.setDate(clockOutDateTime.getDate() + 1);
-                      }
-                      
-                      // Night hours: 17:00 - 01:00 next day
-                      const nightStart = new Date(entry.clock_in_date);
-                      nightStart.setHours(17, 0, 0, 0);
-                      const nightEnd = new Date(entry.clock_in_date);
-                      nightEnd.setDate(nightEnd.getDate() + 1);
-                      nightEnd.setHours(1, 0, 0, 0);
-                      
-                      const overlapStart = new Date(Math.max(clockInDateTime.getTime(), nightStart.getTime()));
-                      const overlapEnd = new Date(Math.min(clockOutDateTime.getTime(), nightEnd.getTime()));
-                      
-                      if (overlapEnd > overlapStart) {
-                        const nightHours = (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60);
-                        return sum + nightHours;
-                      }
-                    } catch (error) {
-                      console.warn('Error calculating night hours:', error);
-                    }
+                  if (wageSettings && entry.clock_in_time && entry.clock_out_time) {
+                    const shiftStart = timeToMinutes(entry.clock_in_time);
+                    let shiftEnd = timeToMinutes(entry.clock_out_time);
+                    if (shiftEnd < shiftStart) shiftEnd += 24 * 60;
+                    const nightStart = timeToMinutes(wageSettings.night_start_time || '17:00:00');
+                    let nightEnd = timeToMinutes(wageSettings.night_end_time || '01:00:00');
+                    if (nightEnd < nightStart) nightEnd += 24 * 60;
+                    const minutes = overlapMinutes(shiftStart, shiftEnd, nightStart, nightEnd);
+                    return sum + minutes / 60;
                   }
                   return sum;
                 }, 0);
+
+                const unassignedHours = Math.max(0, totalHours - (totalMorningHours + totalNightHours));
                 
                 // Calculate percentages
                 const morningPercentage = totalHours > 0 ? (totalMorningHours / totalHours) * 100 : 0;
@@ -442,6 +429,15 @@ const TimesheetsPage: React.FC = () => {
                         {nightPercentage.toFixed(1)}% of total
                       </div>
                     </div>
+
+                    {/* Unassigned Hours (if any) */}
+                    {unassignedHours > 0 && (
+                      <div className="bg-card border rounded-lg p-3 sm:p-4">
+                        <div className="text-xs sm:text-sm text-muted-foreground mb-1">Unassigned Hours</div>
+                        <div className="text-lg sm:text-2xl font-bold">{unassignedHours.toFixed(1)}h</div>
+                        <div className="text-xs text-muted-foreground">Outside morning/night or missing times</div>
+                      </div>
+                    )}
                   </>
                 );
               })()}
