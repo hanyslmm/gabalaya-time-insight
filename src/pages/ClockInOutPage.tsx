@@ -277,14 +277,27 @@ const ClockInOutPage: React.FC = () => {
         orQuery += `,employee_id.eq.${employeeId}`;
       }
       
-      const { data, error } = await supabase
+      // Fetch today's entries for the history list
+      const todayPromise = supabase
         .from('timesheet_entries')
         .select('*')
         .or(orQuery)
         .eq('clock_in_date', today)
         .order('clock_in_time', { ascending: false });
 
-      if (error) {
+      // Also fetch the latest active entry regardless of date to avoid timezone-date mismatches
+      const activePromise = supabase
+        .from('timesheet_entries')
+        .select('*')
+        .or(orQuery)
+        .is('clock_out_time', null)
+        .order('clock_in_date', { ascending: false })
+        .order('clock_in_time', { ascending: false })
+        .limit(1);
+
+      const [{ data, error }, { data: activeData, error: activeError }] = await Promise.all([todayPromise, activePromise]);
+
+      if (error || activeError) {
         console.warn("Could not fetch today's entries:", error);
         setInitializationError("Could not fetch today's entries. Please refresh the page.");
         return;
@@ -292,16 +305,13 @@ const ClockInOutPage: React.FC = () => {
 
       console.log('fetchTodayEntries: Found', data?.length || 0, 'entries');
       setTodayEntries(data || []);
-      
-      // Find the most recent entry without clock_out_time (active entry)
-      // Improved logic: entry without clock_out_time (null, undefined, or empty string)
-      const activeEntry = data?.find(entry => 
-        entry.clock_out_time === null || 
-        entry.clock_out_time === undefined ||
-        entry.clock_out_time === ''
-      ) || null;
+
+      // Prefer active entry from activePromise (covers UTC date issues)
+      const activeEntry = (activeData && activeData.length > 0)
+        ? activeData[0]
+        : (data?.find(entry => entry.clock_out_time === null || entry.clock_out_time === undefined || entry.clock_out_time === '') || null);
       console.log('fetchTodayEntries: Active entry:', activeEntry?.id || 'none');
-      setCurrentEntry(activeEntry);
+      setCurrentEntry(activeEntry || null);
       
     } catch (error) {
       console.error("fetchTodayEntries: Error fetching today's entries:", error);
