@@ -67,51 +67,98 @@ const TimesheetsPage: React.FC = () => {
     queryKey: ['timesheets', dateRange, selectedEmployee, (user as any)?.current_organization_id || user?.organization_id],
     queryFn: async () => {
       try {
-        // Build query with filters
-        let query = supabase
+        const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
+
+        // Helpers for date filters
+        const applyDateFilter = (q: any) => {
+          if (dateRange?.from && dateRange?.to) {
+            return q
+              .gte('clock_in_date', dateRange.from.toISOString().split('T')[0])
+              .lte('clock_in_date', dateRange.to.toISOString().split('T')[0]);
+          }
+          return q;
+        };
+
+        // Build employee matching for legacy rows (organization_id is null)
+        const allEmployeeIds = employees?.map(e => e.id) || [];
+        const allStaffIds = employees?.map(e => e.staff_id).filter(Boolean) || [];
+        const allNames = employees?.map(e => e.full_name).filter(Boolean) || [];
+
+        // Query A: strictly current organization
+        let queryOrg = supabase
           .from('timesheet_entries')
           .select('*');
-
-        const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
         if (activeOrganizationId) {
-          // Strict isolation: only current organization
-          query = query.eq('organization_id', activeOrganizationId);
+          queryOrg = queryOrg.eq('organization_id', activeOrganizationId);
         }
+        queryOrg = applyDateFilter(queryOrg);
 
-        // Apply date range filter
-        if (dateRange?.from && dateRange?.to) {
-          query = query
-            .gte('clock_in_date', dateRange.from.toISOString().split('T')[0])
-            .lte('clock_in_date', dateRange.to.toISOString().split('T')[0]);
-        }
-
-        // Apply employee filter
+        // Apply selected employee filter to Query A
         if (selectedEmployee && selectedEmployee !== 'all') {
-          // Get the selected employee's details for proper filtering
-                  const selectedEmp = employees?.find(emp => emp.id === selectedEmployee);
-        
-        if (selectedEmp) {
-            // Build OR conditions to match various ways employee data might be stored
+          const selectedEmp = employees?.find(emp => emp.id === selectedEmployee);
+          if (selectedEmp) {
             const conditions = [
-              `employee_id.eq.${selectedEmployee}`, // Match by UUID
-              `employee_name.eq.${selectedEmp.staff_id}`, // Match by staff_id (like EMP085382)
-              `employee_name.eq.${selectedEmp.full_name}` // Match by full name (like Donia Amal)
+              `employee_id.eq.${selectedEmployee}`,
+              `employee_name.eq.${selectedEmp.staff_id}`,
+              `employee_name.eq.${selectedEmp.full_name}`
             ];
-            
-            query = query.or(conditions.join(','));
-          } else {
+            queryOrg = queryOrg.or(conditions.join(','));
           }
         }
 
-        // Execute query
-        const { data: timesheetData, error: timesheetError } = await query.order('clock_in_date', { ascending: false }).limit(500);
-        
-        if (timesheetError) {
-          throw timesheetError;
+        // Query B: legacy rows with null organization, but belonging to employees in this org
+        let queryLegacy = supabase
+          .from('timesheet_entries')
+          .select('*')
+          .is('organization_id', null);
+        queryLegacy = applyDateFilter(queryLegacy);
+
+        if (selectedEmployee && selectedEmployee !== 'all') {
+          const selectedEmp = employees?.find(emp => emp.id === selectedEmployee);
+          if (selectedEmp) {
+            const legacyConditions = [
+              `employee_id.eq.${selectedEmployee}`,
+              `employee_name.eq.${selectedEmp.staff_id}`,
+              `employee_name.eq.${selectedEmp.full_name}`
+            ];
+            queryLegacy = queryLegacy.or(legacyConditions.join(','));
+          } else {
+            // If not found, ensure no legacy matches
+            queryLegacy = queryLegacy.eq('employee_id', '00000000-0000-0000-0000-000000000000');
+          }
+        } else {
+          // All employees in current org
+          if (allEmployeeIds.length > 0) {
+            queryLegacy = queryLegacy.in('employee_id', allEmployeeIds);
+          } else if (allStaffIds.length > 0 || allNames.length > 0) {
+            // Fallback matching by names/staff ids
+            const orParts: string[] = [];
+            if (allStaffIds.length > 0) {
+              const staffVals = allStaffIds.map((v: string) => `"${v}"`).join(',');
+              orParts.push(`employee_name.in.(${staffVals})`);
+            }
+            if (allNames.length > 0) {
+              const nameVals = allNames.map((v: string) => `"${v}"`).join(',');
+              orParts.push(`employee_name.in.(${nameVals})`);
+            }
+            if (orParts.length > 0) {
+              queryLegacy = queryLegacy.or(orParts.join(','));
+            }
+          }
         }
 
-        return timesheetData || [];
-        
+        const [resOrg, resLegacy] = await Promise.all([
+          queryOrg.order('clock_in_date', { ascending: false }).limit(500),
+          queryLegacy.order('clock_in_date', { ascending: false }).limit(500)
+        ]);
+
+        if (resOrg.error) throw resOrg.error;
+        if (resLegacy.error) throw resLegacy.error;
+
+        const combined = [...(resOrg.data || []), ...(resLegacy.data || [])];
+        // Sort and cap to 500 combined
+        combined.sort((a, b) => (a.clock_in_date < b.clock_in_date ? 1 : -1));
+        return combined.slice(0, 500);
       } catch (error) {
         throw error;
       }
@@ -132,13 +179,10 @@ const TimesheetsPage: React.FC = () => {
 
   const clearAllFilters = useCallback(() => {
     setSelectedEmployee('all');
-    const today = new Date();
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(today.getDate() - 30);
-    setDateRange({ from: thirtyDaysAgo, to: today });
+    setDateRange(computeCurrentPayPeriod(payPeriodEndDay));
     setSelectedRows([]);
     toast.success('All filters cleared');
-  }, []);
+  }, [payPeriodEndDay]);
 
   const handleRefresh = useCallback(() => {
     refetch();
