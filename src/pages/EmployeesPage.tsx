@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -91,11 +91,16 @@ const EmployeesPage: React.FC = () => {
 
   const deleteEmployeeMutation = useMutation({
     mutationFn: async (employee: Employee) => {
-      // Only allow deleting regular employees, not admin users
+      // Allow deleting both regular employees and admin users
       if (employee.is_admin_user) {
-        throw new Error('Cannot delete admin users from employee management');
+        const { error } = await supabase
+          .from('admin_users')
+          .delete()
+          .eq('id', employee.id);
+        if (error) throw error;
+        return;
       }
-      
+
       const { error } = await supabase
         .from('employees')
         .delete()
@@ -112,7 +117,25 @@ const EmployeesPage: React.FC = () => {
     }
   });
 
-  const filteredEmployees = employees?.filter(employee =>
+  // Unified list: regular employees + admin users in a single view
+  const unifiedEmployees: Employee[] = useMemo(() => {
+    const regular = (employees || []) as Employee[];
+    const adminsProjected: Employee[] = (adminUsers || []).map((admin: any) => ({
+      id: admin.id,
+      staff_id: admin.username,
+      full_name: admin.full_name || admin.username,
+      role: admin.role,
+      hiring_date: admin.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+      email: undefined,
+      phone_number: undefined,
+      morning_wage_rate: undefined,
+      night_wage_rate: undefined,
+      is_admin_user: true
+    }));
+    return [...regular, ...adminsProjected];
+  }, [employees, adminUsers]);
+
+  const filteredEmployees = unifiedEmployees?.filter(employee =>
     employee.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     employee.staff_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
     employee.role.toLowerCase().includes(searchTerm.toLowerCase())
@@ -129,12 +152,6 @@ const EmployeesPage: React.FC = () => {
   };
 
   const handleDelete = (employee: Employee) => {
-    // Don't allow deleting admin users
-    if (employee.is_admin_user) {
-      toast.error('Cannot delete admin users from employee management');
-      return;
-    }
-    
     if (window.confirm(`Are you sure you want to delete ${employee.full_name}?`)) {
       deleteEmployeeMutation.mutate(employee);
     }
@@ -187,70 +204,7 @@ const EmployeesPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Admin Users Section - Only visible to owners/global owners */}
-      {(user?.role === 'owner' || (user as any)?.is_global_owner) && adminUsers && adminUsers.length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4 text-gray-900">Admin Users</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {adminUsers.map((admin) => (
-              <Card key={admin.id} className="hover:shadow-lg transition-all duration-300">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex justify-between items-start">
-                    <div>
-                      <h3 className="text-lg font-semibold text-foreground">
-                        {admin.full_name || admin.username}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">{admin.username}</p>
-                      <div className="flex items-center mt-2 space-x-2">
-                        <Lock className="h-4 w-4 text-blue-600" />
-                        <span className="text-xs font-semibold text-blue-600 capitalize">{admin.role}</span>
-                        {admin.is_global_owner && (
-                          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Global Owner</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setRoleChangeAdmin(admin)}
-                        className="text-green-600 hover:text-green-800"
-                        title="Change Role"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleChangePassword({
-                          id: admin.id,
-                          staff_id: admin.username,
-                          full_name: admin.full_name || admin.username,
-                          role: admin.role,
-                          hiring_date: admin.created_at?.split('T')[0] || '',
-                          is_admin_user: true
-                        })}
-                        className="text-blue-600 hover:text-blue-800"
-                        title="Change Password"
-                      >
-                        <Lock className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 text-sm text-muted-foreground">
-                    <p><strong>Created:</strong> {new Date(admin.created_at).toLocaleDateString()}</p>
-                    <p><strong>Last Updated:</strong> {new Date(admin.updated_at).toLocaleDateString()}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <h2 className="text-xl font-semibold mb-4 text-gray-900">Regular Employees</h2>
+      <h2 className="text-xl font-semibold mb-4 text-gray-900">All Users</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         {filteredEmployees.map((employee) => (
@@ -262,7 +216,7 @@ const EmployeesPage: React.FC = () => {
                     {employee.full_name}
                   </h3>
                   <p className="text-fluid-sm text-muted-foreground">{employee.staff_id}</p>
-                  {employee.role === 'admin' && (
+                  {employee.is_admin_user && (
                     <div className="flex items-center mt-2 space-x-2">
                       <Lock className="h-4 w-4 text-destructive" />
                       <span className="text-xs font-semibold text-destructive">Administrator Account</span>
@@ -279,65 +233,40 @@ const EmployeesPage: React.FC = () => {
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
-                  {employee.role === 'admin' ? (
+                  {!employee.is_admin_user && (
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleChangePassword(employee)}
-                      title="Change Password"
+                      onClick={() => handleSetWageRates(employee)}
+                      title="Set Wage Rates"
                       className="h-8 w-8 p-0"
                     >
-                      <Lock className="h-4 w-4" />
+                      <DollarSign className="h-4 w-4" />
                     </Button>
-                  ) : (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleSetWageRates(employee)}
-                        title="Set Wage Rates"
-                        className="h-8 w-8 p-0"
-                      >
-                        <DollarSign className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(employee)}
-                        className="text-destructive hover:text-destructive/80 h-8 w-8 p-0"
-                        title="Delete"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </>
                   )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleChangePassword(employee)}
+                    title="Change Password"
+                    className="h-8 w-8 p-0"
+                  >
+                    <Lock className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDelete(employee)}
+                    className="text-destructive hover:text-destructive/80 h-8 w-8 p-0"
+                    title="Delete"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {employee.role === 'admin' ? (
-                <div className="space-y-3">
-                  <div className="bg-gradient-to-r from-destructive/10 to-warning/10 p-3 rounded-lg border border-destructive/20">
-                    <p className="text-fluid-sm text-destructive/80">Full system access with password management</p>
-                  </div>
-                  
-                  <div className="space-y-2 text-fluid-sm">
-                    <div className="flex justify-between">
-                      <span className="font-medium text-muted-foreground">Username:</span>
-                      <span className="text-foreground font-medium">{employee.staff_id}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium text-muted-foreground">{t('role')}:</span>
-                      <span className="text-destructive font-semibold">{employee.role}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium text-muted-foreground">Created:</span>
-                      <span className="text-foreground">{new Date(employee.hiring_date).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
+              <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-2">
                     <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-3 rounded-lg border border-primary/20">
                       <p className="text-xs font-medium text-primary uppercase tracking-wide">Morning Rate</p>
@@ -383,7 +312,6 @@ const EmployeesPage: React.FC = () => {
                     View Statistics
                   </Button>
                 </div>
-              )}
             </CardContent>
           </Card>
         ))}
