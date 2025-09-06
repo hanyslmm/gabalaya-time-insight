@@ -133,12 +133,12 @@ Deno.serve(async (req) => {
         // Simple password check - no bcrypt for now to avoid issues
         isValidPassword = password === user.password_hash;
       } else if (user.role === 'employee') {
-        // Special case for specific user EMP085382 - uses different format
-        if (username === 'EMP085382') {
-          const expectedPassword = `${username}123`;
-          isValidPassword = password === expectedPassword;
+        // Check if password was changed by admin (stored in password_hash)
+        if (user.password_hash && !user.password_hash.endsWith('123')) {
+          // Custom password set by admin
+          isValidPassword = password === user.password_hash;
         } else {
-          // Standard format: username + "123"
+          // Default format: username + "123"
           const expectedPassword = `${username}123`;
           isValidPassword = password === expectedPassword;
         }

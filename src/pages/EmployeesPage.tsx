@@ -23,6 +23,7 @@ interface Employee {
   phone_number?: string;
   morning_wage_rate?: number;
   night_wage_rate?: number;
+  is_admin_user?: boolean;
 }
 
 const EmployeesPage: React.FC = () => {
@@ -55,6 +56,19 @@ const EmployeesPage: React.FC = () => {
       
       if (employeeError) throw employeeError;
 
+      // Only return regular employees - don't mix admin users with employees
+      return (employeeData || []).map((emp: any) => ({
+        ...emp,
+        is_admin_user: false
+      })) as (Employee & { is_admin_user?: boolean })[];
+    }
+  });
+
+  const { data: adminUsers } = useQuery({
+    queryKey: ['admin-users', (user as any)?.current_organization_id || user?.organization_id],
+    queryFn: async () => {
+      const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
+
       // Fetch admin users
       let adminQuery = supabase
         .from('admin_users')
@@ -69,30 +83,14 @@ const EmployeesPage: React.FC = () => {
       
       if (adminError) throw adminError;
 
-      // Combine and format data - admin users as special employees
-      const combinedData = [
-        ...(employeeData || []),
-        ...(adminData || []).map(admin => ({
-          id: admin.id,
-          staff_id: admin.username,
-          full_name: admin.full_name || admin.username,
-          role: 'admin',
-          hiring_date: admin.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
-          email: null,
-          phone_number: null,
-          morning_wage_rate: null,
-          night_wage_rate: null,
-          is_admin_user: true // Flag to identify admin users
-        }))
-      ];
-
-      return combinedData as (Employee & { is_admin_user?: boolean })[];
+      return adminData || [];
     }
   });
 
   const deleteEmployeeMutation = useMutation({
     mutationFn: async (employee: Employee) => {
-      if (employee.role === 'admin') {
+      // Only allow deleting regular employees, not admin users
+      if (employee.is_admin_user) {
         throw new Error('Cannot delete admin users from employee management');
       }
       
@@ -119,13 +117,19 @@ const EmployeesPage: React.FC = () => {
   ) || [];
 
   const handleEdit = (employee: Employee) => {
+    // Don't allow editing admin users through employee form
+    if (employee.is_admin_user) {
+      toast.error('Admin users should be managed through the admin panel');
+      return;
+    }
     setEditingEmployee(employee);
     setShowForm(true);
   };
 
   const handleDelete = (employee: Employee) => {
-    if (employee.role === 'admin') {
-      toast.error('Admin users cannot be deleted from employee management');
+    // Don't allow deleting admin users
+    if (employee.is_admin_user) {
+      toast.error('Cannot delete admin users from employee management');
       return;
     }
     
@@ -180,6 +184,61 @@ const EmployeesPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Admin Users Section - Only visible to owners/global owners */}
+      {(user?.role === 'owner' || (user as any)?.is_global_owner) && adminUsers && adminUsers.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold mb-4 text-gray-900">Admin Users</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {adminUsers.map((admin) => (
+              <Card key={admin.id} className="hover:shadow-lg transition-all duration-300">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex justify-between items-start">
+                    <div>
+                      <h3 className="text-lg font-semibold text-foreground">
+                        {admin.full_name || admin.username}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">{admin.username}</p>
+                      <div className="flex items-center mt-2 space-x-2">
+                        <Lock className="h-4 w-4 text-blue-600" />
+                        <span className="text-xs font-semibold text-blue-600 capitalize">{admin.role}</span>
+                        {admin.is_global_owner && (
+                          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Global Owner</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleChangePassword({
+                          id: admin.id,
+                          staff_id: admin.username,
+                          full_name: admin.full_name || admin.username,
+                          role: admin.role,
+                          hiring_date: admin.created_at?.split('T')[0] || '',
+                          is_admin_user: true
+                        })}
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        <Lock className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    <p><strong>Created:</strong> {new Date(admin.created_at).toLocaleDateString()}</p>
+                    <p><strong>Last Updated:</strong> {new Date(admin.updated_at).toLocaleDateString()}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <h2 className="text-xl font-semibold mb-4 text-gray-900">Regular Employees</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         {filteredEmployees.map((employee) => (
