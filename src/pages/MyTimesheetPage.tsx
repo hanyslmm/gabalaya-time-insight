@@ -320,12 +320,42 @@ const MyTimesheetPage: React.FC = () => {
 
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
 
+  // Helper to resolve wage settings with safe defaults
+  const getResolvedWageSettings = async () => {
+    if (wageSettings) return wageSettings as any;
+    try {
+      const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
+      if (activeOrganizationId) {
+        const { data: orgSettings } = await supabase
+          .from('wage_settings')
+          .select('*')
+          .eq('organization_id', activeOrganizationId)
+          .maybeSingle();
+        if (orgSettings) return orgSettings as any;
+      }
+      const { data: globalSettings } = await supabase
+        .from('wage_settings')
+        .select('*')
+        .is('organization_id', null)
+        .maybeSingle();
+      if (globalSettings) return globalSettings as any;
+    } catch {}
+    // Defaults
+    return {
+      morning_start_time: '08:00:00',
+      morning_end_time: '17:00:00',
+      night_start_time: '17:00:00',
+      night_end_time: '01:00:00',
+    } as any;
+  };
+
   // Auto-calculate missing morning/night hours once data is available
   useEffect(() => {
     let cancelled = false;
     const autoCalculate = async () => {
       try {
-        if (!wageSettings || !timesheetData || timesheetData.length === 0) return;
+        if (!timesheetData || timesheetData.length === 0) return;
+        const ws = await getResolvedWageSettings();
         const entriesToUpdate = timesheetData.filter(entry =>
           entry.clock_out_time &&
           ((entry.morning_hours === 0 || entry.morning_hours === null) &&
@@ -338,10 +368,10 @@ const MyTimesheetPage: React.FC = () => {
           let shiftEnd = timeToMinutes(entry.clock_out_time!);
           if (shiftEnd < shiftStart) shiftEnd += 24 * 60;
 
-          const morningStart = timeToMinutes(wageSettings.morning_start_time || '08:00:00');
-          const morningEnd = timeToMinutes(wageSettings.morning_end_time || '17:00:00');
-          const nightStart = timeToMinutes(wageSettings.night_start_time || '17:00:00');
-          let nightEnd = timeToMinutes(wageSettings.night_end_time || '01:00:00');
+          const morningStart = timeToMinutes(ws.morning_start_time || '08:00:00');
+          const morningEnd = timeToMinutes(ws.morning_end_time || '17:00:00');
+          const nightStart = timeToMinutes(ws.night_start_time || '17:00:00');
+          let nightEnd = timeToMinutes(ws.night_end_time || '01:00:00');
           if (nightEnd < nightStart) nightEnd += 24 * 60;
 
           const morningMinutes = overlapMinutes(shiftStart, shiftEnd, morningStart, morningEnd);
@@ -371,9 +401,11 @@ const MyTimesheetPage: React.FC = () => {
   // Mutation to calculate and store missing morning/night hours
   const calculateHoursMutation = useMutation({
     mutationFn: async () => {
-      if (!wageSettings || !timesheetData) {
-        throw new Error('Missing wage settings or timesheet data');
+      if (!timesheetData) {
+        throw new Error('No timesheet data');
       }
+
+      const ws = await getResolvedWageSettings();
 
       const entriesToUpdate = timesheetData.filter(entry => 
         entry.clock_out_time && 
@@ -390,10 +422,10 @@ const MyTimesheetPage: React.FC = () => {
         let shiftEnd = timeToMinutes(entry.clock_out_time!);
         if (shiftEnd < shiftStart) shiftEnd += 24 * 60;
 
-        const morningStart = timeToMinutes(wageSettings.morning_start_time || '08:00:00');
-        const morningEnd = timeToMinutes(wageSettings.morning_end_time || '17:00:00');
-        const nightStart = timeToMinutes(wageSettings.night_start_time || '17:00:00');
-        let nightEnd = timeToMinutes(wageSettings.night_end_time || '01:00:00');
+        const morningStart = timeToMinutes(ws.morning_start_time || '08:00:00');
+        const morningEnd = timeToMinutes(ws.morning_end_time || '17:00:00');
+        const nightStart = timeToMinutes(ws.night_start_time || '17:00:00');
+        let nightEnd = timeToMinutes(ws.night_end_time || '01:00:00');
         if (nightEnd < nightStart) nightEnd += 24 * 60;
 
         const morningMinutes = overlapMinutes(shiftStart, shiftEnd, morningStart, morningEnd);
