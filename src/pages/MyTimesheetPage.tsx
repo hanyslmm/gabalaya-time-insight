@@ -327,11 +327,16 @@ const MyTimesheetPage: React.FC = () => {
         throw new Error('Missing wage settings or timesheet data');
       }
 
+      console.log('Wage settings:', wageSettings);
+      console.log('Timesheet data:', timesheetData);
+
       const entriesToUpdate = timesheetData.filter(entry => 
         entry.clock_out_time && 
         (entry.morning_hours === 0 || entry.morning_hours === null) && 
         (entry.night_hours === 0 || entry.night_hours === null)
       );
+
+      console.log('Entries to update:', entriesToUpdate.length);
 
       if (entriesToUpdate.length === 0) {
         throw new Error('No entries need calculation');
@@ -351,6 +356,8 @@ const MyTimesheetPage: React.FC = () => {
         const morningMinutes = overlapMinutes(shiftStart, shiftEnd, morningStart, morningEnd);
         const nightMinutes = overlapMinutes(shiftStart, shiftEnd, nightStart, nightEnd);
 
+        console.log(`Entry ${entry.id}: shift ${shiftStart}-${shiftEnd}, morning ${morningStart}-${morningEnd} = ${morningMinutes}min, night ${nightStart}-${nightEnd} = ${nightMinutes}min`);
+
         const { error } = await supabase
           .from('timesheet_entries')
           .update({
@@ -362,6 +369,7 @@ const MyTimesheetPage: React.FC = () => {
 
         if (error) {
           console.error(`Failed to update entry ${entry.id}:`, error);
+          throw error;
         }
       }
 

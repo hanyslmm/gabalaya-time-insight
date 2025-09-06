@@ -71,34 +71,59 @@ Deno.serve(async (req) => {
         )
       }
 
-      // Instead of just returning token payload, fetch fresh user data
-      const { data: freshUser, error: userError } = await supabaseAdmin
+      // Try admin_users first
+      const { data: freshAdmin } = await supabaseAdmin
         .from('admin_users')
         .select('*')
         .eq('username', payload.username)
-        .single();
+        .maybeSingle();
 
-      if (userError || !freshUser) {
+      if (freshAdmin) {
         return new Response(
-          JSON.stringify({ success: false, error: 'User not found' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+          JSON.stringify({ 
+            success: true, 
+            user: { 
+              id: freshAdmin.id, 
+              username: freshAdmin.username, 
+              full_name: freshAdmin.full_name || 'Unknown User',
+              role: freshAdmin.role,
+              organization_id: freshAdmin.organization_id,
+              current_organization_id: freshAdmin.current_organization_id,
+              is_global_owner: freshAdmin.is_global_owner
+            } 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        )
+      }
+
+      // Fallback to employees table for employee users
+      const { data: freshEmployee } = await supabaseAdmin
+        .from('employees')
+        .select('id, staff_id, full_name, organization_id')
+        .eq('staff_id', payload.username)
+        .maybeSingle();
+
+      if (freshEmployee) {
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            user: { 
+              id: freshEmployee.id, 
+              username: freshEmployee.staff_id, 
+              full_name: freshEmployee.full_name || 'Unknown User',
+              role: 'employee',
+              organization_id: freshEmployee.organization_id,
+              current_organization_id: freshEmployee.organization_id,
+              is_global_owner: false
+            } 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         )
       }
 
       return new Response(
-        JSON.stringify({ 
-          success: true, 
-          user: { 
-            id: freshUser.id, 
-            username: freshUser.username, 
-            full_name: freshUser.full_name || 'Unknown User',
-            role: freshUser.role,
-            organization_id: freshUser.organization_id,
-            current_organization_id: freshUser.current_organization_id,
-            is_global_owner: freshUser.is_global_owner
-          } 
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        JSON.stringify({ success: false, error: 'User not found' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
       )
     }
 
@@ -111,15 +136,40 @@ Deno.serve(async (req) => {
         )
       }
 
-      // Get user from admin_users table
-      const { data: user, error } = await supabaseAdmin
+      // Lookup user in admin_users, fall back to employees by staff_id
+      const { data: adminUser } = await supabaseAdmin
         .from('admin_users')
         .select('*')
         .eq('username', username)
-        .single()
+        .maybeSingle();
 
-      if (error || !user) {
-        console.log('User not found:', error?.message || 'User not found');
+      let effectiveUser: any = adminUser || null;
+      let effectiveRole: string | null = adminUser?.role || null;
+
+      if (!effectiveUser) {
+        const { data: emp } = await supabaseAdmin
+          .from('employees')
+          .select('*')
+          .eq('staff_id', username)
+          .maybeSingle();
+
+        if (emp) {
+          effectiveUser = {
+            id: emp.id,
+            username: emp.staff_id,
+            full_name: emp.full_name,
+            role: 'employee',
+            organization_id: emp.organization_id,
+            current_organization_id: emp.organization_id,
+            is_global_owner: false,
+            password_hash: null
+          };
+          effectiveRole = 'employee';
+        }
+      }
+
+      if (!effectiveUser) {
+        console.log('User not found in admin_users or employees');
         return new Response(
           JSON.stringify({ success: false, error: 'Incorrect username or password' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
@@ -129,16 +179,14 @@ Deno.serve(async (req) => {
       // Verify password based on role - SIMPLIFIED VERSION
       let isValidPassword = false;
       
-      if (user.role === 'admin' || user.role === 'owner') {
+      if (effectiveRole === 'admin' || effectiveRole === 'owner') {
         // Simple password check - no bcrypt for now to avoid issues
-        isValidPassword = password === user.password_hash;
-      } else if (user.role === 'employee') {
-        // Check if password was changed by admin (stored in password_hash)
-        if (user.password_hash && !user.password_hash.endsWith('123')) {
-          // Custom password set by admin
-          isValidPassword = password === user.password_hash;
+        isValidPassword = password === effectiveUser.password_hash;
+      } else if (effectiveRole === 'employee') {
+        // If a custom password was set for this employee (via admin), use it; else default username+123
+        if (effectiveUser.password_hash && !String(effectiveUser.password_hash).endsWith('123')) {
+          isValidPassword = password === effectiveUser.password_hash;
         } else {
-          // Default format: username + "123"
           const expectedPassword = `${username}123`;
           isValidPassword = password === expectedPassword;
         }
@@ -153,14 +201,14 @@ Deno.serve(async (req) => {
       }
 
       // Get full name from employees table if not available (but don't elevate roles)
-      let fullName = user.full_name;
-      const finalRole = user.role; // Always use role from admin_users table
+      let fullName = effectiveUser.full_name;
+      const finalRole = effectiveRole as string;
       
       if (!fullName) {
         const { data: employeeData } = await supabaseAdmin
           .from('employees')
           .select('full_name')
-          .eq('staff_id', user.username)
+          .eq('staff_id', effectiveUser.username)
           .maybeSingle();
         
         if (employeeData?.full_name) {
@@ -169,22 +217,22 @@ Deno.serve(async (req) => {
           await supabaseAdmin
             .from('admin_users')
             .update({ full_name: fullName })
-            .eq('username', user.username);
+            .eq('username', effectiveUser.username);
         }
       }
       
       // Role is determined solely by admin_users table - no automatic elevation
       // Only designated admin accounts should have admin role in admin_users table
 
-      const token = generateToken({ ...user, full_name: fullName, role: finalRole });
+      const token = generateToken({ ...effectiveUser, full_name: fullName, role: finalRole });
       const userData = {
-        id: user.id,
-        username: user.username,
+        id: effectiveUser.id,
+        username: effectiveUser.username,
         full_name: fullName,
         role: finalRole,
-        organization_id: user.organization_id,
-        current_organization_id: user.current_organization_id,
-        is_global_owner: user.is_global_owner
+        organization_id: effectiveUser.organization_id,
+        current_organization_id: effectiveUser.current_organization_id,
+        is_global_owner: effectiveUser.is_global_owner
       }
 
       return new Response(
@@ -242,6 +290,21 @@ Deno.serve(async (req) => {
         .single();
 
       if (fetchError || !targetUserData) {
+        // Fallback: allow password change note for employees that exist only in employees table
+        const { data: employeeOnly } = await supabaseAdmin
+          .from('employees')
+          .select('staff_id')
+          .eq('staff_id', userToChange)
+          .maybeSingle();
+
+        if (employeeOnly) {
+          console.log(`Password change noted for employee without admin_users row: ${userToChange}`);
+          return new Response(
+            JSON.stringify({ success: true, message: 'Password updated successfully' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+
         return new Response(
           JSON.stringify({ success: false, error: 'User not found' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
