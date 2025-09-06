@@ -221,8 +221,13 @@ Deno.serve(async (req) => {
         )
       }
 
-      // Check authorization
-      if (payload.role !== 'admin' && payload.username !== userToChange) {
+      // Check authorization - allow admin, owner, or global owner
+      const isAuthorized = payload.role === 'admin' || 
+                          payload.role === 'owner' || 
+                          payload.is_global_owner === true || 
+                          payload.username === userToChange;
+      
+      if (!isAuthorized) {
         return new Response(
           JSON.stringify({ success: false, error: 'Unauthorized' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
