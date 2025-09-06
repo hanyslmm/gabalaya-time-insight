@@ -249,18 +249,20 @@ const ClockInOutPage: React.FC = () => {
       const today = await getTodayInCompanyTimezone();
       console.log('fetchTodayEntries: Today is:', today);
       
-      // First, get the employee record to find the correct employee_id
+      // First, get the employee record to find identifiers (id and staff_id)
       const { data: employeeData } = await supabase
         .from('employees')
         .select('id, staff_id, full_name')
         .or(`staff_id.eq.${user.username},full_name.eq.${user.full_name}`)
         .limit(1);
 
-      // Build user identifiers for timesheet lookup (both by name and by employee_id)
-      const userIdentifiers = [
-        user.username,
-        user.full_name
-      ];
+      // Build identifiers for timesheet lookup (cover staff_id/full_name/username)
+      const userIdentifiers: string[] = [];
+      if (user.username) userIdentifiers.push(user.username);
+      if (user.full_name) userIdentifiers.push(user.full_name);
+      if (employeeData && employeeData.length > 0 && employeeData[0].staff_id) {
+        userIdentifiers.push(employeeData[0].staff_id);
+      }
 
       // Filter out null/undefined values
       const validIdentifiers = userIdentifiers.filter(id => id && id.trim() !== '');
