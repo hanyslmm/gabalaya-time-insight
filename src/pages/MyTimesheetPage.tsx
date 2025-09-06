@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Clock, DollarSign, Calendar, TrendingUp } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Clock, DollarSign, Calendar, TrendingUp, Calculator } from 'lucide-react';
 import MobilePageWrapper, { MobileSection, MobileCard, MobileHeader } from '@/components/MobilePageWrapper';
 import { getCompanyTimezone } from '@/utils/timezoneUtils';
+import { toast } from 'sonner';
 // Simple format function for hours display
 const formatHours = (hours: number) => hours.toFixed(2);
 
 const MyTimesheetPage: React.FC = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [filterType, setFilterType] = useState<'month' | 'payPeriod'>('month');
@@ -243,6 +246,10 @@ const MyTimesheetPage: React.FC = () => {
       const morningEnd = timeToMinutes(wageSettings.morning_end_time || '17:00:00');
 
       const minutes = overlapMinutes(shiftStart, shiftEnd, morningStart, morningEnd);
+      console.log('Morning calc for entry:', entry.id, {
+        shiftStart, shiftEnd, morningStart, morningEnd, minutes,
+        wageSettings: wageSettings ? 'loaded' : 'missing'
+      });
       return sum + minutes / 60;
     }
     return sum;
@@ -265,6 +272,10 @@ const MyTimesheetPage: React.FC = () => {
       if (nightEnd < nightStart) nightEnd += 24 * 60; // crosses midnight
 
       const minutes = overlapMinutes(shiftStart, shiftEnd, nightStart, nightEnd);
+      console.log('Night calc for entry:', entry.id, {
+        shiftStart, shiftEnd, nightStart, nightEnd, minutes,
+        wageSettings: wageSettings ? 'loaded' : 'missing'
+      });
       return sum + minutes / 60;
     }
     return sum;
@@ -308,6 +319,62 @@ const MyTimesheetPage: React.FC = () => {
   ];
 
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
+
+  // Mutation to calculate and store missing morning/night hours
+  const calculateHoursMutation = useMutation({
+    mutationFn: async () => {
+      if (!wageSettings || !timesheetData) {
+        throw new Error('Missing wage settings or timesheet data');
+      }
+
+      const entriesToUpdate = timesheetData.filter(entry => 
+        entry.clock_out_time && 
+        (entry.morning_hours === 0 || entry.morning_hours === null) && 
+        (entry.night_hours === 0 || entry.night_hours === null)
+      );
+
+      if (entriesToUpdate.length === 0) {
+        throw new Error('No entries need calculation');
+      }
+
+      for (const entry of entriesToUpdate) {
+        const shiftStart = timeToMinutes(entry.clock_in_time);
+        let shiftEnd = timeToMinutes(entry.clock_out_time!);
+        if (shiftEnd < shiftStart) shiftEnd += 24 * 60;
+
+        const morningStart = timeToMinutes(wageSettings.morning_start_time || '08:00:00');
+        const morningEnd = timeToMinutes(wageSettings.morning_end_time || '17:00:00');
+        const nightStart = timeToMinutes(wageSettings.night_start_time || '17:00:00');
+        let nightEnd = timeToMinutes(wageSettings.night_end_time || '01:00:00');
+        if (nightEnd < nightStart) nightEnd += 24 * 60;
+
+        const morningMinutes = overlapMinutes(shiftStart, shiftEnd, morningStart, morningEnd);
+        const nightMinutes = overlapMinutes(shiftStart, shiftEnd, nightStart, nightEnd);
+
+        const { error } = await supabase
+          .from('timesheet_entries')
+          .update({
+            morning_hours: morningMinutes / 60,
+            night_hours: nightMinutes / 60,
+            is_split_calculation: true
+          })
+          .eq('id', entry.id);
+
+        if (error) {
+          console.error(`Failed to update entry ${entry.id}:`, error);
+        }
+      }
+
+      return entriesToUpdate.length;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ['my-timesheet'] });
+      toast.success(`Calculated hours for ${count} entries!`);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to calculate hours');
+    }
+  });
 
   if (isLoading) {
     return (
@@ -420,6 +487,23 @@ const MyTimesheetPage: React.FC = () => {
             <div className="text-xs text-muted-foreground hidden sm:block">Total</div>
           </div>
         </div>
+
+        {/* Calculate Hours Button */}
+        {timesheetData && timesheetData.some(entry => 
+          entry.clock_out_time && 
+          (entry.morning_hours === 0 || entry.morning_hours === null) && 
+          (entry.night_hours === 0 || entry.night_hours === null)
+        ) && (
+          <Button 
+            onClick={() => calculateHoursMutation.mutate()}
+            disabled={calculateHoursMutation.isPending}
+            className="w-full mt-2"
+            variant="outline"
+          >
+            <Calculator className="h-4 w-4 mr-2" />
+            {calculateHoursMutation.isPending ? 'Calculating...' : 'Calculate Missing Hours'}
+          </Button>
+        )}
       </MobileSection>
 
       <MobileSection>
