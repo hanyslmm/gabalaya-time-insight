@@ -183,9 +183,18 @@ Deno.serve(async (req) => {
         // Simple password check - no bcrypt for now to avoid issues
         isValidPassword = password === effectiveUser.password_hash;
       } else if (effectiveRole === 'employee') {
-        // If a custom password was set for this employee (via admin), use it; else default username+123
-        if (effectiveUser.password_hash && !String(effectiveUser.password_hash).endsWith('123')) {
-          isValidPassword = password === effectiveUser.password_hash;
+        // For employees, check if they have a password_hash set
+        // First check the employees table for password_hash field
+        const { data: empPassword } = await supabaseAdmin
+          .from('employees')
+          .select('password_hash')
+          .eq('staff_id', username)
+          .maybeSingle();
+        
+        const employeePasswordHash = empPassword?.password_hash;
+        
+        if (employeePasswordHash && employeePasswordHash !== null && employeePasswordHash !== '') {
+          isValidPassword = password === employeePasswordHash;
         } else {
           const expectedPassword = `${username}123`;
           isValidPassword = password === expectedPassword;
@@ -193,7 +202,7 @@ Deno.serve(async (req) => {
       }
       
       if (!isValidPassword) {
-        console.log(`Invalid password for user: ${username}, role: ${user.role}`);
+        console.log(`Invalid password for user: ${username}, role: ${effectiveRole}`);
         return new Response(
           JSON.stringify({ success: false, error: 'Incorrect username or password' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }

@@ -48,30 +48,14 @@ const TimesheetsPage: React.FC = () => {
 
   // Load wage settings for accurate split calculations
   const { data: wageSettings } = useQuery({
-    queryKey: ['wage-settings', (user as any)?.current_organization_id || user?.organization_id],
+    queryKey: ['wage-settings'],
     queryFn: async () => {
-      const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
-      if (activeOrganizationId) {
-        const { data: orgSettings } = await supabase
-          .from('wage_settings')
-          .select('*')
-          .eq('organization_id', activeOrganizationId)
-          .maybeSingle();
-        if (orgSettings) return orgSettings as any;
-      }
-      // Fallbacks
-      const { data: globalSettings } = await supabase
-        .from('wage_settings')
-        .select('*')
-        .is('organization_id', null)
-        .maybeSingle();
-      if (globalSettings) return globalSettings as any;
-      const { data: anySettings } = await supabase
+      const { data } = await supabase
         .from('wage_settings')
         .select('*')
         .limit(1)
         .maybeSingle();
-      return anySettings as any;
+      return data;
     }
   });
 
