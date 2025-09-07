@@ -184,32 +184,14 @@ const MyTimesheetPage: React.FC = () => {
   });
 
   const { data: wageSettings } = useQuery({
-    queryKey: ['wage-settings', (user as any)?.current_organization_id || user?.organization_id],
+    queryKey: ['wage-settings'],
     queryFn: async () => {
-      const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
-      // Try organization-specific settings first
-      if (activeOrganizationId) {
-        const { data: orgSettings } = await supabase
-          .from('wage_settings')
-          .select('*')
-          .eq('organization_id', activeOrganizationId)
-          .maybeSingle();
-        if (orgSettings) return orgSettings as any;
-      }
-      // Fallback to global/default row
-      const { data: globalSettings } = await supabase
-        .from('wage_settings')
-        .select('*')
-        .is('organization_id', null)
-        .maybeSingle();
-      if (globalSettings) return globalSettings as any;
-      // Final fallback: any row
-      const { data: anySettings } = await supabase
+      const { data } = await supabase
         .from('wage_settings')
         .select('*')
         .limit(1)
         .maybeSingle();
-      return anySettings as any;
+      return data;
     }
   });
 
@@ -322,31 +304,15 @@ const MyTimesheetPage: React.FC = () => {
 
   // Helper to resolve wage settings with safe defaults
   const getResolvedWageSettings = async () => {
-    if (wageSettings) return wageSettings as any;
-    try {
-      const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
-      if (activeOrganizationId) {
-        const { data: orgSettings } = await supabase
-          .from('wage_settings')
-          .select('*')
-          .eq('organization_id', activeOrganizationId)
-          .maybeSingle();
-        if (orgSettings) return orgSettings as any;
-      }
-      const { data: globalSettings } = await supabase
-        .from('wage_settings')
-        .select('*')
-        .is('organization_id', null)
-        .maybeSingle();
-      if (globalSettings) return globalSettings as any;
-    } catch {}
-    // Defaults
+    if (wageSettings) return wageSettings;
+    
+    // Return safe defaults if no wage settings
     return {
       morning_start_time: '08:00:00',
       morning_end_time: '17:00:00',
       night_start_time: '17:00:00',
       night_end_time: '01:00:00',
-    } as any;
+    };
   };
 
   // Auto-calculate missing morning/night hours once data is available

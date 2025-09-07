@@ -56,16 +56,22 @@ const ReportsPage: React.FC = () => {
   // Get wage settings for calculations (scoped to org with fallback)
   const { data: wageSettings, isLoading: wageLoading } = useQuery({
     queryKey: ['wage-settings', activeOrganizationId],
-    enabled: !!activeOrganizationId,
     queryFn: async () => {
-      // Try org-specific first
-      const { data: orgSettings } = await (supabase as any)
-        .from('wage_settings')
-        .select('*')
-        .eq('organization_id', activeOrganizationId)
-        .maybeSingle();
+      console.log('Fetching wage settings for organization:', activeOrganizationId);
+      
+      // Try org-specific first if user has organization
+      if (activeOrganizationId) {
+        const { data: orgSettings } = await (supabase as any)
+          .from('wage_settings')
+          .select('*')
+          .eq('organization_id', activeOrganizationId)
+          .maybeSingle();
 
-      if (orgSettings) return orgSettings;
+        if (orgSettings) {
+          console.log('Found org-specific wage settings');
+          return orgSettings;
+        }
+      }
 
       // Fallback to a global row (organization_id IS NULL) or any single row
       const { data: globalSettings } = await (supabase as any)
@@ -74,7 +80,10 @@ const ReportsPage: React.FC = () => {
         .is('organization_id', null)
         .maybeSingle();
 
-      if (globalSettings) return globalSettings;
+      if (globalSettings) {
+        console.log('Found global wage settings');
+        return globalSettings;
+      }
 
       // As last resort, pick first available row
       const { data: anySettings } = await (supabase as any)
@@ -83,9 +92,13 @@ const ReportsPage: React.FC = () => {
         .limit(1)
         .maybeSingle();
 
-      if (anySettings) return anySettings;
+      if (anySettings) {
+        console.log('Found fallback wage settings');
+        return anySettings;
+      }
 
       // Final safe defaults if nothing in DB or access denied
+      console.log('Using default wage settings');
       return {
         morning_start_time: '08:00:00',
         morning_end_time: '17:00:00',
@@ -106,6 +119,8 @@ const ReportsPage: React.FC = () => {
         const fromDate = format(dateRange.from, 'yyyy-MM-dd');
         const toDate = format(dateRange.to, 'yyyy-MM-dd');
         
+        console.log('Fetching timesheet data:', { fromDate, toDate, activeOrganizationId });
+        
         let query = supabase
           .from('timesheet_entries')
           .select('*')
@@ -113,6 +128,7 @@ const ReportsPage: React.FC = () => {
           .lte('clock_in_date', toDate)
           .order('clock_in_date', { ascending: false });
 
+        // Only filter by organization if user has one assigned
         if (activeOrganizationId) {
           query = query.eq('organization_id', activeOrganizationId);
         }
@@ -120,31 +136,42 @@ const ReportsPage: React.FC = () => {
         const { data, error } = await query;
         
         if (error) {
+          console.error('Timesheet query error:', error);
           throw error;
         }
         
-        
+        console.log('Fetched timesheet data:', data?.length, 'entries');
         return data || [];
       } catch (error) {
+        console.error('Failed to fetch timesheet data:', error);
         throw error;
       }
     },
-    enabled: !!(dateRange?.from && dateRange?.to && activeOrganizationId)
+    enabled: !!(dateRange?.from && dateRange?.to)
   });
 
   // Get all employees for name mapping
   const { data: employees, isLoading: employeesLoading } = useQuery({
     queryKey: ['employees-for-reports', activeOrganizationId],
-    enabled: !!activeOrganizationId,
     queryFn: async () => {
+      console.log('Fetching employees for reports:', activeOrganizationId);
+      
       let q = supabase
         .from('employees')
         .select('id, staff_id, full_name');
-      if (activeOrganizationId) q = q.eq('organization_id', activeOrganizationId);
+        
+      // Only filter by organization if user has one assigned
+      if (activeOrganizationId) {
+        q = q.eq('organization_id', activeOrganizationId);
+      }
+      
       const { data, error } = await q;
       if (error) {
+        console.error('Employees query error:', error);
         throw error;
       }
+      
+      console.log('Fetched employees:', data?.length, 'employees');
       return data || [];
     }
   });
