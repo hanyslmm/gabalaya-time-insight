@@ -128,20 +128,43 @@ const ReportsPage: React.FC = () => {
           .lte('clock_in_date', toDate)
           .order('clock_in_date', { ascending: false });
 
-        // Only filter by organization if user has one assigned
+        // Try both organization-specific and null organization_id data
         if (activeOrganizationId) {
-          query = query.eq('organization_id', activeOrganizationId);
+          // First try to get organization-specific data
+          const { data: orgData, error: orgError } = await query.eq('organization_id', activeOrganizationId);
+          
+          if (orgError) {
+            console.error('Organization timesheet query error:', orgError);
+          }
+          
+          // If no organization-specific data found, try null organization_id
+          if (!orgData || orgData.length === 0) {
+            console.log('No org-specific data, trying null organization_id');
+            const { data: nullOrgData, error: nullError } = await query.is('organization_id', null);
+            
+            if (nullError) {
+              console.error('Null org timesheet query error:', nullError);
+              throw nullError;
+            }
+            
+            console.log('Fetched null org timesheet data:', nullOrgData?.length, 'entries');
+            return nullOrgData || [];
+          }
+          
+          console.log('Fetched org-specific timesheet data:', orgData?.length, 'entries');
+          return orgData || [];
+        } else {
+          // If no organization assigned, get all data
+          const { data, error } = await query;
+          
+          if (error) {
+            console.error('Timesheet query error:', error);
+            throw error;
+          }
+          
+          console.log('Fetched all timesheet data:', data?.length, 'entries');
+          return data || [];
         }
-
-        const { data, error } = await query;
-        
-        if (error) {
-          console.error('Timesheet query error:', error);
-          throw error;
-        }
-        
-        console.log('Fetched timesheet data:', data?.length, 'entries');
-        return data || [];
       } catch (error) {
         console.error('Failed to fetch timesheet data:', error);
         throw error;
