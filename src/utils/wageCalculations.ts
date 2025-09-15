@@ -82,12 +82,49 @@ export const calculateMorningNightHours = (
     nightHours = (nightOverlapEnd.getTime() - nightOverlapStart.getTime()) / (1000 * 60 * 60);
   }
 
-  // Ensure total hours don't exceed actual worked hours
+  // Handle gaps in coverage - allocate unaccounted hours to appropriate period
   const totalWorkedHours = (clockOutDateTime.getTime() - clockInDateTime.getTime()) / (1000 * 60 * 60);
-  const calculatedTotal = morningHours + nightHours;
+  const accountedHours = morningHours + nightHours;
+  const unaccountedHours = totalWorkedHours - accountedHours;
   
-  if (calculatedTotal > totalWorkedHours) {
-    const ratio = totalWorkedHours / calculatedTotal;
+  if (unaccountedHours > 0.01) { // Small threshold to avoid floating point issues
+    // Determine which period the unaccounted hours should go to
+    // Based on which period the shift is closer to or overlaps more with
+    
+    // Check if shift starts before morning period (early morning gap)
+    if (clockInDateTime < morningStart) {
+      const earlyMorningHours = Math.min(
+        (morningStart.getTime() - clockInDateTime.getTime()) / (1000 * 60 * 60),
+        unaccountedHours
+      );
+      morningHours += earlyMorningHours;
+    }
+    
+    // Check if there are still unaccounted hours after morning allocation
+    const remainingUnaccounted = totalWorkedHours - morningHours - nightHours;
+    if (remainingUnaccounted > 0.01) {
+      // Check if shift ends after night period (late night gap)
+      if (clockOutDateTime > nightEnd) {
+        const lateNightHours = Math.min(
+          (clockOutDateTime.getTime() - nightEnd.getTime()) / (1000 * 60 * 60),
+          remainingUnaccounted
+        );
+        nightHours += lateNightHours;
+      } else {
+        // Any remaining hours should go to the period with higher coverage
+        if (morningHours >= nightHours) {
+          morningHours += remainingUnaccounted;
+        } else {
+          nightHours += remainingUnaccounted;
+        }
+      }
+    }
+  }
+
+  // Ensure we don't exceed total worked hours due to rounding
+  const finalTotal = morningHours + nightHours;
+  if (finalTotal > totalWorkedHours) {
+    const ratio = totalWorkedHours / finalTotal;
     morningHours *= ratio;
     nightHours *= ratio;
   }
