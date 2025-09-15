@@ -104,45 +104,74 @@ export const calculateAllTimesheetHours = async (): Promise<void> => {
     const { data: wageSettings, error: wageError } = await supabase
       .from('wage_settings')
       .select('*')
-      .single();
+      .maybeSingle();
     
-    if (wageError || !wageSettings) {
-      throw new Error('Failed to fetch wage settings');
+    if (wageError) {
+      throw new Error('Failed to fetch wage settings: ' + wageError.message);
     }
 
-    // Get all timesheet entries that haven't been split calculated yet
+    if (!wageSettings) {
+      throw new Error('No wage settings found. Please configure wage settings first.');
+    }
+
+    // Get all timesheet entries that need calculation
     const { data: entries, error: entriesError } = await supabase
       .from('timesheet_entries')
-      .select('*')
-      .or('is_split_calculation.is.null,is_split_calculation.eq.false')
+      .select(`
+        *,
+        employees!inner(
+          full_name,
+          morning_wage_rate,
+          night_wage_rate
+        )
+      `)
       .not('clock_out_time', 'is', null);
     
     if (entriesError) {
-      throw new Error('Failed to fetch timesheet entries');
+      throw new Error('Failed to fetch timesheet entries: ' + entriesError.message);
     }
 
     if (!entries || entries.length === 0) {
+      console.log('No timesheet entries found to calculate');
       return;
     }
+
+    console.log(`Calculating hours and wages for ${entries.length} entries...`);
 
     // Calculate and update each entry
     for (const entry of entries) {
       const { morningHours, nightHours } = calculateMorningNightHours(entry, wageSettings);
       
-      // Update the entry with calculated hours
+      // Get employee wage rates or use default
+      const employeeMorningRate = entry.employees?.morning_wage_rate || wageSettings.morning_wage_rate;
+      const employeeNightRate = entry.employees?.night_wage_rate || wageSettings.night_wage_rate;
+      
+      // Calculate split amount (morning hours × morning rate + night hours × night rate)
+      const totalSplitAmount = (morningHours * employeeMorningRate) + (nightHours * employeeNightRate);
+      
+      // Calculate flat amount (total hours × flat rate)
+      const totalFlatAmount = (entry.total_hours || 0) * wageSettings.default_flat_wage_rate;
+      
+      // Update the entry with calculated hours and amounts
       const { error: updateError } = await supabase
         .from('timesheet_entries')
         .update({
           morning_hours: morningHours,
           night_hours: nightHours,
+          total_card_amount_split: Math.max(0, parseFloat(totalSplitAmount.toFixed(2))),
+          total_card_amount_flat: Math.max(0, parseFloat(totalFlatAmount.toFixed(2))),
           is_split_calculation: true
         })
         .eq('id', entry.id);
       
       if (updateError) {
         console.error(`Failed to update entry ${entry.id}:`, updateError);
+      } else {
+        console.log(`Updated entry ${entry.id}: M:${morningHours.toFixed(2)}h N:${nightHours.toFixed(2)}h Split:${totalSplitAmount.toFixed(2)} Flat:${totalFlatAmount.toFixed(2)}`);
       }
     }
+    
+    console.log(`Successfully calculated hours and wages for ${entries.length} entries`);
   } catch (error) {
     console.error('Error calculating timesheet hours:', error);
     throw error;

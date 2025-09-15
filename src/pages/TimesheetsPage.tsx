@@ -12,6 +12,7 @@ import TimesheetTable from '@/components/TimesheetTable';
 import TimesheetDateFilter from '@/components/TimesheetDateFilter';
 import TimesheetExport from '@/components/TimesheetExport';
 import SimpleWageCalculator from '@/components/SimpleWageCalculator';
+import AutoCalculateWages from '@/components/AutoCalculateWages';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import MobilePageWrapper, { MobileSection, MobileHeader } from '@/components/MobilePageWrapper';
@@ -234,8 +235,9 @@ const TimesheetsPage: React.FC = () => {
       <MobileHeader 
         title={t('timesheets')}
         subtitle={`${totalEntries} total entries`}
-                 actions={
+         actions={
            <div className="flex items-center gap-1 sm:gap-2">
+             <AutoCalculateWages />
              <Button onClick={handleRefresh} size="sm" variant="outline" className="h-7 sm:h-9">
                <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
              </Button>

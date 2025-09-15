@@ -14,7 +14,8 @@ const AutoCalculateWages: React.FC = () => {
       // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ['timesheets'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-data'] });
-      toast.success('All timesheet hours calculated successfully!');
+      queryClient.invalidateQueries({ queryKey: ['wage-settings'] });
+      toast.success('All timesheet hours and wages calculated successfully!');
     },
     onError: (error) => {
       toast.error('Failed to calculate hours: ' + error.message);
@@ -35,7 +36,7 @@ const AutoCalculateWages: React.FC = () => {
         <Calculator className="h-4 w-4" />
       )}
       <span className="hidden sm:inline">
-        {calculateAllMutation.isPending ? 'Calculating...' : 'Auto-Calculate Hours'}
+        {calculateAllMutation.isPending ? 'Calculating...' : 'Calculate All Hours & Wages'}
       </span>
     </Button>
   );
