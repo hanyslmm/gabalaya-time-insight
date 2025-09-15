@@ -1,6 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2'
 import { corsHeaders } from '../_shared/cors.ts'
-import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts'
 
 interface AuthRequest {
   action: 'login' | 'change-password' | 'validate-token';
@@ -177,21 +176,29 @@ Deno.serve(async (req) => {
         )
       }
 
-      // Verify password with bcrypt for admin/owner; simple pattern for employees
+      // Verify password based on role - SIMPLIFIED VERSION
       let isValidPassword = false;
-
+      
       if (effectiveRole === 'admin' || effectiveRole === 'owner') {
-        if (effectiveUser.password_hash) {
-          try {
-            isValidPassword = await bcrypt.compare(password, effectiveUser.password_hash);
-          } catch (e) {
-            console.error('bcrypt compare failed:', e);
-            isValidPassword = false;
-          }
-        }
+        // Simple password check - no bcrypt
+        isValidPassword = password === effectiveUser.password_hash;
       } else if (effectiveRole === 'employee') {
-        const expectedPassword = `${username}123`;
-        isValidPassword = password === expectedPassword;
+        // For employees, check if they have a password_hash set
+        // First check the employees table for password_hash field (may not exist)
+        const { data: empPassword } = await supabaseAdmin
+          .from('employees')
+          .select('password_hash')
+          .eq('staff_id', username)
+          .maybeSingle();
+        
+        const employeePasswordHash = empPassword?.password_hash;
+        
+        if (employeePasswordHash && employeePasswordHash !== null && employeePasswordHash !== '') {
+          isValidPassword = password === employeePasswordHash;
+        } else {
+          const expectedPassword = `${username}123`;
+          isValidPassword = password === expectedPassword;
+        }
       }
       
       if (!isValidPassword) {
@@ -316,12 +323,7 @@ Deno.serve(async (req) => {
       // For admin users, verify current password unless admin is changing another user's password
       if (targetUserData.role === 'admin' && payload.username === userToChange) {
         if (currentPassword && currentPassword !== 'dummy_password') {
-          let isCurrentPasswordValid = false;
-          try {
-            isCurrentPasswordValid = await bcrypt.compare(currentPassword, targetUserData.password_hash);
-          } catch (e) {
-            console.error('bcrypt compare failed:', e);
-          }
+          const isCurrentPasswordValid = currentPassword === targetUserData.password_hash;
           if (!isCurrentPasswordValid) {
             return new Response(
               JSON.stringify({ success: false, error: 'Current password is incorrect' }),
@@ -333,11 +335,11 @@ Deno.serve(async (req) => {
 
       // Handle password update based on user role
       if (targetUserData.role === 'admin') {
-        const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+        // Store new password as plain text for now
         const { error: updateError } = await supabaseAdmin
           .from('admin_users')
           .update({ 
-            password_hash: hashedNewPassword,
+            password_hash: newPassword,
             updated_at: new Date().toISOString()
           })
           .eq('username', userToChange);
