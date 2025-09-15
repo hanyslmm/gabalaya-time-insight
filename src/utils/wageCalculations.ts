@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 
 interface WageSettings {
   morning_start_time: string;
@@ -23,33 +24,28 @@ interface TimesheetEntry {
 
 export const calculateMorningNightHours = (
   entry: TimesheetEntry, 
-  wageSettings: WageSettings
+  wageSettings: WageSettings,
+  organizationTimezone: string = 'Africa/Cairo'
 ): { morningHours: number; nightHours: number } => {
   
   if (!entry.clock_out_date || !entry.clock_out_time) {
     return { morningHours: 0, nightHours: 0 };
   }
 
-  // Parse times - clean up microseconds and handle both date and time
+  // Parse times - clean up microseconds and convert to organization timezone
   const cleanClockInTime = entry.clock_in_time.split('.')[0]; // Remove microseconds
   const cleanClockOutTime = entry.clock_out_time.split('.')[0]; // Remove microseconds
   
-  const clockInDateTime = new Date(`${entry.clock_in_date}T${cleanClockInTime}`);
-  const clockOutDateTime = new Date(`${entry.clock_out_date}T${cleanClockOutTime}`);
+  // Create UTC dates first
+  const clockInUTC = new Date(`${entry.clock_in_date}T${cleanClockInTime}Z`);
+  const clockOutUTC = new Date(`${entry.clock_out_date}T${cleanClockOutTime}Z`);
   
-  console.log(`Calculating for entry ${entry.id}:`, {
-    clockIn: `${entry.clock_in_date}T${cleanClockInTime}`,
-    clockOut: `${entry.clock_out_date}T${cleanClockOutTime}`,
-    totalHours: entry.total_hours
-  });
+  // Convert to organization timezone
+  const clockInDateTime = toZonedTime(clockInUTC, organizationTimezone);
+  const clockOutDateTime = toZonedTime(clockOutUTC, organizationTimezone);
   
-  // Handle next day scenario for night shifts
-  if (clockOutDateTime < clockInDateTime) {
-    clockOutDateTime.setDate(clockOutDateTime.getDate() + 1);
-  }
-
-  // Create time boundaries for the same day as clock in
-  const baseDate = new Date(entry.clock_in_date);
+  // Create time boundaries using organization timezone for the same day as clock in
+  const baseDate = new Date(clockInDateTime.getFullYear(), clockInDateTime.getMonth(), clockInDateTime.getDate());
   
   const morningStart = new Date(baseDate);
   const [morningStartHour, morningStartMin] = wageSettings.morning_start_time.split(':');
@@ -96,14 +92,6 @@ export const calculateMorningNightHours = (
   const accountedHours = morningHours + nightHours;
   const unaccountedHours = totalWorkedHours - accountedHours;
   
-  console.log(`Allocation check:`, {
-    totalWorked: totalWorkedHours.toFixed(2),
-    morning: morningHours.toFixed(2), 
-    night: nightHours.toFixed(2),
-    accounted: accountedHours.toFixed(2),
-    unaccounted: unaccountedHours.toFixed(2)
-  });
-  
   if (Math.abs(unaccountedHours) > 0.01) { // Handle any significant difference
     // SIMPLIFIED LOGIC: If shift is during daytime hours (before 6 PM), allocate ALL to morning
     // If shift extends into night hours (after 5 PM), allocate proportionally
@@ -112,15 +100,12 @@ export const calculateMorningNightHours = (
     if (shiftEndHour <= 17) {
       // Daytime shift - all unaccounted hours go to morning
       morningHours += unaccountedHours;
-      console.log(`Daytime shift detected - adding ${unaccountedHours.toFixed(2)} hours to morning`);
     } else {
       // Evening shift - allocate based on which period has more coverage
       if (morningHours >= nightHours) {
         morningHours += unaccountedHours;
-        console.log(`Mixed shift - adding ${unaccountedHours.toFixed(2)} hours to morning (dominant period)`);
       } else {
         nightHours += unaccountedHours;
-        console.log(`Mixed shift - adding ${unaccountedHours.toFixed(2)} hours to night (dominant period)`);
       }
     }
   }
@@ -138,13 +123,23 @@ export const calculateMorningNightHours = (
     nightHours: Math.max(0, parseFloat(nightHours.toFixed(2)))
   };
   
-  console.log(`Final result:`, result, `Total: ${(result.morningHours + result.nightHours).toFixed(2)}`);
-  
   return result;
 };
 
 export const calculateAllTimesheetHours = async (): Promise<void> => {
   try {
+    // Get organization timezone from company settings
+    const { data: companySettings, error: companyError } = await supabase
+      .from('company_settings')
+      .select('timezone')
+      .maybeSingle();
+    
+    if (companyError) {
+      console.warn('Failed to fetch company settings, using default timezone:', companyError.message);
+    }
+
+    const organizationTimezone = companySettings?.timezone || 'Africa/Cairo';
+
     // Get wage settings
     const { data: wageSettings, error: wageError } = await supabase
       .from('wage_settings')
@@ -185,7 +180,7 @@ export const calculateAllTimesheetHours = async (): Promise<void> => {
 
     // Calculate and update each entry
     for (const entry of entries) {
-      const { morningHours, nightHours } = calculateMorningNightHours(entry, wageSettings);
+      const { morningHours, nightHours } = calculateMorningNightHours(entry, wageSettings, organizationTimezone);
       
       // Get employee wage rates or use default
       const employeeMorningRate = entry.employees?.morning_wage_rate || wageSettings.morning_wage_rate;

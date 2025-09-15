@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Calculator } from 'lucide-react';
 import { toast } from 'sonner';
+import { calculateMorningNightHours } from '@/utils/wageCalculations';
 
 interface WageCalculatorProps {
   selectedRows: string[];
@@ -36,7 +37,6 @@ const WageCalculator: React.FC<WageCalculatorProps> = ({ selectedRows, onCalcula
     queryFn: async () => {
       if (selectedRows.length === 0) return [];
       
-      
       const { data, error } = await supabase
         .from('timesheet_entries')
         .select(`
@@ -64,89 +64,43 @@ const WageCalculator: React.FC<WageCalculatorProps> = ({ selectedRows, onCalcula
         throw new Error('Missing data for calculation');
       }
 
+      // Get organization timezone
+      const { data: companySettings } = await supabase
+        .from('company_settings')
+        .select('timezone')
+        .maybeSingle();
+      
+      const organizationTimezone = companySettings?.timezone || 'Africa/Cairo';
 
       const updates = selectedEntries.map(entry => {
-        
-        // Parse times - handle both date and time
-        const clockInDateTime = new Date(`${entry.clock_in_date}T${entry.clock_in_time}`);
-        const clockOutDateTime = new Date(`${entry.clock_out_date}T${entry.clock_out_time}`);
-        
-        
-        // Handle next day scenario for night shifts
-        if (clockOutDateTime < clockInDateTime) {
-          clockOutDateTime.setDate(clockOutDateTime.getDate() + 1);
-        }
-
-        // Create time boundaries for the same day as clock in
-        const baseDate = new Date(entry.clock_in_date);
-        
-        const morningStart = new Date(baseDate);
-        const [morningStartHour, morningStartMin] = wageSettings.morning_start_time.split(':');
-        morningStart.setHours(parseInt(morningStartHour), parseInt(morningStartMin), 0, 0);
-        
-        const morningEnd = new Date(baseDate);
-        const [morningEndHour, morningEndMin] = wageSettings.morning_end_time.split(':');
-        morningEnd.setHours(parseInt(morningEndHour), parseInt(morningEndMin), 0, 0);
-        
-        const nightStart = new Date(baseDate);
-        const [nightStartHour, nightStartMin] = wageSettings.night_start_time.split(':');
-        nightStart.setHours(parseInt(nightStartHour), parseInt(nightStartMin), 0, 0);
-        
-        const nightEnd = new Date(baseDate);
-        const [nightEndHour, nightEndMin] = wageSettings.night_end_time.split(':');
-        nightEnd.setHours(parseInt(nightEndHour), parseInt(nightEndMin), 0, 0);
-        
-        // Handle next day for night end time if it's earlier than night start
-        if (nightEnd <= nightStart) {
-          nightEnd.setDate(nightEnd.getDate() + 1);
-        }
-
-        let morningHours = 0;
-        let nightHours = 0;
-
-        // Calculate morning hours overlap
-        const morningOverlapStart = new Date(Math.max(clockInDateTime.getTime(), morningStart.getTime()));
-        const morningOverlapEnd = new Date(Math.min(clockOutDateTime.getTime(), morningEnd.getTime()));
-        
-        if (morningOverlapEnd > morningOverlapStart) {
-          morningHours = (morningOverlapEnd.getTime() - morningOverlapStart.getTime()) / (1000 * 60 * 60);
-        }
-
-        // Calculate night hours overlap
-        const nightOverlapStart = new Date(Math.max(clockInDateTime.getTime(), nightStart.getTime()));
-        const nightOverlapEnd = new Date(Math.min(clockOutDateTime.getTime(), nightEnd.getTime()));
-        
-        if (nightOverlapEnd > nightOverlapStart) {
-          nightHours = (nightOverlapEnd.getTime() - nightOverlapStart.getTime()) / (1000 * 60 * 60);
-        }
-
-
-        // Ensure total hours don't exceed actual worked hours
-        const totalWorkedHours = (clockOutDateTime.getTime() - clockInDateTime.getTime()) / (1000 * 60 * 60);
-        const calculatedTotal = morningHours + nightHours;
-        
-        if (calculatedTotal > totalWorkedHours) {
-          const ratio = totalWorkedHours / calculatedTotal;
-          morningHours *= ratio;
-          nightHours *= ratio;
-        }
+        // Use the centralized calculation function with timezone support
+        const { morningHours, nightHours } = calculateMorningNightHours(
+          {
+            id: entry.id,
+            clock_in_date: entry.clock_in_date,
+            clock_in_time: entry.clock_in_time,
+            clock_out_date: entry.clock_out_date || entry.clock_in_date,
+            clock_out_time: entry.clock_out_time || '00:00:00',
+            total_hours: entry.total_hours || 0
+          },
+          wageSettings,
+          organizationTimezone
+        );
 
         // Use individual employee rates or fall back to default
         const employeeMorningRate = entry.employees?.morning_wage_rate || wageSettings.morning_wage_rate;
         const employeeNightRate = entry.employees?.night_wage_rate || wageSettings.night_wage_rate;
 
+        const totalSplitAmount = (morningHours * employeeMorningRate) + (nightHours * employeeNightRate);
 
-                const totalSplitAmount = (morningHours * employeeMorningRate) + (nightHours * employeeNightRate);
-
-      return {
+        return {
           id: entry.id,
-          morning_hours: Math.max(0, parseFloat(morningHours.toFixed(2))),
-          night_hours: Math.max(0, parseFloat(nightHours.toFixed(2))),
+          morning_hours: morningHours,
+          night_hours: nightHours,
           total_card_amount_split: Math.max(0, parseFloat(totalSplitAmount.toFixed(2))),
           is_split_calculation: true
         };
       });
-
 
       // Update all entries in batch
       for (const update of updates) {
