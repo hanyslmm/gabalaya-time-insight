@@ -106,34 +106,40 @@ const MyTimesheetPage: React.FC = () => {
         endDate = payEndDate.toISOString().split('T')[0];
       }
       
-      // First, try to get the employee's full name from the employees table
-      let employeeName = user.username;
+      // First, get all possible employee names for this user
+      const possibleNames = [user.username]; // Start with username
       
-      const { data: employeeData, error: employeeError } = await supabase
+      // Try to get employee record by staff_id
+      const { data: employeeData } = await supabase
         .from('employees')
-        .select('full_name')
+        .select('full_name, id')
         .eq('staff_id', user.username)
         .maybeSingle();
       
-      if (employeeData?.full_name) {
-        employeeName = employeeData.full_name;
-      } else {
-        // If not found in employees table, try admin_users table
-        const { data: adminData, error: adminError } = await supabase
-          .from('admin_users')
-          .select('full_name')
-          .eq('username', user.username)
-          .maybeSingle();
-        
-        if (adminData?.full_name) {
-          employeeName = adminData.full_name;
-        }
+      if (employeeData?.full_name && !possibleNames.includes(employeeData.full_name)) {
+        possibleNames.push(employeeData.full_name);
       }
+      
+      // Try admin_users table as fallback
+      const { data: adminData } = await supabase
+        .from('admin_users')
+        .select('full_name')
+        .eq('username', user.username)
+        .maybeSingle();
+      
+      if (adminData?.full_name && !possibleNames.includes(adminData.full_name)) {
+        possibleNames.push(adminData.full_name);
+      }
+      
+      console.log('Searching for timesheet entries with names:', possibleNames);
+      
+      // Build query to search for any of the possible names using ILIKE for case-insensitive partial matching
+      const nameConditions = possibleNames.map(name => `employee_name.ilike.%${name}%`).join(',');
       
       const query = supabase
         .from('timesheet_entries')
         .select('*')
-        .or(`employee_name.eq.${user.username},employee_name.eq.${employeeName}`)
+        .or(nameConditions)
         .gte('clock_in_date', startDate)
         .order('clock_in_date', { ascending: false });
         
@@ -145,6 +151,13 @@ const MyTimesheetPage: React.FC = () => {
 
       const { data, error } = await query;
       
+      console.log('Timesheet query result:', { 
+        possibleNames, 
+        startDate, 
+        endDate, 
+        dataCount: data?.length, 
+        error: error?.message 
+      });
 
       if (error) throw error;
       return data || [];
