@@ -753,6 +753,36 @@ export type Database = {
           },
         ]
       }
+      user_access_log: {
+        Row: {
+          access_type: string | null
+          accessed_user_id: string | null
+          accessing_user_id: string | null
+          id: string
+          ip_address: unknown | null
+          timestamp: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          access_type?: string | null
+          accessed_user_id?: string | null
+          accessing_user_id?: string | null
+          id?: string
+          ip_address?: unknown | null
+          timestamp?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          access_type?: string | null
+          accessed_user_id?: string | null
+          accessing_user_id?: string | null
+          id?: string
+          ip_address?: unknown | null
+          timestamp?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       user_rewards: {
         Row: {
           created_at: string
