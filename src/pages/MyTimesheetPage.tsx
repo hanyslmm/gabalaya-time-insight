@@ -131,18 +131,14 @@ const MyTimesheetPage: React.FC = () => {
         possibleNames.push(adminData.full_name);
       }
       
-      console.log('Searching for timesheet entries with names:', possibleNames);
-      
-      // Build query to search for any of the possible names using ILIKE for case-insensitive partial matching
-      const nameConditions = possibleNames.map(name => `employee_name.ilike.%${name}%`).join(',');
-      
+      // Build query using exact matching on known names for reliability
       const query = supabase
         .from('timesheet_entries')
         .select('*')
-        .or(nameConditions)
+        .in('employee_name', possibleNames)
         .gte('clock_in_date', startDate)
         .order('clock_in_date', { ascending: false });
-        
+      
       if (filterType === 'month') {
         query.lt('clock_in_date', endDate);
       } else {
