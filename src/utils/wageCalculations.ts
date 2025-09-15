@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+
 
 interface WageSettings {
   morning_start_time: string;
@@ -25,105 +25,68 @@ interface TimesheetEntry {
 export const calculateMorningNightHours = (
   entry: TimesheetEntry, 
   wageSettings: WageSettings,
-  organizationTimezone: string = 'Africa/Cairo'
+  _organizationTimezone: string = 'Africa/Cairo'
 ): { morningHours: number; nightHours: number } => {
-  
   if (!entry.clock_out_date || !entry.clock_out_time) {
     return { morningHours: 0, nightHours: 0 };
   }
 
-  // Parse times - clean up microseconds and convert to organization timezone
-  const cleanClockInTime = entry.clock_in_time.split('.')[0]; // Remove microseconds
-  const cleanClockOutTime = entry.clock_out_time.split('.')[0]; // Remove microseconds
-  
-  // Create UTC dates first
-  const clockInUTC = new Date(`${entry.clock_in_date}T${cleanClockInTime}Z`);
-  const clockOutUTC = new Date(`${entry.clock_out_date}T${cleanClockOutTime}Z`);
-  
-  // Convert to organization timezone
-  const clockInDateTime = toZonedTime(clockInUTC, organizationTimezone);
-  const clockOutDateTime = toZonedTime(clockOutUTC, organizationTimezone);
-  
-  // Create time boundaries using organization timezone for the same day as clock in
-  const baseDate = new Date(clockInDateTime.getFullYear(), clockInDateTime.getMonth(), clockInDateTime.getDate());
-  
-  const morningStart = new Date(baseDate);
-  const [morningStartHour, morningStartMin] = wageSettings.morning_start_time.split(':');
-  morningStart.setHours(parseInt(morningStartHour), parseInt(morningStartMin), 0, 0);
-  
-  const morningEnd = new Date(baseDate);
-  const [morningEndHour, morningEndMin] = wageSettings.morning_end_time.split(':');
-  morningEnd.setHours(parseInt(morningEndHour), parseInt(morningEndMin), 0, 0);
-  
-  const nightStart = new Date(baseDate);
-  const [nightStartHour, nightStartMin] = wageSettings.night_start_time.split(':');
-  nightStart.setHours(parseInt(nightStartHour), parseInt(nightStartMin), 0, 0);
-  
-  const nightEnd = new Date(baseDate);
-  const [nightEndHour, nightEndMin] = wageSettings.night_end_time.split(':');
-  nightEnd.setHours(parseInt(nightEndHour), parseInt(nightEndMin), 0, 0);
-  
-  // Handle next day for night end time if it's earlier than night start
-  if (nightEnd <= nightStart) {
-    nightEnd.setDate(nightEnd.getDate() + 1);
-  }
-
-  let morningHours = 0;
-  let nightHours = 0;
-
-  // Calculate morning hours overlap
-  const morningOverlapStart = new Date(Math.max(clockInDateTime.getTime(), morningStart.getTime()));
-  const morningOverlapEnd = new Date(Math.min(clockOutDateTime.getTime(), morningEnd.getTime()));
-  
-  if (morningOverlapEnd > morningOverlapStart) {
-    morningHours = (morningOverlapEnd.getTime() - morningOverlapStart.getTime()) / (1000 * 60 * 60);
-  }
-
-  // Calculate night hours overlap
-  const nightOverlapStart = new Date(Math.max(clockInDateTime.getTime(), nightStart.getTime()));
-  const nightOverlapEnd = new Date(Math.min(clockOutDateTime.getTime(), nightEnd.getTime()));
-  
-  if (nightOverlapEnd > nightOverlapStart) {
-    nightHours = (nightOverlapEnd.getTime() - nightOverlapStart.getTime()) / (1000 * 60 * 60);
-  }
-
-  // Handle gaps in coverage - ensure ALL hours are allocated
-  const totalWorkedHours = (clockOutDateTime.getTime() - clockInDateTime.getTime()) / (1000 * 60 * 60);
-  const accountedHours = morningHours + nightHours;
-  const unaccountedHours = totalWorkedHours - accountedHours;
-  
-  if (Math.abs(unaccountedHours) > 0.01) { // Handle any significant difference
-    // SIMPLIFIED LOGIC: If shift is during daytime hours (before 6 PM), allocate ALL to morning
-    // If shift extends into night hours (after 5 PM), allocate proportionally
-    const shiftEndHour = clockOutDateTime.getHours();
-    
-    if (shiftEndHour <= 17) {
-      // Daytime shift - all unaccounted hours go to morning
-      morningHours += unaccountedHours;
-    } else {
-      // Evening shift - allocate based on which period has more coverage
-      if (morningHours >= nightHours) {
-        morningHours += unaccountedHours;
-      } else {
-        nightHours += unaccountedHours;
-      }
-    }
-  }
-
-  // Ensure we don't exceed total worked hours due to rounding
-  const finalTotal = morningHours + nightHours;
-  if (finalTotal > totalWorkedHours) {
-    const ratio = totalWorkedHours / finalTotal;
-    morningHours *= ratio;
-    nightHours *= ratio;
-  }
-
-  const result = {
-    morningHours: Math.max(0, parseFloat(morningHours.toFixed(2))),
-    nightHours: Math.max(0, parseFloat(nightHours.toFixed(2)))
+  // Minute-based, timezone-agnostic calculation
+  const clean = (t: string) => (t || '00:00:00').split('.')[0];
+  const toMinutes = (t: string) => {
+    const [h, m, s] = clean(t).split(':').map((v) => parseInt(v, 10) || 0);
+    return (h % 24) * 60 + (m % 60) + Math.floor((s % 60) / 60);
   };
-  
-  return result;
+  const overlap = (aStart: number, aEnd: number, bStart: number, bEnd: number) => {
+    const start = Math.max(aStart, bStart);
+    const end = Math.min(aEnd, bEnd);
+    return Math.max(0, end - start);
+  };
+
+  // Shift window in minutes (allow overnight by extending end past 24h)
+  let shiftStart = toMinutes(entry.clock_in_time);
+  let shiftEnd = toMinutes(entry.clock_out_time);
+  if (shiftEnd < shiftStart) shiftEnd += 24 * 60;
+
+  // Morning window
+  const morningStart = toMinutes(wageSettings.morning_start_time || '08:00:00');
+  const morningEnd = toMinutes(wageSettings.morning_end_time || '17:00:00');
+
+  // Night window (may cross midnight)
+  const nightStart = toMinutes(wageSettings.night_start_time || '17:00:00');
+  let nightEnd = toMinutes(wageSettings.night_end_time || '01:00:00');
+  if (nightEnd <= nightStart) nightEnd += 24 * 60;
+
+  // Compute overlaps, accounting for windows repeating every 24h
+  const morningMinutes = overlap(shiftStart, shiftEnd, morningStart, morningEnd)
+    + overlap(shiftStart, shiftEnd, morningStart + 24 * 60, morningEnd + 24 * 60);
+
+  const nightMinutes = overlap(shiftStart, shiftEnd, nightStart, nightEnd)
+    + overlap(shiftStart, shiftEnd, nightStart + 24 * 60, nightEnd + 24 * 60);
+
+  const totalWorkedMinutes = shiftEnd - shiftStart;
+  let m = morningMinutes;
+  let n = nightMinutes;
+
+  // Allocate any remaining minutes to the dominant window (default to morning for daytime shifts)
+  const accounted = m + n;
+  if (accounted < totalWorkedMinutes) {
+    const remainder = totalWorkedMinutes - accounted;
+    if (m >= n) m += remainder; else n += remainder;
+  }
+
+  // Final sanity cap
+  const cap = Math.max(1, totalWorkedMinutes);
+  const total = m + n;
+  if (total > cap) {
+    const ratio = cap / total;
+    m *= ratio; n *= ratio;
+  }
+
+  return {
+    morningHours: Math.max(0, parseFloat((m / 60).toFixed(2))),
+    nightHours: Math.max(0, parseFloat((n / 60).toFixed(2)))
+  };
 };
 
 export const calculateAllTimesheetHours = async (): Promise<void> => {

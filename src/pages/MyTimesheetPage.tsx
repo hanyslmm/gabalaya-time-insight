@@ -373,14 +373,17 @@ const MyTimesheetPage: React.FC = () => {
 
       const ws = await getResolvedWageSettings();
 
-      const entriesToUpdate = timesheetData.filter(entry => 
-        entry.clock_out_time && 
-        (entry.morning_hours === 0 || entry.morning_hours === null) && 
-        (entry.night_hours === 0 || entry.night_hours === null)
-      );
+      const entriesToUpdate = timesheetData.filter(entry => {
+        if (!entry.clock_out_time) return false;
+        const m = Number(entry.morning_hours || 0);
+        const n = Number(entry.night_hours || 0);
+        const t = Number(entry.total_hours || 0);
+        const diff = Math.abs((m + n) - t);
+        return diff > 0.02; // recalc when split doesn't match total
+      });
 
       if (entriesToUpdate.length === 0) {
-        throw new Error('No entries need calculation');
+        throw new Error('No entries need recalculation');
       }
 
       for (const entry of entriesToUpdate) {
@@ -392,16 +395,27 @@ const MyTimesheetPage: React.FC = () => {
         const morningEnd = timeToMinutes(ws.morning_end_time || '17:00:00');
         const nightStart = timeToMinutes(ws.night_start_time || '17:00:00');
         let nightEnd = timeToMinutes(ws.night_end_time || '01:00:00');
-        if (nightEnd < nightStart) nightEnd += 24 * 60;
+        if (nightEnd <= nightStart) nightEnd += 24 * 60;
 
-        const morningMinutes = overlapMinutes(shiftStart, shiftEnd, morningStart, morningEnd);
-        const nightMinutes = overlapMinutes(shiftStart, shiftEnd, nightStart, nightEnd);
+        // Overlaps across repeating windows
+        const morningMinutesBase = overlapMinutes(shiftStart, shiftEnd, morningStart, morningEnd)
+          + overlapMinutes(shiftStart, shiftEnd, morningStart + 24 * 60, morningEnd + 24 * 60);
+        const nightMinutesBase = overlapMinutes(shiftStart, shiftEnd, nightStart, nightEnd)
+          + overlapMinutes(shiftStart, shiftEnd, nightStart + 24 * 60, nightEnd + 24 * 60);
+
+        const totalWorked = shiftEnd - shiftStart;
+        let mMin = morningMinutesBase; let nMin = nightMinutesBase;
+        const accounted = mMin + nMin;
+        if (accounted < totalWorked) {
+          const rem = totalWorked - accounted;
+          if (mMin >= nMin) mMin += rem; else nMin += rem;
+        }
 
         const { error } = await supabase
           .from('timesheet_entries')
           .update({
-            morning_hours: morningMinutes / 60,
-            night_hours: nightMinutes / 60,
+            morning_hours: mMin / 60,
+            night_hours: nMin / 60,
             is_split_calculation: true
           })
           .eq('id', entry.id);
