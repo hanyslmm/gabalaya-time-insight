@@ -30,9 +30,12 @@ export const calculateMorningNightHours = (
     return { morningHours: 0, nightHours: 0 };
   }
 
-  // Parse times - handle both date and time
-  const clockInDateTime = new Date(`${entry.clock_in_date}T${entry.clock_in_time}`);
-  const clockOutDateTime = new Date(`${entry.clock_out_date}T${entry.clock_out_time}`);
+  // Parse times - clean up microseconds and handle both date and time
+  const cleanClockInTime = entry.clock_in_time.split('.')[0]; // Remove microseconds
+  const cleanClockOutTime = entry.clock_out_time.split('.')[0]; // Remove microseconds
+  
+  const clockInDateTime = new Date(`${entry.clock_in_date}T${cleanClockInTime}`);
+  const clockOutDateTime = new Date(`${entry.clock_out_date}T${cleanClockOutTime}`);
   
   // Handle next day scenario for night shifts
   if (clockOutDateTime < clockInDateTime) {
@@ -82,42 +85,33 @@ export const calculateMorningNightHours = (
     nightHours = (nightOverlapEnd.getTime() - nightOverlapStart.getTime()) / (1000 * 60 * 60);
   }
 
-  // Handle gaps in coverage - allocate unaccounted hours to appropriate period
+  // Handle gaps in coverage - allocate ALL unaccounted hours
   const totalWorkedHours = (clockOutDateTime.getTime() - clockInDateTime.getTime()) / (1000 * 60 * 60);
   const accountedHours = morningHours + nightHours;
   const unaccountedHours = totalWorkedHours - accountedHours;
   
-  if (unaccountedHours > 0.01) { // Small threshold to avoid floating point issues
-    // Determine which period the unaccounted hours should go to
-    // Based on which period the shift is closer to or overlaps more with
+  if (Math.abs(unaccountedHours) > 0.01) { // Handle any significant difference
+    // For shifts that are entirely or mostly within business hours (5 AM - 5 PM), 
+    // allocate unaccounted hours to morning rate
+    const shiftStartHour = clockInDateTime.getHours();
+    const shiftEndHour = clockOutDateTime.getHours();
     
-    // Check if shift starts before morning period (early morning gap)
-    if (clockInDateTime < morningStart) {
-      const earlyMorningHours = Math.min(
-        (morningStart.getTime() - clockInDateTime.getTime()) / (1000 * 60 * 60),
-        unaccountedHours
-      );
-      morningHours += earlyMorningHours;
-    }
-    
-    // Check if there are still unaccounted hours after morning allocation
-    const remainingUnaccounted = totalWorkedHours - morningHours - nightHours;
-    if (remainingUnaccounted > 0.01) {
-      // Check if shift ends after night period (late night gap)
-      if (clockOutDateTime > nightEnd) {
-        const lateNightHours = Math.min(
-          (clockOutDateTime.getTime() - nightEnd.getTime()) / (1000 * 60 * 60),
-          remainingUnaccounted
-        );
-        nightHours += lateNightHours;
+    // If shift is during typical business/morning hours (5 AM - 5 PM), allocate to morning
+    if (shiftStartHour >= 5 && shiftEndHour <= 17) {
+      morningHours += unaccountedHours;
+    } 
+    // If shift crosses into night period significantly, allocate proportionally
+    else if (shiftEndHour > 17 || shiftStartHour < 5) {
+      // Check which period has more coverage and allocate there
+      if (morningHours >= nightHours) {
+        morningHours += unaccountedHours;
       } else {
-        // Any remaining hours should go to the period with higher coverage
-        if (morningHours >= nightHours) {
-          morningHours += remainingUnaccounted;
-        } else {
-          nightHours += remainingUnaccounted;
-        }
+        nightHours += unaccountedHours;
       }
+    }
+    else {
+      // Default: allocate to morning
+      morningHours += unaccountedHours;
     }
   }
 
