@@ -288,6 +288,47 @@ export type Database = {
         }
         Relationships: []
       }
+      order_access_log: {
+        Row: {
+          access_type: string | null
+          accessing_user_id: string | null
+          customer_data_accessed: boolean | null
+          id: string
+          ip_address: unknown | null
+          order_id: string | null
+          timestamp: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          access_type?: string | null
+          accessing_user_id?: string | null
+          customer_data_accessed?: boolean | null
+          id?: string
+          ip_address?: unknown | null
+          order_id?: string | null
+          timestamp?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          access_type?: string | null
+          accessing_user_id?: string | null
+          customer_data_accessed?: boolean | null
+          id?: string
+          ip_address?: unknown | null
+          order_id?: string | null
+          timestamp?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_access_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           created_at: string
@@ -296,6 +337,7 @@ export type Database = {
           price: number
           product_id: string | null
           quantity: number
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -304,6 +346,7 @@ export type Database = {
           price: number
           product_id?: string | null
           quantity: number
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -312,6 +355,7 @@ export type Database = {
           price?: number
           product_id?: string | null
           quantity?: number
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -342,6 +386,7 @@ export type Database = {
           status: string | null
           total_amount: number
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -354,6 +399,7 @@ export type Database = {
           status?: string | null
           total_amount: number
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -366,6 +412,7 @@ export type Database = {
           status?: string | null
           total_amount?: number
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
