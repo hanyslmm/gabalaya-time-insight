@@ -426,6 +426,33 @@ export type Database = {
           },
         ]
       }
+      points_history: {
+        Row: {
+          action_type: string
+          created_at: string
+          id: string
+          points: number
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          id?: string
+          points: number
+          reason: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          id?: string
+          points?: number
+          reason?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           category_id: string | null
@@ -481,6 +508,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       registrations: {
         Row: {
@@ -699,6 +753,33 @@ export type Database = {
           },
         ]
       }
+      user_rewards: {
+        Row: {
+          created_at: string
+          id: string
+          level: number
+          total_points: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          level?: number
+          total_points?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          level?: number
+          total_points?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_sessions: {
         Row: {
           created_at: string
@@ -816,6 +897,19 @@ export type Database = {
       }
     }
     Functions: {
+      award_points: {
+        Args: {
+          p_action_type: string
+          p_points: number
+          p_reason: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
+      can_award_daily_points: {
+        Args: { p_user_id: string }
+        Returns: boolean
+      }
       clock_in: {
         Args: { p_clock_in_location: string; p_staff_id: string }
         Returns: {
@@ -916,6 +1010,10 @@ export type Database = {
       }
       is_current_user_owner: {
         Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      validate_admin_password: {
+        Args: { input_password: string; input_username: string }
         Returns: boolean
       }
     }
