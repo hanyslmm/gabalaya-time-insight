@@ -1051,6 +1051,10 @@ export type Database = {
           updated_at: string
         }
       }
+      get_current_admin_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_current_user_info: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -1084,6 +1088,10 @@ export type Database = {
       get_user_role: {
         Args: { user_username: string }
         Returns: string
+      }
+      is_current_user_global_owner: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
       }
       is_current_user_owner: {
         Args: Record<PropertyKey, never>
