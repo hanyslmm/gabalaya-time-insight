@@ -21,6 +21,7 @@ import AggregatedTimesheetView from './AggregatedTimesheetView';
 interface TimesheetEntry {
   id: string;
   employee_name: string;
+  employee_id?: string;
   clock_in_date: string;
   clock_in_time: string;
   clock_out_date: string;
@@ -54,6 +55,8 @@ interface TimesheetTableProps {
   onDataChange: () => void;
   dateRange?: DateRange;
   selectedEmployee?: string;
+  wageSettings?: any;
+  employees?: Array<{ id: string; full_name?: string; morning_wage_rate?: number; night_wage_rate?: number }>; 
 }
 
 const ITEMS_PER_PAGE = 20;
@@ -64,7 +67,9 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
   onSelectionChange, 
   onDataChange,
   dateRange,
-  selectedEmployee 
+  selectedEmployee,
+  wageSettings,
+  employees
 }) => {
   const { user } = useAuth();
   const [editingEntry, setEditingEntry] = useState<any>(null);
@@ -138,6 +143,75 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
       return '0.00';
     }
     return hours.toFixed(2);
+  };
+
+  // Helpers for split-hour calculations (Egypt timezone windows by default)
+  const timeToMinutes = (timeStr?: string | null): number | null => {
+    if (!timeStr) return null;
+    const clean = (timeStr || '00:00:00').split('.')[0];
+    const [h, m] = clean.split(':').map((v) => parseInt(v, 10));
+    if (isNaN(h) || isNaN(m)) return null;
+    return (h % 24) * 60 + (m % 60);
+  };
+  const overlapMinutes = (aStart: number, aEnd: number, bStart: number, bEnd: number): number => {
+    const start = Math.max(aStart, bStart);
+    const end = Math.min(aEnd, bEnd);
+    return Math.max(0, end - start);
+  };
+
+  const getEmployeeRates = (empId?: string | null) => {
+    const defaultMorning = wageSettings?.morning_wage_rate ?? 17;
+    const defaultNight = wageSettings?.night_wage_rate ?? 20;
+    const flatRate = wageSettings?.default_flat_wage_rate ?? 20;
+    if (!empId || !employees) return { morning: defaultMorning, night: defaultNight, flat: flatRate };
+    const emp = employees.find((e) => e.id === empId);
+    return {
+      morning: emp?.morning_wage_rate ?? defaultMorning,
+      night: emp?.night_wage_rate ?? defaultNight,
+      flat: flatRate,
+    };
+  };
+
+  const computeDisplay = (entry: TimesheetEntry) => {
+    // If DB already has values, use them; otherwise compute
+    const inMins = timeToMinutes(entry.clock_in_time);
+    let outMins = timeToMinutes(entry.clock_out_time);
+    let morning = entry.morning_hours ?? 0;
+    let night = entry.night_hours ?? 0;
+
+    if ((morning === 0 && night === 0) && inMins !== null && outMins !== null) {
+      if (outMins < inMins) outMins += 24 * 60; // overnight shift
+      const morningStart = timeToMinutes(wageSettings?.morning_start_time || '08:00:00')!;
+      const morningEnd = timeToMinutes(wageSettings?.morning_end_time || '17:00:00')!;
+      const nightStart = timeToMinutes(wageSettings?.night_start_time || '17:00:00')!;
+      let nightEnd = timeToMinutes(wageSettings?.night_end_time || '01:00:00')!;
+      if (nightEnd < nightStart) nightEnd += 24 * 60;
+      const morningMinutes = overlapMinutes(inMins, outMins, morningStart, morningEnd);
+      const nightMinutes = overlapMinutes(inMins, outMins, nightStart, nightEnd);
+      morning = morningMinutes / 60;
+      night = nightMinutes / 60;
+      // Guard rounding tiny decimals
+      if (morning < 1e-6) morning = 0;
+      if (night < 1e-6) night = 0;
+    }
+
+    const rates = getEmployeeRates((entry as any).employee_id as string | undefined);
+    const actualHours = entry.actual_hours ?? entry.total_hours ?? 0;
+
+    // Prefer DB amounts if present; otherwise calculate
+    const dbAmount = Number(entry.total_card_amount_split || entry.total_card_amount_flat || 0);
+    const computedSplitAmount = morning * rates.morning + night * rates.night;
+    const computedFlatAmount = actualHours * rates.flat;
+
+    const isSplit = (entry.is_split_calculation || (morning + night > 0)) && computedSplitAmount > 0;
+    const amount = dbAmount > 0 ? dbAmount : (isSplit ? computedSplitAmount : computedFlatAmount);
+
+    return {
+      morningHours: morning,
+      nightHours: night,
+      amount,
+      isSplit,
+    };
   };
 
   return (
@@ -301,80 +375,83 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
                        </TableCell>
                      </TableRow>
                   ) : (
-                    paginatedData.map((entry) => (
-                      <TableRow key={entry.id} className="table-row">
-                        <TableCell className="sticky left-0 bg-background/95 backdrop-blur">
-                          <Checkbox
-                            checked={selectedRows.includes(entry.id)}
-                            onCheckedChange={(checked) => handleSelectRow(entry.id, !!checked)}
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium sticky left-12 bg-background/95 backdrop-blur min-w-0 z-10 p-2">
-                          <div className="truncate pr-2 text-xs sm:text-sm" title={entry.employee_name}>
-                            {entry.employee_name}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-medium text-xs sm:text-sm truncate" title={formatDate(entry.clock_in_date)}>
-                            {formatDate(entry.clock_in_date)}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-muted-foreground text-xs sm:text-sm truncate">
-                            {formatTimeAMPM(entry.clock_in_date, entry.clock_in_time)}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-medium text-fluid-sm">{entry.clock_out_date ? formatDate(entry.clock_out_date) : '—'}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-muted-foreground text-fluid-sm">{entry.clock_out_time ? formatTimeAMPM(entry.clock_out_date || entry.clock_in_date, entry.clock_out_time) : '—'}</div>
-                        </TableCell>
-                        <TableCell>
-                          <span className="font-mono font-bold text-primary">
-                            {formatTotalHours(entry.total_hours)}h
-                          </span>
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell">
-                          <div className="text-fluid-xs">
-                            <div className="flex items-center gap-1">
-                              <span className="text-muted-foreground">M:</span>
-                              <span className="font-medium">{entry.morning_hours?.toFixed(2) || '0.00'}h</span>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell">
-                          <div className="text-fluid-xs">
-                            <div className="flex items-center gap-1">
-                              <span className="text-muted-foreground">N:</span>
-                              <span className="font-medium">{entry.night_hours?.toFixed(2) || '0.00'}h</span>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            <div className="font-bold text-accent">
-                              {(entry.total_card_amount_split || entry.total_card_amount_flat)?.toFixed(2) || '0.00'} LE
-                            </div>
-                            <div className="text-fluid-xs text-muted-foreground">
-                              {entry.is_split_calculation ? 'Split Rate' : 'Flat Rate'}
-                            </div>
-                          </div>
-                        </TableCell>
-                        {isAdmin && (
-                          <TableCell>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleEdit(entry)}
-                              className="hover:bg-primary hover:text-primary-foreground transition-colors"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
+                    paginatedData.map((entry) => {
+                      const disp = computeDisplay(entry);
+                      return (
+                        <TableRow key={entry.id} className="table-row">
+                          <TableCell className="sticky left-0 bg-background/95 backdrop-blur">
+                            <Checkbox
+                              checked={selectedRows.includes(entry.id)}
+                              onCheckedChange={(checked) => handleSelectRow(entry.id, !!checked)}
+                            />
                           </TableCell>
-                        )}
-                      </TableRow>
-                    ))
+                          <TableCell className="font-medium sticky left-12 bg-background/95 backdrop-blur min-w-0 z-10 p-2">
+                            <div className="truncate pr-2 text-xs sm:text-sm" title={entry.employee_name}>
+                              {entry.employee_name}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-medium text-xs sm:text-sm truncate" title={formatDate(entry.clock_in_date)}>
+                              {formatDate(entry.clock_in_date)}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-muted-foreground text-xs sm:text-sm truncate">
+                              {formatTimeAMPM(entry.clock_in_date, entry.clock_in_time)}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-medium text-fluid-sm">{entry.clock_out_date ? formatDate(entry.clock_out_date) : '—'}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-muted-foreground text-fluid-sm">{entry.clock_out_time ? formatTimeAMPM(entry.clock_out_date || entry.clock_in_date, entry.clock_out_time) : '—'}</div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-mono font-bold text-primary">
+                              {formatTotalHours(entry.total_hours)}h
+                            </span>
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell">
+                            <div className="text-fluid-xs">
+                              <div className="flex items-center gap-1">
+                                <span className="text-muted-foreground">M:</span>
+                                <span className="font-medium">{disp.morningHours.toFixed(2)}h</span>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell">
+                            <div className="text-fluid-xs">
+                              <div className="flex items-center gap-1">
+                                <span className="text-muted-foreground">N:</span>
+                                <span className="font-medium">{disp.nightHours.toFixed(2)}h</span>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              <div className="font-bold text-accent">
+                                {disp.amount.toFixed(2)} LE
+                              </div>
+                              <div className="text-fluid-xs text-muted-foreground">
+                                {disp.isSplit ? 'Split Rate' : 'Flat Rate'}
+                              </div>
+                            </div>
+                          </TableCell>
+                          {isAdmin && (
+                            <TableCell>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleEdit(entry)}
+                                className="hover:bg-primary hover:text-primary-foreground transition-colors"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>

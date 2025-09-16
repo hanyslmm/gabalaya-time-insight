@@ -69,7 +69,7 @@ const TimesheetsPage: React.FC = () => {
       const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
       let q = supabase
         .from('employees')
-        .select('id, staff_id, full_name')
+        .select('id, staff_id, full_name, morning_wage_rate, night_wage_rate')
         .order('full_name');
       if (activeOrganizationId) {
         q = q.eq('organization_id', activeOrganizationId);
@@ -553,6 +553,8 @@ const TimesheetsPage: React.FC = () => {
                 onDataChange={refetch}
                 dateRange={dateRange}
                 selectedEmployee={selectedEmployee}
+                wageSettings={wageSettings as any}
+                employees={employees as any}
               />
             )}
           </CardContent>
