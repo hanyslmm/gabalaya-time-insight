@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { getCompanyTimezone } from './timezoneUtils';
 
 
 interface WageSettings {
@@ -22,31 +23,51 @@ interface TimesheetEntry {
   is_split_calculation?: boolean;
 }
 
-export const calculateMorningNightHours = (
+export const calculateMorningNightHours = async (
   entry: TimesheetEntry, 
   wageSettings: WageSettings,
-  _organizationTimezone: string = 'Africa/Cairo'
-): { morningHours: number; nightHours: number } => {
+  organizationTimezone: string = 'Africa/Cairo'
+): Promise<{ morningHours: number; nightHours: number }> => {
   if (!entry.clock_out_date || !entry.clock_out_time) {
     return { morningHours: 0, nightHours: 0 };
   }
 
-  // Minute-based, timezone-agnostic calculation
-  const clean = (t: string) => (t || '00:00:00').split('.')[0];
-  const toMinutes = (t: string) => {
-    const [h, m, s] = clean(t).split(':').map((v) => parseInt(v, 10) || 0);
-    return (h % 24) * 60 + (m % 60) + Math.floor((s % 60) / 60);
-  };
-  const overlap = (aStart: number, aEnd: number, bStart: number, bEnd: number) => {
-    const start = Math.max(aStart, bStart);
-    const end = Math.min(aEnd, bEnd);
-    return Math.max(0, end - start);
-  };
+  try {
+    // Convert UTC times to company timezone for accurate calculation
+    const clockInUTC = new Date(`${entry.clock_in_date}T${entry.clock_in_time}`);
+    const clockOutUTC = new Date(`${entry.clock_out_date}T${entry.clock_out_time}`);
 
-  // Shift window in minutes (allow overnight by extending end past 24h)
-  let shiftStart = toMinutes(entry.clock_in_time);
-  let shiftEnd = toMinutes(entry.clock_out_time);
-  if (shiftEnd < shiftStart) shiftEnd += 24 * 60;
+    // Format times in Egypt timezone (company timezone)
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: organizationTimezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+
+    const clockInLocal = formatter.format(clockInUTC);
+    const clockOutLocal = formatter.format(clockOutUTC);
+
+    console.log(`Timezone conversion: UTC ${entry.clock_in_time} -> ${organizationTimezone} ${clockInLocal}`);
+    console.log(`Timezone conversion: UTC ${entry.clock_out_time} -> ${organizationTimezone} ${clockOutLocal}`);
+
+    // Helper functions for minute-based calculation
+    const clean = (t: string) => (t || '00:00:00').split('.')[0];
+    const toMinutes = (t: string) => {
+      const [h, m, s] = clean(t).split(':').map((v) => parseInt(v, 10) || 0);
+      return (h % 24) * 60 + (m % 60) + Math.floor((s % 60) / 60);
+    };
+    const overlap = (aStart: number, aEnd: number, bStart: number, bEnd: number) => {
+      const start = Math.max(aStart, bStart);
+      const end = Math.min(aEnd, bEnd);
+      return Math.max(0, end - start);
+    };
+
+    // Shift window in minutes using LOCAL timezone times (allow overnight by extending end past 24h)
+    let shiftStart = toMinutes(clockInLocal);
+    let shiftEnd = toMinutes(clockOutLocal);
+    if (shiftEnd < shiftStart) shiftEnd += 24 * 60;
 
   // Morning window
   const morningStart = toMinutes(wageSettings.morning_start_time || '08:00:00');
@@ -83,10 +104,36 @@ export const calculateMorningNightHours = (
     m *= ratio; n *= ratio;
   }
 
-  return {
-    morningHours: Math.max(0, parseFloat((m / 60).toFixed(2))),
-    nightHours: Math.max(0, parseFloat((n / 60).toFixed(2)))
-  };
+    const result = {
+      morningHours: Math.max(0, parseFloat((m / 60).toFixed(2))),
+      nightHours: Math.max(0, parseFloat((n / 60).toFixed(2)))
+    };
+
+    console.log(`Calculation result for ${entry.clock_in_date}: Morning: ${result.morningHours}h, Night: ${result.nightHours}h`);
+    return result;
+  } catch (error) {
+    console.error('Error in calculateMorningNightHours:', error);
+    // Fallback to simple calculation without timezone conversion
+    const clean = (t: string) => (t || '00:00:00').split('.')[0];
+    const toMinutes = (t: string) => {
+      const [h, m, s] = clean(t).split(':').map((v) => parseInt(v, 10) || 0);
+      return (h % 24) * 60 + (m % 60) + Math.floor((s % 60) / 60);
+    };
+    
+    let shiftStart = toMinutes(entry.clock_in_time);
+    let shiftEnd = toMinutes(entry.clock_out_time);
+    if (shiftEnd < shiftStart) shiftEnd += 24 * 60;
+    
+    const totalWorkedMinutes = shiftEnd - shiftStart;
+    const morningStart = toMinutes(wageSettings.morning_start_time || '08:00:00');
+    const morningEnd = toMinutes(wageSettings.morning_end_time || '17:00:00');
+    
+    // Simple fallback: if shift overlaps with morning hours, count as morning
+    const morningHours = (shiftStart < morningEnd && shiftEnd > morningStart) ? 
+      parseFloat((totalWorkedMinutes / 60).toFixed(2)) : 0;
+    
+    return { morningHours, nightHours: 0 };
+  }
 };
 
 export const calculateAllTimesheetHours = async (): Promise<void> => {
@@ -143,7 +190,7 @@ export const calculateAllTimesheetHours = async (): Promise<void> => {
 
     // Calculate and update each entry
     for (const entry of entries) {
-      const { morningHours, nightHours } = calculateMorningNightHours(entry, wageSettings, organizationTimezone);
+      const { morningHours, nightHours } = await calculateMorningNightHours(entry, wageSettings, organizationTimezone);
       
       // Get employee wage rates or use default
       const employeeMorningRate = entry.employees?.morning_wage_rate || wageSettings.morning_wage_rate;

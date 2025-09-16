@@ -72,9 +72,9 @@ const WageCalculator: React.FC<WageCalculatorProps> = ({ selectedRows, onCalcula
       
       const organizationTimezone = companySettings?.timezone || 'Africa/Cairo';
 
-      const updates = selectedEntries.map(entry => {
+      const updates = await Promise.all(selectedEntries.map(async (entry) => {
         // Use the centralized calculation function with timezone support
-        const { morningHours, nightHours } = calculateMorningNightHours(
+        const { morningHours, nightHours } = await calculateMorningNightHours(
           {
             id: entry.id,
             clock_in_date: entry.clock_in_date,
@@ -100,7 +100,7 @@ const WageCalculator: React.FC<WageCalculatorProps> = ({ selectedRows, onCalcula
           total_card_amount_split: Math.max(0, parseFloat(totalSplitAmount.toFixed(2))),
           is_split_calculation: true
         };
-      });
+      }));
 
       // Update all entries in batch
       for (const update of updates) {

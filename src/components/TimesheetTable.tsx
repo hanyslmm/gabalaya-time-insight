@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -11,6 +11,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/hooks/useAuth';
 import { Edit, List, BarChart3 } from 'lucide-react';
 import { useCompanyTimezone } from '@/hooks/useCompanyTimezone';
+import { calculateMorningNightHours } from '@/utils/wageCalculations';
 import TimesheetTableFilters from './TimesheetTableFilters';
 import TimesheetTableActions from './TimesheetTableActions';
 import TimesheetMobileCard from './TimesheetMobileCard';
@@ -79,7 +80,55 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
   const { t } = useTranslation();
   const isMobile = useIsMobile();
   const [currentPage, setCurrentPage] = useState(1);
-  const { formatDate, formatTimeAMPM } = useCompanyTimezone();
+  const { formatDate, formatTimeAMPM, timezone } = useCompanyTimezone();
+  const [processedData, setProcessedData] = useState(data);
+
+  // Process data for timezone-aware calculations
+  useEffect(() => {
+    if (!wageSettings || !timezone) {
+      setProcessedData(data);
+      return;
+    }
+
+    const processData = async () => {
+      try {
+        const processed = await Promise.all(
+          data.map(async (entry) => {
+            // Skip if already calculated
+            if (entry.morning_hours !== null && entry.morning_hours !== undefined) {
+              return entry;
+            }
+
+            // Calculate using timezone-aware function
+            const { morningHours, nightHours } = await calculateMorningNightHours(
+              entry,
+              wageSettings,
+              timezone
+            );
+
+            // Calculate total amount
+            const employeeMorningRate = employees?.find(e => e.id === (entry as any).employee_id)?.morning_wage_rate || wageSettings.morning_wage_rate;
+            const employeeNightRate = employees?.find(e => e.id === (entry as any).employee_id)?.night_wage_rate || wageSettings.night_wage_rate;
+            const calculatedTotalAmount = entry.total_card_amount_split || 
+              (morningHours * employeeMorningRate + nightHours * employeeNightRate);
+
+            return {
+              ...entry,
+              morning_hours: morningHours,
+              night_hours: nightHours,
+              total_card_amount_split: parseFloat(calculatedTotalAmount.toFixed(2))
+            };
+          })
+        );
+        setProcessedData(processed);
+      } catch (error) {
+        console.error('Error processing timesheet data:', error);
+        setProcessedData(data);
+      }
+    };
+
+    processData();
+  }, [data, wageSettings, timezone, employees]);
 
   const handleEdit = (entry: any) => {
     setEditingEntry(entry);
@@ -102,7 +151,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
     handleSelectRow,
     handleDeleteSelected,
     deleteMutation
-  } = useTimesheetTable(data, selectedRows, onSelectionChange, onDataChange, dateRange, selectedEmployee);
+  } = useTimesheetTable(processedData, selectedRows, onSelectionChange, onDataChange, dateRange, selectedEmployee);
 
   // Pagination logic
   const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
@@ -260,9 +309,9 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
       {hasActiveFilters && (
         <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <div className="flex items-center space-x-2">
-            <span className="text-sm font-medium text-blue-800">
-              Filters Active: {filteredData.length} of {data.length} entries shown
-            </span>
+              <span className="text-sm font-medium text-blue-800">
+                Filters Active: {filteredData.length} of {processedData.length} entries shown
+              </span>
           </div>
           <Button
             variant="outline"
