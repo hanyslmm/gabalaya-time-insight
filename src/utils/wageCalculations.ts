@@ -33,9 +33,11 @@ export const calculateMorningNightHours = async (
   }
 
   try {
-    // Convert UTC times to company timezone for accurate calculation
-    const clockInUTC = new Date(`${entry.clock_in_date}T${entry.clock_in_time}`);
-    const clockOutUTC = new Date(`${entry.clock_out_date}T${entry.clock_out_time}`);
+    // Convert stored UTC times to company timezone for accurate calculation
+    // Ensure we parse as UTC by appending 'Z' and stripping fractional seconds if present
+    const cleanTime = (t: string) => (t || '00:00:00').split('.')[0];
+    const clockInUTC = new Date(`${entry.clock_in_date}T${cleanTime(entry.clock_in_time)}Z`);
+    const clockOutUTC = new Date(`${entry.clock_out_date}T${cleanTime(entry.clock_out_time)}Z`);
 
     // Format times in Egypt timezone (company timezone)
     const formatter = new Intl.DateTimeFormat('en-CA', {

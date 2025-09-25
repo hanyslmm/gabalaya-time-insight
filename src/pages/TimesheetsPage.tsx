@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload, Download, Split, Trash2, User, Filter, RefreshCw } from 'lucide-react';
+import { Upload, Download, Split, Trash2, User, Filter, RefreshCw, Globe2 } from 'lucide-react';
 import TimesheetUpload from '@/components/TimesheetUpload';
 import TimesheetTable from '@/components/TimesheetTable';
 import TimesheetDateFilter from '@/components/TimesheetDateFilter';
@@ -14,10 +14,12 @@ import TimesheetExport from '@/components/TimesheetExport';
 import SimpleWageCalculator from '@/components/SimpleWageCalculator';
 import AutoCalculateWages from '@/components/AutoCalculateWages';
 import { Badge } from '@/components/ui/badge';
+import { Button as UIButton } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useCompanyTimezone } from '@/hooks/useCompanyTimezone';
 import { toast } from 'sonner';
 import MobilePageWrapper, { MobileSection, MobileHeader } from '@/components/MobilePageWrapper';
 import { getCompanyTimezone } from '@/utils/timezoneUtils';
-
 interface DateRange {
   from: Date;
   to: Date;
@@ -26,6 +28,7 @@ interface DateRange {
 const TimesheetsPage: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { timezone } = useCompanyTimezone();
   const [showUpload, setShowUpload] = useState(false);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
@@ -267,6 +270,23 @@ const TimesheetsPage: React.FC = () => {
           <span className="text-xs">
             Selected: {selectedRows.length} items
           </span>
+          <span className="hidden sm:inline">•</span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <UIButton size="sm" variant="outline" className="h-7 sm:h-8">
+                <Globe2 className="h-3.5 w-3.5 mr-1" /> {timezone || 'Africa/Cairo'}
+              </UIButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-64">
+              <DropdownMenuLabel>Timezone</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => { localStorage.setItem('companyTimezoneOverride', 'Africa/Cairo'); location.reload(); }}>Africa/Cairo (Default)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { localStorage.removeItem('companyTimezoneOverride'); location.reload(); }}>Use Company Setting</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => { localStorage.setItem('companyTimezoneOverride', 'Europe/Athens'); location.reload(); }}>Europe/Athens</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { localStorage.setItem('companyTimezoneOverride', 'Europe/Istanbul'); location.reload(); }}>Europe/Istanbul</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { localStorage.setItem('companyTimezoneOverride', 'Asia/Dubai'); location.reload(); }}>Asia/Dubai</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </MobileSection>
 

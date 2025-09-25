@@ -9,6 +9,11 @@ export function useCompanyTimezone() {
     
     const fetchTimezone = async () => {
       try {
+        const override = typeof window !== 'undefined' ? localStorage.getItem('companyTimezoneOverride') : null;
+        if (override) {
+          if (mounted) setTimezone(override);
+          return;
+        }
         const tz = await getCompanyTimezone();
         if (mounted && tz) {
           setTimezone(tz);

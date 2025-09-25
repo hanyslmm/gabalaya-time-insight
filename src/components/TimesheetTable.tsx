@@ -5,6 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Settings2 } from 'lucide-react';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { useTimesheetTable } from '@/hooks/useTimesheetTable';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -82,6 +85,22 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const { formatDate, formatTimeAMPM, timezone } = useCompanyTimezone();
   const [processedData, setProcessedData] = useState(data);
+  const [rowDensity, setRowDensity] = useState<'comfortable' | 'compact' | 'ultra'>((localStorage.getItem('timesheetRowDensity') as any) || 'comfortable');
+  const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>(() => {
+    const stored = localStorage.getItem('timesheetVisibleColumns');
+    return stored ? JSON.parse(stored) : {
+      employee_name: true,
+      clock_in_date: true,
+      clock_in_time: true,
+      clock_out_date: true,
+      clock_out_time: true,
+      total_hours: true,
+      morning_hours: true,
+      night_hours: true,
+      amount: true,
+      actions: true,
+    };
+  });
 
   // Process data for timezone-aware calculations
   useEffect(() => {
@@ -94,23 +113,19 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
       try {
         const processed = await Promise.all(
           data.map(async (entry) => {
-            // Skip if already calculated
-            if (entry.morning_hours !== null && entry.morning_hours !== undefined) {
-              return entry;
-            }
-
-            // Calculate using timezone-aware function
+            // Always compute using timezone-aware function to ensure correct display
             const { morningHours, nightHours } = await calculateMorningNightHours(
               entry,
               wageSettings,
               timezone
             );
 
-            // Calculate total amount
+            // Calculate total amount (prefer DB value if present and > 0)
             const employeeMorningRate = employees?.find(e => e.id === (entry as any).employee_id)?.morning_wage_rate || wageSettings.morning_wage_rate;
             const employeeNightRate = employees?.find(e => e.id === (entry as any).employee_id)?.night_wage_rate || wageSettings.night_wage_rate;
-            const calculatedTotalAmount = entry.total_card_amount_split || 
-              (morningHours * employeeMorningRate + nightHours * employeeNightRate);
+            const computedAmount = morningHours * employeeMorningRate + nightHours * employeeNightRate;
+            const dbAmount = Number(entry.total_card_amount_split || entry.total_card_amount_flat || 0);
+            const calculatedTotalAmount = dbAmount > 0 ? dbAmount : computedAmount;
 
             return {
               ...entry,
@@ -263,6 +278,22 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
     };
   };
 
+  // Keyboard shortcuts: / to focus name filter, f to focus global search, e to edit first selected
+  React.useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === '/' || (e.key.toLowerCase() === 'f' && !e.ctrlKey && !e.metaKey)) {
+        const el = document.querySelector<HTMLInputElement>('input[placeholder="Filter by name..."]');
+        if (el) { e.preventDefault(); el.focus(); }
+      }
+      if (e.key.toLowerCase() === 'e') {
+        const first = paginatedData.find((entry) => selectedRows.includes(entry.id));
+        if (first) { e.preventDefault(); handleEdit(first); }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [paginatedData, selectedRows]);
+
   return (
     <div className="space-y-4">
       {/* Summary */}
@@ -289,6 +320,36 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
             <BarChart3 className="h-4 w-4" />
             <span>Aggregated</span>
           </Button>
+        </div>
+        <div className="ml-auto flex items-center space-x-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8">
+                <Settings2 className="h-4 w-4 mr-1" /> View
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Row Density</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => { setRowDensity('comfortable'); localStorage.setItem('timesheetRowDensity', 'comfortable'); }}>Comfortable</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setRowDensity('compact'); localStorage.setItem('timesheetRowDensity', 'compact'); }}>Compact</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setRowDensity('ultra'); localStorage.setItem('timesheetRowDensity', 'ultra'); }}>Ultra-compact</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Columns</DropdownMenuLabel>
+              {Object.keys(visibleColumns).map((key) => (
+                <DropdownMenuCheckboxItem
+                  key={key}
+                  checked={visibleColumns[key]}
+                  onCheckedChange={(v) => {
+                    const next = { ...visibleColumns, [key]: !!v };
+                    setVisibleColumns(next);
+                    localStorage.setItem('timesheetVisibleColumns', JSON.stringify(next));
+                  }}
+                >
+                  {key.replace(/_/g, ' ')}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         <div className="flex-1 w-full sm:w-auto">
           <TimesheetTableFilters
@@ -373,7 +434,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
           ) : (
             /* Desktop View */
             <div className="table-wrapper mobile-scroll">
-              <Table>
+              <Table className={rowDensity !== 'comfortable' ? (rowDensity === 'compact' ? 'text-[13px]' : 'text-[12px]') : ''}>
                 <TableHeader className="table-header">
                   <TableRow>
                     <TableHead className="w-12 sticky left-0 bg-background/95 backdrop-blur">
@@ -382,6 +443,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
                         onCheckedChange={handleSelectAllPage}
                       />
                     </TableHead>
+                    {visibleColumns.employee_name && (
                     <TableHead className="min-w-[150px] sticky left-12 bg-background/95 backdrop-blur">
                       <div className="space-y-1">
                         <span className="font-semibold">{t('name') || 'Employee Name'}</span>
@@ -393,15 +455,16 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
                         />
                       </div>
                     </TableHead>
-                    <TableHead className="min-w-[120px]">{t('clockInDate') || 'Clock In Date'}</TableHead>
-                    <TableHead className="min-w-[100px]">{t('clockInTime') || 'Clock In Time'}</TableHead>
-                    <TableHead className="min-w-[120px]">{t('clockOutDate') || 'Clock Out Date'}</TableHead>
-                    <TableHead className="min-w-[100px]">{t('clockOutTime') || 'Clock Out Time'}</TableHead>
-                    <TableHead className="min-w-[100px]">{t('totalHours') || 'Total Hours'}</TableHead>
-                    <TableHead className="min-w-[110px] hidden lg:table-cell">{t('morningHours') || 'Morning Hours'}</TableHead>
-                    <TableHead className="min-w-[100px] hidden lg:table-cell">{t('nightHours') || 'Night Hours'}</TableHead>
-                    <TableHead className="min-w-[120px]">{t('totalAmount') || 'Total Amount'}</TableHead>
-                    {isAdmin && <TableHead className="min-w-[100px]">Actions</TableHead>}
+                    )}
+                    {visibleColumns.clock_in_date && <TableHead className="min-w-[120px]">{t('clockInDate') || 'Clock In Date'}</TableHead>}
+                    {visibleColumns.clock_in_time && <TableHead className="min-w-[100px]">{t('clockInTime') || 'Clock In Time'}</TableHead>}
+                    {visibleColumns.clock_out_date && <TableHead className="min-w-[120px]">{t('clockOutDate') || 'Clock Out Date'}</TableHead>}
+                    {visibleColumns.clock_out_time && <TableHead className="min-w-[100px]">{t('clockOutTime') || 'Clock Out Time'}</TableHead>}
+                    {visibleColumns.total_hours && <TableHead className="min-w-[100px]">{t('totalHours') || 'Total Hours'}</TableHead>}
+                    {visibleColumns.morning_hours && <TableHead className="min-w-[110px] hidden lg:table-cell">{t('morningHours') || 'Morning Hours'}</TableHead>}
+                    {visibleColumns.night_hours && <TableHead className="min-w-[100px] hidden lg:table-cell">{t('nightHours') || 'Night Hours'}</TableHead>}
+                    {visibleColumns.amount && <TableHead className="min-w-[120px]">{t('totalAmount') || 'Total Amount'}</TableHead>}
+                    {isAdmin && visibleColumns.actions && <TableHead className="min-w-[100px]">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                  <TableBody>
@@ -434,11 +497,13 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
                               onCheckedChange={(checked) => handleSelectRow(entry.id, !!checked)}
                             />
                           </TableCell>
+                          {visibleColumns.employee_name && (
                           <TableCell className="font-medium sticky left-12 bg-background/95 backdrop-blur min-w-0 z-10 p-2">
                             <div className="truncate pr-2 text-xs sm:text-sm" title={entry.employee_name}>
                               {entry.employee_name}
                             </div>
                           </TableCell>
+                          )}
                           <TableCell>
                             <div className="font-medium text-xs sm:text-sm truncate" title={formatDate(entry.clock_in_date)}>
                               {formatDate(entry.clock_in_date)}
@@ -460,22 +525,48 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
                               {formatTotalHours(entry.total_hours)}h
                             </span>
                           </TableCell>
+                          {visibleColumns.morning_hours && (
                           <TableCell className="hidden lg:table-cell">
-                            <div className="text-fluid-xs">
-                              <div className="flex items-center gap-1">
-                                <span className="text-muted-foreground">M:</span>
-                                <span className="font-medium">{disp.morningHours.toFixed(2)}h</span>
-                              </div>
-                            </div>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="text-fluid-xs">
+                                    <div className="flex items-center gap-2 min-w-[120px]">
+                                      <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                                        <div className="h-full bg-orange-500" style={{ width: `${Math.min(100, (disp.morningHours / Math.max(0.001, (disp.morningHours + disp.nightHours))) * 100)}%` }} />
+                                      </div>
+                                      <span className="font-medium">{disp.morningHours.toFixed(2)}h</span>
+                                    </div>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  Calculated in {timezone}. Morning window 08:00–17:00.
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           </TableCell>
+                          )}
+                          {visibleColumns.night_hours && (
                           <TableCell className="hidden lg:table-cell">
-                            <div className="text-fluid-xs">
-                              <div className="flex items-center gap-1">
-                                <span className="text-muted-foreground">N:</span>
-                                <span className="font-medium">{disp.nightHours.toFixed(2)}h</span>
-                              </div>
-                            </div>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="text-fluid-xs">
+                                    <div className="flex items-center gap-2 min-w-[120px]">
+                                      <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                                        <div className="h-full bg-purple-500" style={{ width: `${Math.min(100, (disp.nightHours / Math.max(0.001, (disp.morningHours + disp.nightHours))) * 100)}%` }} />
+                                      </div>
+                                      <span className="font-medium">{disp.nightHours.toFixed(2)}h</span>
+                                    </div>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  Calculated in {timezone}. Night window 17:00–01:00.
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           </TableCell>
+                          )}
                           <TableCell>
                             <div className="space-y-1">
                               <div className="font-bold text-accent">

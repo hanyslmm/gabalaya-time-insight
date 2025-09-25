@@ -16,7 +16,7 @@ interface TimesheetExportProps {
 
 const TimesheetExport: React.FC<TimesheetExportProps> = ({ selectedRows = [] }) => {
   const { t } = useTranslation();
-  const { formatDate, formatTimeAMPM } = useCompanyTimezone();
+  const { formatDate, formatTimeAMPM, timezone } = useCompanyTimezone();
   const { user } = useAuth();
   const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
 
@@ -57,7 +57,7 @@ const TimesheetExport: React.FC<TimesheetExportProps> = ({ selectedRows = [] }) 
       return;
     }
 
-    const exportData = timesheetData.map(entry => ({
+    const rows = timesheetData.map(entry => ({
       'Employee Name': entry.employee_name,
       'Staff ID': entry.employees?.staff_id || 'N/A',
       'Clock In Date': formatDate(entry.clock_in_date),
@@ -80,6 +80,31 @@ const TimesheetExport: React.FC<TimesheetExportProps> = ({ selectedRows = [] }) 
       'Is Split Calculation': entry.is_split_calculation ? 'Yes' : 'No'
     }));
 
+    // Summary row
+    const totals = rows.reduce(
+      (acc, r: any) => {
+        acc.totalHours += Number(r['Total Hours'] || 0);
+        acc.morningHours += Number(r['Morning Hours'] || 0);
+        acc.nightHours += Number(r['Night Hours'] || 0);
+        acc.amountSplit += Number(r['Total Amount (Split)'] || 0);
+        acc.amountFlat += Number(r['Total Amount (Flat)'] || 0);
+        return acc;
+      },
+      { totalHours: 0, morningHours: 0, nightHours: 0, amountSplit: 0, amountFlat: 0 }
+    );
+
+    const summaryRow: any = {
+      'Employee Name': '— Summary —',
+      'Clock In Date': `Generated in ${timezone}`,
+      'Total Hours': Number(totals.totalHours.toFixed(2)),
+      'Morning Hours': Number(totals.morningHours.toFixed(2)),
+      'Night Hours': Number(totals.nightHours.toFixed(2)),
+      'Total Amount (Flat)': Number(totals.amountFlat.toFixed(2)),
+      'Total Amount (Split)': Number(totals.amountSplit.toFixed(2))
+    };
+
+    const exportData = [...rows, {}, summaryRow];
+
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Timesheet Data');
@@ -87,7 +112,7 @@ const TimesheetExport: React.FC<TimesheetExportProps> = ({ selectedRows = [] }) 
     const fileName = `timesheet_export_${new Date().toISOString().split('T')[0]}.xlsx`;
     XLSX.writeFile(workbook, fileName);
     
-    toast.success(`Exported ${exportData.length} records to ${fileName}`);
+    toast.success(`Exported ${rows.length} records (+ summary) to ${fileName}`);
   };
 
   return (
