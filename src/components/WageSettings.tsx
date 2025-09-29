@@ -31,36 +31,121 @@ const WageSettings: React.FC = () => {
     queryKey: ['wage-settings', activeOrganizationId],
     enabled: !!activeOrganizationId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      console.log('Fetching wage settings for organization:', activeOrganizationId);
+      
+      const { data, error } = await supabase
         .from('wage_settings')
         .select('*')
         .eq('organization_id', activeOrganizationId)
-        .single();
+        .maybeSingle();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching wage settings:', error);
+        throw error;
+      }
+      
+      // If no organization-specific settings exist, try to create them from global defaults
+      if (!data) {
+        console.log('No wage settings found for organization, creating from defaults...');
+        
+        // First get global default settings
+        const { data: globalSettings } = await supabase
+          .from('wage_settings')
+          .select('*')
+          .is('organization_id', null)
+          .single();
+        
+        if (globalSettings) {
+          // Create organization-specific settings
+          const { data: newSettings, error: createError } = await supabase
+            .from('wage_settings')
+            .insert({
+              morning_start_time: globalSettings.morning_start_time,
+              morning_end_time: globalSettings.morning_end_time,
+              night_start_time: globalSettings.night_start_time,
+              night_end_time: globalSettings.night_end_time,
+              morning_wage_rate: globalSettings.morning_wage_rate,
+              night_wage_rate: globalSettings.night_wage_rate,
+              default_flat_wage_rate: globalSettings.default_flat_wage_rate,
+              organization_id: activeOrganizationId
+            })
+            .select()
+            .single();
+          
+          if (createError) {
+            console.error('Error creating wage settings:', createError);
+            throw createError;
+          }
+          
+          console.log('Created new wage settings:', newSettings);
+          return newSettings;
+        } else {
+          // Create with default values if no global settings exist
+          const { data: defaultSettings, error: defaultError } = await supabase
+            .from('wage_settings')
+            .insert({
+              morning_start_time: '08:00:00',
+              morning_end_time: '17:00:00',
+              night_start_time: '17:00:00',
+              night_end_time: '01:00:00',
+              morning_wage_rate: 17.00,
+              night_wage_rate: 20.00,
+              default_flat_wage_rate: 20.00,
+              organization_id: activeOrganizationId
+            })
+            .select()
+            .single();
+          
+          if (defaultError) {
+            console.error('Error creating default wage settings:', defaultError);
+            throw defaultError;
+          }
+          
+          console.log('Created default wage settings:', defaultSettings);
+          return defaultSettings;
+        }
+      }
+      
+      console.log('Found existing wage settings:', data);
       return data;
     }
   });
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (updatedSettings: Partial<WageSettings>) => {
-      const { data, error } = await (supabase as any)
+      console.log('Updating wage settings:', {
+        wageSettingsId: wageSettings?.id,
+        activeOrganizationId,
+        updatedSettings
+      });
+      
+      if (!wageSettings?.id) {
+        throw new Error('No wage settings ID found');
+      }
+      
+      const { data, error } = await supabase
         .from('wage_settings')
         .update({ ...updatedSettings, organization_id: activeOrganizationId })
-        .eq('id', wageSettings?.id)
+        .eq('id', wageSettings.id)
         .eq('organization_id', activeOrganizationId)
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating wage settings:', error);
+        throw error;
+      }
+      
+      console.log('Successfully updated wage settings:', data);
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['wage-settings', activeOrganizationId] });
       toast.success(t('settingsUpdated') || 'Settings updated successfully');
     },
-    onError: (error) => {
-      toast.error(t('errorUpdatingSettings') || 'Error updating settings');
+    onError: (error: any) => {
+      console.error('Update mutation failed:', error);
+      toast.error(t('errorUpdatingSettings') || `Error updating settings: ${error.message}`);
     }
   });
 

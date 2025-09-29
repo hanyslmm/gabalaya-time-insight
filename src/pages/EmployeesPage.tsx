@@ -233,7 +233,7 @@ const EmployeesPage: React.FC = () => {
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
-                  {!employee.is_admin_user && (
+                  {(user?.role === 'owner' || user?.role === 'admin' || !employee.is_admin_user) && (
                     <Button
                       variant="ghost"
                       size="sm"

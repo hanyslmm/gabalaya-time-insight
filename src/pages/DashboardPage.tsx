@@ -6,11 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Users, Clock, DollarSign, TrendingUp, Upload, Download, Settings, ShieldAlert } from 'lucide-react';
-import WeeklyHoursTrend from '@/components/WeeklyHoursTrend';
-import MonthlyShiftsActivity from '@/components/MonthlyShiftsActivity';
-import DailyPaymentChart from '@/components/DailyPaymentChart';
-import TopPerformersLeaderboard from '@/components/TopPerformersLeaderboard';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { 
+  Users, Clock, DollarSign, TrendingUp, Upload, Download, Settings, ShieldAlert, 
+  Activity, BarChart3, Calendar, Timer, Zap, ArrowUpRight, ArrowDownRight
+} from 'lucide-react';
+import DashboardCharts from '@/components/DashboardCharts';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import PullToRefresh from '@/components/PullToRefresh';
 import ProfileAvatar from '@/components/ProfileAvatar';
@@ -81,6 +83,13 @@ const DashboardPage: React.FC = () => {
 
   // Fetch data for the active period
   const { data: activeData, isLoading: activeLoading } = useDashboardData(activePeriod);
+  const { data: previousData } = useDashboardData(previousPeriod);
+
+  // Calculate percentage changes
+  const getPercentageChange = (current: number, previous: number) => {
+    if (!previous || previous === 0) return 0;
+    return ((current - previous) / previous) * 100;
+  };
 
   // Check if user is admin or owner - restrict dashboard access to admins and owners only
   if (!user || !['admin', 'owner'].includes(user.role)) {
@@ -106,26 +115,118 @@ const DashboardPage: React.FC = () => {
   }
 
   const quickActions = [
-    { title: 'Import Timesheets', description: 'Upload CSV or Excel files', icon: Upload, action: () => navigate('/timesheets'), color: 'bg-blue-500' },
-    { title: 'Export Data', description: 'Download payroll reports', icon: Download, action: () => navigate('/timesheets'), color: 'bg-green-500' },
-    { title: 'Employee Monitor', description: 'Real-time clock-in status', icon: Users, action: () => navigate('/monitor'), color: 'bg-purple-500' },
-    { title: 'Manage Employees', description: 'Add, edit, or view employees', icon: Users, action: () => navigate('/employees'), color: 'bg-purple-500' },
-    { title: 'Settings', description: 'Configure wage rates', icon: Settings, action: () => navigate('/settings'), color: 'bg-gray-500' }
+    { 
+      title: 'View Timesheets', 
+      description: 'Manage employee time records', 
+      icon: Timer, 
+      action: () => navigate('/timesheets'), 
+      color: 'from-blue-500 to-blue-600',
+      shortcut: 'T'
+    },
+    { 
+      title: 'Employee Monitor', 
+      description: 'Live attendance tracking', 
+      icon: Activity, 
+      action: () => navigate('/monitor'), 
+      color: 'from-green-500 to-green-600',
+      shortcut: 'M'
+    },
+    { 
+      title: 'Manage Team', 
+      description: 'Add & edit employees', 
+      icon: Users, 
+      action: () => navigate('/employees'), 
+      color: 'from-purple-500 to-purple-600',
+      shortcut: 'E'
+    },
+    { 
+      title: 'Reports & Analytics', 
+      description: 'Export payroll data', 
+      icon: BarChart3, 
+      action: () => navigate('/timesheets'), 
+      color: 'from-orange-500 to-orange-600',
+      shortcut: 'R'
+    },
+  ];
+
+  const stats = [
+    {
+      title: 'Total Employees',
+      value: activeLoading ? '...' : Math.round(activeData?.employeeCount || 0),
+      description: 'Active staff members',
+      icon: Users,
+      color: 'from-blue-500 to-blue-600',
+      bgColor: 'bg-blue-50 dark:bg-blue-950/20',
+      textColor: 'text-blue-700 dark:text-blue-400',
+      change: 0, // Employee count doesn't change frequently
+    },
+    {
+      title: `${getPeriodLabel()} Hours`,
+      value: activeLoading ? '...' : (activeData?.totalHours?.toFixed(1) || '0.0'),
+      description: 'Hours worked',
+      icon: Clock,
+      color: 'from-green-500 to-green-600',
+      bgColor: 'bg-green-50 dark:bg-green-950/20',
+      textColor: 'text-green-700 dark:text-green-400',
+      change: getPercentageChange(activeData?.totalHours || 0, previousData?.totalHours || 0),
+    },
+    {
+      title: `${getPeriodLabel()} Payroll`,
+      value: activeLoading ? '...' : `${(activeData?.totalPayroll?.toFixed(0) || '0')} LE`,
+      description: 'Total earnings',
+      icon: DollarSign,
+      color: 'from-purple-500 to-purple-600',
+      bgColor: 'bg-purple-50 dark:bg-purple-950/20',
+      textColor: 'text-purple-700 dark:text-purple-400',
+      change: getPercentageChange(activeData?.totalPayroll || 0, previousData?.totalPayroll || 0),
+    },
+    {
+      title: `${getPeriodLabel()} Shifts`,
+      value: activeLoading ? '...' : Math.round(activeData?.totalShifts || 0),
+      description: 'Completed shifts',
+      icon: TrendingUp,
+      color: 'from-orange-500 to-orange-600',
+      bgColor: 'bg-orange-50 dark:bg-orange-950/20',
+      textColor: 'text-orange-700 dark:text-orange-400',
+      change: getPercentageChange(activeData?.totalShifts || 0, previousData?.totalShifts || 0),
+    }
   ];
 
   return (
     <PullToRefresh onRefresh={async () => window.location.reload()}>
-      <div className="w-full px-2 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-8 space-y-3 sm:space-y-0">
-          <div>
-            <h1 className="text-xl sm:text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">{t('dashboard') || 'Dashboard'}</h1>
-            <p className="mt-1 sm:mt-2 text-sm sm:text-base text-muted-foreground">Overview of your HRM system</p>
+      <div className="w-full px-3 sm:px-6 lg:px-8 pb-8">
+        {/* Hero Header Section */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/5 via-primary/3 to-transparent p-6 sm:p-8 mb-8">
+          <div className="relative z-10">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <h1 className="text-2xl sm:text-4xl font-bold bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
+                    {t('dashboard') || 'Dashboard'}
+                  </h1>
+                  <Badge variant="secondary" className="animate-pulse">
+                    Live
+                  </Badge>
+                </div>
+                <p className="text-base sm:text-lg text-muted-foreground max-w-2xl">
+                  Real-time insights into your workforce performance and business metrics
+                </p>
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-4 w-4" />
+                    <span>{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Activity className="h-4 w-4" />
+                    <span>{activeData?.employeeCount || 0} Active Employees</span>
+                  </div>
+                </div>
           </div>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
+              
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">
             <div className="flex items-center gap-2">
               <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-                <SelectTrigger className="w-40 sm:w-48">
+                    <SelectTrigger className="w-44 bg-background/80 backdrop-blur-sm border-border/50">
                   <SelectValue placeholder="Select period" />
                 </SelectTrigger>
                 <SelectContent>
@@ -136,7 +237,7 @@ const DashboardPage: React.FC = () => {
               </Select>
               {selectedPeriod === 'custom' && (
                 <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                  <SelectTrigger className="w-36 sm:w-40">
+                      <SelectTrigger className="w-40 bg-background/80 backdrop-blur-sm border-border/50">
                     <SelectValue placeholder="Select month" />
                   </SelectTrigger>
                   <SelectContent>
@@ -152,87 +253,110 @@ const DashboardPage: React.FC = () => {
               <GlobalSearch />
               <ProfileAvatar />
             </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Decorative background elements */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-primary/10 to-transparent rounded-full -translate-y-32 translate-x-32" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-secondary/10 to-transparent rounded-full translate-y-24 -translate-x-24" />
+        </div>
+
+        {/* Enhanced Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+          {stats.map((stat, index) => (
+            <Card 
+              key={index}
+              className="group relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-500 hover:scale-[1.02] cursor-pointer bg-gradient-to-br from-card to-card/90 backdrop-blur-sm"
+            >
+              {/* Gradient overlay */}
+              <div className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-0 group-hover:opacity-5 transition-opacity duration-500`} />
+              
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 relative z-10">
+                <div className="space-y-1">
+                  <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                    {stat.title}
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl sm:text-3xl font-bold text-foreground">
+                      {stat.value}
+                    </span>
+                    {stat.change !== 0 && (
+                      <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                        stat.change > 0 
+                          ? 'bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400' 
+                          : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+                      }`}>
+                        {stat.change > 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                        {Math.abs(stat.change).toFixed(1)}%
+                      </div>
+                    )}
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-            <Card className="group bg-gradient-to-br from-card via-card to-primary/5 border-primary/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
-                    <CardTitle className="text-sm font-semibold text-card-foreground/80">Total Employees</CardTitle>
-                    <div className="p-2 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors"><Users className="h-4 w-4 text-primary" /></div>
+                <div className={`p-3 rounded-2xl ${stat.bgColor} ${stat.textColor} group-hover:scale-110 transition-transform duration-300`}>
+                  <stat.icon className="h-6 w-6" />
+                </div>
                 </CardHeader>
-                <CardContent className="p-4 sm:p-6 pt-0">
-                    <div className="text-2xl sm:text-3xl font-bold text-primary mb-1">{activeLoading ? '...' : Math.round(activeData?.employeeCount || 0)}</div>
-                    <p className="text-xs text-muted-foreground">Active staff members</p>
+              
+              <CardContent className="pt-0 relative z-10">
+                <p className="text-sm text-muted-foreground">{stat.description}</p>
+                {stat.change !== 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    vs. previous period
+                  </p>
+                )}
                 </CardContent>
+
+              {/* Animated border */}
+              <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-transparent via-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" 
+                   style={{ background: `linear-gradient(90deg, transparent, ${stat.color.split(' ')[1]}/0.2, transparent)` }} />
             </Card>
-            <Card className="group bg-gradient-to-br from-card via-card to-secondary/5 border-secondary/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
-                    <CardTitle className="text-sm font-semibold text-card-foreground/80">{getPeriodLabel()} Hours</CardTitle>
-                    <div className="p-2 bg-secondary/10 rounded-lg group-hover:bg-secondary/20 transition-colors"><Clock className="h-4 w-4 text-secondary" /></div>
-                </CardHeader>
-                <CardContent className="p-4 sm:p-6 pt-0">
-                    <div className="text-2xl sm:text-3xl font-bold text-secondary mb-1">{activeLoading ? '...' : (activeData?.totalHours?.toFixed(1) || '0.0')}</div>
-                    <p className="text-xs text-muted-foreground">Hours worked</p>
-                </CardContent>
-            </Card>
-            <Card className="group bg-gradient-to-br from-card via-card to-accent/5 border-accent/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
-                    <CardTitle className="text-sm font-semibold text-card-foreground/80">{getPeriodLabel()} Payroll</CardTitle>
-                    <div className="p-2 bg-accent/10 rounded-lg group-hover:bg-accent/20 transition-colors"><DollarSign className="h-4 w-4 text-accent" /></div>
-                </CardHeader>
-                <CardContent className="p-4 sm:p-6 pt-0">
-                    <div className="text-2xl sm:text-3xl font-bold text-accent mb-1">{activeLoading ? '...' : (activeData?.totalPayroll?.toFixed(2) || '0.00')} LE</div>
-                    <p className="text-xs text-muted-foreground">Total earnings</p>
-                </CardContent>
-            </Card>
-            <Card className="group bg-gradient-to-br from-card via-card to-success/5 border-success/20 shadow-card hover:shadow-elegant transition-all duration-300 hover:scale-[1.02] cursor-pointer rounded-xl overflow-hidden">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
-                    <CardTitle className="text-sm font-semibold text-card-foreground/80">{getPeriodLabel()} Shifts</CardTitle>
-                    <div className="p-2 bg-success/10 rounded-lg group-hover:bg-success/20 transition-colors"><TrendingUp className="h-4 w-4 text-success" /></div>
-                </CardHeader>
-                <CardContent className="p-4 sm:p-6 pt-0">
-                    <div className="text-2xl sm:text-3xl font-bold text-success mb-1">{activeLoading ? '...' : Math.round(activeData?.totalShifts || 0)}</div>
-                    <p className="text-xs text-muted-foreground">Completed shifts</p>
-                </CardContent>
-            </Card>
+          ))}
         </div>
 
-        {/* Charts */}
-        <div className="space-y-6 mb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <WeeklyHoursTrend timePeriod={selectedPeriod} dateRange={{...activePeriod, label: getPeriodLabel()}} />
-            <MonthlyShiftsActivity timePeriod={selectedPeriod} dateRange={{...activePeriod, label: getPeriodLabel()}} />
+        {/* Quick Actions - Modern Card Grid */}
+        <Card className="mb-8 border-0 shadow-lg bg-gradient-to-br from-card to-card/90 backdrop-blur-sm">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-primary" />
+                  Quick Actions
+                </CardTitle>
+                <p className="text-muted-foreground mt-1">Streamline your workflow with one-click actions</p>
           </div>
-          <DailyPaymentChart timePeriod={selectedPeriod} dateRange={{...activePeriod, label: getPeriodLabel()}} />
-          <TopPerformersLeaderboard timePeriod={selectedPeriod} dateRange={{...activePeriod, label: getPeriodLabel()}} />
+              <Badge variant="outline" className="text-xs">
+                4 Actions
+              </Badge>
         </div>
-
-        {/* Quick Actions */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="text-lg font-bold">Quick Actions</CardTitle>
           </CardHeader>
-          <CardContent className="p-4 sm:p-6">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {quickActions.map((action, index) => (
                 <Button
                   key={index}
-                  variant="outline"
-                  className="h-auto min-h-[100px] sm:min-h-[120px] p-3 sm:p-4 flex flex-col items-center justify-center space-y-2 sm:space-y-3 hover:bg-accent/10 transition-all duration-300 text-center group"
+                  variant="ghost"
+                  className="group h-auto min-h-[120px] p-4 flex flex-col items-center justify-center space-y-3 hover:bg-transparent transition-all duration-300 text-center relative overflow-hidden border border-border/50 hover:border-primary/30 rounded-2xl"
                   onClick={action.action}
                 >
-                  <div className={`p-2 sm:p-3 rounded-xl ${action.color} text-white shadow-lg group-hover:shadow-xl transition-shadow`}>
-                    <action.icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                  {/* Background gradient on hover */}
+                  <div className={`absolute inset-0 bg-gradient-to-br ${action.color} opacity-0 group-hover:opacity-5 transition-opacity duration-300 rounded-2xl`} />
+                  
+                  <div className={`relative z-10 p-3 rounded-2xl bg-gradient-to-br ${action.color} text-white shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all duration-300`}>
+                    <action.icon className="h-6 w-6" />
                   </div>
-                  <div className="space-y-1 text-center w-full">
-                    <div className="font-semibold text-xs sm:text-sm leading-tight truncate w-full" title={action.title}>
+                  
+                  <div className="relative z-10 space-y-1 text-center w-full">
+                    <div className="font-semibold text-sm leading-tight text-foreground group-hover:text-primary transition-colors duration-300">
                       {action.title}
                     </div>
-                    <div className="text-xs text-muted-foreground leading-tight line-clamp-2 break-words" title={action.description}>
+                    <div className="text-xs text-muted-foreground leading-tight">
                       {action.description}
                     </div>
+                    <Badge variant="secondary" className="text-[10px] mt-2">
+                      {action.shortcut}
+                    </Badge>
                   </div>
                 </Button>
               ))}
@@ -240,15 +364,41 @@ const DashboardPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Recent Activity */}
-        <Card>
+        {/* Unified Analytics - Replace individual chart components */}
+        <DashboardCharts
+          timePeriod={selectedPeriod}
+          dateRange={activePeriod}
+        />
+
+        {/* Welcome Message */}
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-card/90 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold">Recent Activity</CardTitle>
+            <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <Activity className="h-5 w-5 text-primary" />
+              System Status
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground">
-              Welcome to the ChampTime HRM System. Use the navigation menu to manage employees, timesheets, and system settings.
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-muted-foreground mb-2">
+                  Welcome to ChampTime HRM System. Everything is running smoothly.
+                </p>
+                <div className="flex items-center gap-4 text-sm">
+                  <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50 dark:bg-green-950/20">
+                    <Activity className="h-3 w-3 mr-1" />
+                    System Online
+                  </Badge>
+                  <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+                    Last Updated: {new Date().toLocaleTimeString()}
+                  </Badge>
+                </div>
+              </div>
+              <Button variant="outline" onClick={() => navigate('/settings')}>
+                <Settings className="h-4 w-4 mr-2" />
+                Settings
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Building, Users, UserPlus, Trash2 } from 'lucide-react';
+import { Plus, Building, Users, UserPlus, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 
@@ -19,6 +19,7 @@ const OrganizationManagement: React.FC = () => {
   const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
   const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
   const [newOrgName, setNewOrgName] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [newUserData, setNewUserData] = useState({
     username: '',
     password: '',
@@ -46,26 +47,30 @@ const OrganizationManagement: React.FC = () => {
     }
   });
 
-  // Fetch users based on user role
+  // Fetch users from employees table instead of admin_users
   const { data: users, isLoading: usersLoading } = useQuery({
-    queryKey: ['admin-users-with-orgs'],
+    queryKey: ['employees-for-orgs'],
     queryFn: async () => {
       let query = supabase
-        .from('admin_users')
+        .from('employees')
         .select(`
-          *,
-          organizations!admin_users_organization_id_fkey (
+          id,
+          full_name,
+          staff_id,
+          role,
+          organization_id,
+          organizations!employees_organization_id_fkey (
             name
           )
         `);
 
-      // If user is admin (not owner), only show users from their organization
+      // If user is admin (not owner), only show employees from their organization
       if (user?.role === 'admin' && user?.organization_id) {
         query = query.eq('organization_id', user.organization_id);
       }
-      // Owners can see all users
+      // Owners can see all employees
       
-      const { data, error } = await query.order('username');
+      const { data, error } = await query.order('full_name');
       
       if (error) throw error;
       return data;
@@ -95,17 +100,17 @@ const OrganizationManagement: React.FC = () => {
     }
   });
 
-  // Create user mutation
+  // Create employee mutation
   const createUserMutation = useMutation({
     mutationFn: async (userData: typeof newUserData) => {
       const { data, error } = await supabase
-        .from('admin_users')
+        .from('employees')
         .insert({
-          username: userData.username,
-          password_hash: userData.password, // In production, this should be hashed
+          staff_id: userData.username,
           full_name: userData.full_name,
           role: userData.role,
-          organization_id: userData.organization_id
+          organization_id: userData.organization_id,
+          hiring_date: new Date().toISOString().split('T')[0] // Today's date
         })
         .select()
         .single();
@@ -114,7 +119,7 @@ const OrganizationManagement: React.FC = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users-with-orgs'] });
+      queryClient.invalidateQueries({ queryKey: ['employees-for-orgs'] });
       setNewUserData({
         username: '',
         password: '',
@@ -123,10 +128,10 @@ const OrganizationManagement: React.FC = () => {
         organization_id: ''
       });
       setIsCreateUserOpen(false);
-      toast.success('User created successfully');
+      toast.success('Employee created successfully');
     },
     onError: (error) => {
-      toast.error('Failed to create user: ' + error.message);
+      toast.error('Failed to create employee: ' + error.message);
     }
   });
 
@@ -142,7 +147,7 @@ const OrganizationManagement: React.FC = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['organizations'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-users-with-orgs'] });
+      queryClient.invalidateQueries({ queryKey: ['employees-for-orgs'] });
       toast.success('Organization deleted successfully');
     },
     onError: (error) => {
@@ -150,22 +155,22 @@ const OrganizationManagement: React.FC = () => {
     }
   });
 
-  // Update user organization mutation
+  // Update employee organization mutation
   const updateUserOrgMutation = useMutation({
     mutationFn: async ({ userId, organizationId }: { userId: string, organizationId: string }) => {
       const { error } = await supabase
-        .from('admin_users')
+        .from('employees')
         .update({ organization_id: organizationId })
         .eq('id', userId);
       
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users-with-orgs'] });
-      toast.success('User organization updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['employees-for-orgs'] });
+      toast.success('Employee organization updated successfully');
     },
     onError: (error) => {
-      toast.error('Failed to update user organization: ' + error.message);
+      toast.error('Failed to update employee organization: ' + error.message);
     }
   });
 
@@ -178,8 +183,8 @@ const OrganizationManagement: React.FC = () => {
   };
 
   const handleCreateUser = () => {
-    if (!newUserData.username || !newUserData.password || !newUserData.organization_id) {
-      toast.error('Username, password, and organization are required');
+    if (!newUserData.username || !newUserData.full_name || !newUserData.organization_id) {
+      toast.error('Staff ID, full name, and organization are required');
       return;
     }
     createUserMutation.mutate(newUserData);
@@ -192,6 +197,27 @@ const OrganizationManagement: React.FC = () => {
   const handleDeleteOrg = (organizationId: string) => {
     deleteOrgMutation.mutate(organizationId);
   };
+
+  // Pagination logic
+  const ITEMS_PER_PAGE = 15;
+  const totalEmployees = users?.length || 0;
+  const totalPages = Math.ceil(totalEmployees / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedEmployees = users?.slice(startIndex, endIndex) || [];
+
+  const handlePreviousPage = () => {
+    setCurrentPage(prev => Math.max(prev - 1, 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage(prev => Math.min(prev + 1, totalPages));
+  };
+
+  // Reset to page 1 when users data changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [users?.length]);
 
   return (
     <div className="space-y-6">
@@ -234,31 +260,21 @@ const OrganizationManagement: React.FC = () => {
             <DialogTrigger asChild>
               <Button variant="outline">
                 <UserPlus className="h-4 w-4 mr-2" />
-                New User
+                New Employee
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Create New User</DialogTitle>
+                <DialogTitle>Create New Employee</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="username">Username</Label>
+                  <Label htmlFor="username">Staff ID</Label>
                   <Input
                     id="username"
                     value={newUserData.username}
                     onChange={(e) => setNewUserData(prev => ({ ...prev, username: e.target.value }))}
-                    placeholder="Enter username"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={newUserData.password}
-                    onChange={(e) => setNewUserData(prev => ({ ...prev, password: e.target.value }))}
-                    placeholder="Enter password"
+                    placeholder="Enter staff ID"
                   />
                 </div>
                 <div>
@@ -311,7 +327,7 @@ const OrganizationManagement: React.FC = () => {
                   disabled={createUserMutation.isPending}
                   className="w-full"
                 >
-                  {createUserMutation.isPending ? 'Creating...' : 'Create User'}
+                  {createUserMutation.isPending ? 'Creating...' : 'Create Employee'}
                 </Button>
               </div>
             </DialogContent>
@@ -342,7 +358,7 @@ const OrganizationManagement: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary">
-                      {users?.filter(u => u.organization_id === org.id).length || 0} users
+                      {users?.filter(emp => emp.organization_id === org.id).length || 0} employees
                     </Badge>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
@@ -382,39 +398,46 @@ const OrganizationManagement: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Users List */}
+      {/* Employees List */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Users
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Employees
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {totalEmployees > 0 && (
+                <>Showing {startIndex + 1}-{Math.min(endIndex, totalEmployees)} of {totalEmployees}</>
+              )}
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
           {usersLoading ? (
-            <div className="text-center py-4">Loading users...</div>
+            <div className="text-center py-4">Loading employees...</div>
           ) : (
             <div className="grid gap-2">
-              {users?.map((user) => (
-                <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg">
+              {paginatedEmployees.map((employee) => (
+                <div key={employee.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
-                    <h4 className="font-medium">{user.full_name || user.username}</h4>
-                    <p className="text-sm text-muted-foreground">@{user.username}</p>
+                    <h4 className="font-medium">{employee.full_name}</h4>
+                    <p className="text-sm text-muted-foreground">ID: {employee.staff_id}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
-                        {user.role}
+                      <Badge variant={employee.role === 'admin' ? 'default' : 'secondary'}>
+                        {employee.role}
                       </Badge>
-                      {user.organizations && (
+                      {employee.organizations && (
                         <Badge variant="outline">
-                          {user.organizations.name}
+                          {employee.organizations.name}
                         </Badge>
                       )}
                     </div>
                   </div>
                   <div className="flex flex-col gap-2">
                     <Select
-                      value={user.organization_id || ''}
-                      onValueChange={(value) => handleUpdateUserOrg(user.id, value)}
+                      value={employee.organization_id || ''}
+                      onValueChange={(value) => handleUpdateUserOrg(employee.id, value)}
                     >
                       <SelectTrigger className="w-48">
                         <SelectValue placeholder="Select organization" />
@@ -430,6 +453,35 @@ const OrganizationManagement: React.FC = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4 border-t">
+              <div className="text-sm text-muted-foreground">
+                Page {currentPage} of {totalPages}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePreviousPage}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

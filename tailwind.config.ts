@@ -31,6 +31,10 @@ export default {
 			'desktop': {'min': '1024px'},
 		},
 		extend: {
+			fontFamily: {
+				sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+				arabic: ['Cairo', 'Noto Sans Arabic', 'Segoe UI', 'system-ui', 'sans-serif'],
+			},
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',

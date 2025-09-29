@@ -44,37 +44,30 @@ const MobileNavigation: React.FC = () => {
       icon: LayoutDashboard
     },
     {
-      name: 'Clock In/Out',
+      name: 'Clock',
       shortName: 'Clock',
       href: '/clock-in-out',
       icon: Clock
     },
     {
-      name: 'My Timesheet',
+      name: 'My Time',
       shortName: 'Time',
       href: '/my-timesheet',
       icon: Calendar
     },
     ...(isAdmin ? [
       {
-        name: 'Employees',
+        name: 'Staff',
         shortName: 'Staff',
         href: '/employees',
         icon: Users,
         adminOnly: true
       },
       {
-        name: 'Timesheets',
-        shortName: 'Sheets',
-        href: '/timesheets',
-        icon: FileText,
-        adminOnly: true
-      },
-      {
         name: 'Reports',
         shortName: 'Reports',
-        href: '/reports',
-        icon: BarChart3,
+        href: '/timesheets',
+        icon: FileText,
         adminOnly: true
       },
     ] : []),

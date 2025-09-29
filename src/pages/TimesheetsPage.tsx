@@ -6,13 +6,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload, Download, Split, Trash2, User, Filter, RefreshCw, Globe2 } from 'lucide-react';
+import { Upload, Download, Split, Trash2, User, Filter, RefreshCw, Globe2, Plus } from 'lucide-react';
 import TimesheetUpload from '@/components/TimesheetUpload';
 import TimesheetTable from '@/components/TimesheetTable';
 import TimesheetDateFilter from '@/components/TimesheetDateFilter';
 import TimesheetExport from '@/components/TimesheetExport';
 import SimpleWageCalculator from '@/components/SimpleWageCalculator';
 import AutoCalculateWages from '@/components/AutoCalculateWages';
+import TimesheetEditDialog from '@/components/TimesheetEditDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button as UIButton } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -30,6 +31,7 @@ const TimesheetsPage: React.FC = () => {
   const { user } = useAuth();
   const { timezone } = useCompanyTimezone();
   const [showUpload, setShowUpload] = useState(false);
+  const [showNewEntryDialog, setShowNewEntryDialog] = useState(false);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
   // Helper: compute current pay period based on end-day (default 28)
@@ -244,6 +246,16 @@ const TimesheetsPage: React.FC = () => {
              <Button onClick={handleRefresh} size="sm" variant="outline" className="h-7 sm:h-9">
                <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
              </Button>
+             {(user?.role === 'admin' || user?.role === 'owner') && (
+               <Button
+                 onClick={() => setShowNewEntryDialog(true)}
+                 className="bg-green-600 hover:bg-green-700 h-7 sm:h-9"
+                 size="sm"
+               >
+                 <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
+                 <span className="hidden sm:inline ml-1">Add Entry</span>
+               </Button>
+             )}
              <Button
                onClick={() => setShowUpload(true)}
                className="bg-blue-600 hover:bg-blue-700 h-7 sm:h-9"
@@ -253,7 +265,7 @@ const TimesheetsPage: React.FC = () => {
                <span className="hidden sm:inline ml-1">Import</span>
              </Button>
               <TimesheetExport 
-                selectedRows={[]}
+                selectedRows={selectedRows}
               />
            </div>
          }
@@ -604,6 +616,17 @@ const TimesheetsPage: React.FC = () => {
         <TimesheetUpload
           onClose={() => setShowUpload(false)}
           onUploadComplete={refetch}
+        />
+      )}
+
+      {showNewEntryDialog && (
+        <TimesheetEditDialog
+          entry={null}
+          isOpen={showNewEntryDialog}
+          onClose={() => setShowNewEntryDialog(false)}
+          onUpdate={refetch}
+          employees={employees}
+          wageSettings={wageSettings}
         />
       )}
     </MobilePageWrapper>

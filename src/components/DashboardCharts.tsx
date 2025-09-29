@@ -10,7 +10,7 @@ import { format, subMonths, subDays, startOfMonth, endOfMonth, startOfWeek, endO
 import { Trophy, Medal, Award, Star, Calendar, TrendingUp, BarChart3, LineChart as LineChartIcon, Activity, Zap, Target, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import InteractiveChart from './InteractiveChart';
+// InteractiveChart removed - functionality integrated directly
 import { getCompanyTimezone } from '@/utils/timezoneUtils';
 
 interface MonthlyData {
@@ -91,16 +91,79 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
       const fromDate = format(effectiveDateRange.from, 'yyyy-MM-dd');
       const toDate = format(effectiveDateRange.to, 'yyyy-MM-dd');
 
-      let tsQuery = supabase
-        .from('timesheet_entries')
-        .select('*')
-        .gte('clock_in_date', fromDate)
-        .lte('clock_in_date', toDate)
-        .order('clock_in_date');
-      if (activeOrganizationId) tsQuery = tsQuery.eq('organization_id', activeOrganizationId);
-      const { data: timesheetData, error } = await tsQuery;
+      // Load employees in current org to properly match legacy rows (organization_id is null)
+      const { data: orgEmployees } = await supabase
+        .from('employees')
+        .select('id, staff_id, full_name')
+        .eq('organization_id', activeOrganizationId)
+        .order('full_name');
 
-      if (error) throw error;
+      const employeeRows = orgEmployees || [];
+      const employeeIds = employeeRows.map((e: any) => e.id);
+      const employeeStaffIds = employeeRows.map((e: any) => e.staff_id).filter(Boolean);
+      const employeeNames = employeeRows.map((e: any) => e.full_name).filter(Boolean);
+
+      // Helper: apply date filter
+      const applyDateFilter = (q: any) => q.gte('clock_in_date', fromDate).lte('clock_in_date', toDate);
+
+      // Query A: strictly current organization
+      let queryOrg = supabase
+        .from('timesheet_entries')
+        .select(`
+          *,
+          employees!inner(
+            morning_wage_rate,
+            night_wage_rate,
+            full_name
+          )
+        `)
+        .order('clock_in_date');
+      if (activeOrganizationId) queryOrg = queryOrg.eq('organization_id', activeOrganizationId);
+      queryOrg = applyDateFilter(queryOrg);
+
+      // Query B: legacy rows with null organization, matched to org employees
+      let queryLegacy = supabase
+        .from('timesheet_entries')
+        .select(`
+          *,
+          employees!inner(
+            morning_wage_rate,
+            night_wage_rate,
+            full_name
+          )
+        `)
+        .is('organization_id', null)
+        .order('clock_in_date');
+      queryLegacy = applyDateFilter(queryLegacy);
+      if (employeeIds.length > 0) {
+        queryLegacy = queryLegacy.in('employee_id', employeeIds);
+      } else if (employeeStaffIds.length > 0 || employeeNames.length > 0) {
+        const orParts: string[] = [];
+        if (employeeStaffIds.length > 0) {
+          const staffVals = employeeStaffIds.map((v: string) => `"${v}"`).join(',');
+          orParts.push(`employee_name.in.(${staffVals})`);
+        }
+        if (employeeNames.length > 0) {
+          const nameVals = employeeNames.map((v: string) => `"${v}"`).join(',');
+          orParts.push(`employee_name.in.(${nameVals})`);
+        }
+        if (orParts.length > 0) {
+          queryLegacy = queryLegacy.or(orParts.join(','));
+        }
+      }
+
+      const [resOrg, resLegacy] = await Promise.all([
+        queryOrg,
+        queryLegacy
+      ]);
+
+      if (resOrg.error) throw resOrg.error;
+      if (resLegacy.error) throw resLegacy.error;
+
+      const timesheetData = [ ...(resOrg.data || []), ...(resLegacy.data || []) ];
+
+      // Debug logging
+      console.log('Dashboard Charts - Loaded', timesheetData.length, 'entries for period', fromDate, 'to', toDate);
 
       const tz = await getCompanyTimezone();
 
@@ -110,23 +173,41 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
       const hourlyDataMap = new Map<number, number>();
 
       timesheetData?.forEach(entry => {
+        
         // Monthly data
         const monthKey = format(new Date(entry.clock_in_date), 'MMM yyyy');
         if (!monthlyDataMap.has(monthKey)) {
           monthlyDataMap.set(monthKey, { hours: 0, amount: 0, shifts: 0 });
         }
         const monthData = monthlyDataMap.get(monthKey)!;
-        monthData.hours += entry.total_hours || 0;
-        monthData.amount += entry.total_card_amount_split || entry.total_card_amount_flat || 0;
+        const hours = entry.total_hours || 0;
+        
+        // Calculate amount based on available data
+        let calculatedAmount = 0;
+        if (entry.total_card_amount_split) {
+          calculatedAmount = entry.total_card_amount_split;
+        } else if (entry.total_card_amount_flat) {
+          calculatedAmount = entry.total_card_amount_flat;
+        } else if (hours > 0) {
+          // Fallback: calculate from wage rates
+          const morningRate = entry.employees?.morning_wage_rate || 20;
+          const nightRate = entry.employees?.night_wage_rate || 20;
+          const avgRate = (morningRate + nightRate) / 2;
+          calculatedAmount = hours * avgRate;
+        }
+        
+        monthData.hours += hours;
+        monthData.amount += calculatedAmount;
         monthData.shifts += 1;
 
         // Employee data
-        if (!employeeDataMap.has(entry.employee_name)) {
-          employeeDataMap.set(entry.employee_name, { hours: 0, amount: 0, shifts: 0 });
+        const employeeName = entry.employee_name || entry.employees?.full_name || 'Unknown';
+        if (!employeeDataMap.has(employeeName)) {
+          employeeDataMap.set(employeeName, { hours: 0, amount: 0, shifts: 0 });
         }
-        const empData = employeeDataMap.get(entry.employee_name)!;
-        empData.hours += entry.total_hours || 0;
-        empData.amount += entry.total_card_amount_split || entry.total_card_amount_flat || 0;
+        const empData = employeeDataMap.get(employeeName)!;
+        empData.hours += hours;
+        empData.amount += calculatedAmount;
         empData.shifts += 1;
 
         // Hourly data (company timezone)
@@ -150,7 +231,10 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
           ...data,
           avgHours: data.shifts > 0 ? data.hours / data.shifts : 0
         }))
+        .filter(emp => emp.hours > 0) // Only include employees with actual hours
         .sort((a, b) => b.hours - a.hours);
+
+      console.log('Dashboard Charts - Found', employeeData.length, 'employees with data');
 
       const hourlyData = Array.from({ length: 24 }, (_, hour) => ({
         hour,
@@ -198,37 +282,24 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Enhanced Charts Grid */}
+    <div className="space-y-6">
+      {/* Simplified Charts Header */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold">Analytics Overview</h3>
+        <Select value={chartView} onValueChange={(value) => setChartView(value as 'overview' | 'performance' | 'activity')}>
+          <SelectTrigger className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="overview">Overview</SelectItem>
+            <SelectItem value="performance">Performance</SelectItem>
+            <SelectItem value="activity">Activity</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Chart Content */}
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Analytics Dashboard</h3>
-          <Select value={chartView} onValueChange={(value) => setChartView(value as 'overview' | 'performance' | 'activity')}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select view" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="overview">
-                <div className="flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4" />
-                  Overview
-                </div>
-              </SelectItem>
-              <SelectItem value="performance">
-                <div className="flex items-center gap-2">
-                  <LineChartIcon className="h-4 w-4" />
-                  Performance
-                </div>
-              </SelectItem>
-              <SelectItem value="activity">
-                <div className="flex items-center gap-2">
-                  <Activity className="h-4 w-4" />
-                  Activity
-                </div>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
 
         {chartView === 'overview' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

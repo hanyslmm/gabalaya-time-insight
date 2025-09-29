@@ -12,7 +12,7 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { useTimesheetTable } from '@/hooks/useTimesheetTable';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/hooks/useAuth';
-import { Edit, List, BarChart3 } from 'lucide-react';
+import { Edit, List, BarChart3, Plus } from 'lucide-react';
 import { useCompanyTimezone } from '@/hooks/useCompanyTimezone';
 import { calculateMorningNightHours } from '@/utils/wageCalculations';
 import TimesheetTableFilters from './TimesheetTableFilters';
@@ -147,6 +147,11 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
 
   const handleEdit = (entry: any) => {
     setEditingEntry(entry);
+    setShowEditDialog(true);
+  };
+
+  const handleAddNew = () => {
+    setEditingEntry(null);
     setShowEditDialog(true);
   };
 
@@ -464,7 +469,22 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
                     {visibleColumns.morning_hours && <TableHead className="min-w-[110px] hidden lg:table-cell">{t('morningHours') || 'Morning Hours'}</TableHead>}
                     {visibleColumns.night_hours && <TableHead className="min-w-[100px] hidden lg:table-cell">{t('nightHours') || 'Night Hours'}</TableHead>}
                     {visibleColumns.amount && <TableHead className="min-w-[120px]">{t('totalAmount') || 'Total Amount'}</TableHead>}
-                    {isAdmin && visibleColumns.actions && <TableHead className="min-w-[100px]">Actions</TableHead>}
+                    {isAdmin && visibleColumns.actions && (
+                      <TableHead className="min-w-[100px]">
+                        <div className="flex items-center justify-between">
+                          <span>Actions</span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleAddNew}
+                            className="h-6 w-6 p-0"
+                            title="Add new timesheet entry"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </TableHead>
+                    )}
                   </TableRow>
                 </TableHeader>
                  <TableBody>
@@ -658,6 +678,8 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
         isOpen={showEditDialog}
         onClose={handleEditClose}
         onUpdate={onDataChange}
+        employees={employees}
+        wageSettings={wageSettings}
       />
     </div>
   );
