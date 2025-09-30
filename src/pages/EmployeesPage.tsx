@@ -5,6 +5,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { Plus, Edit, Trash2, Search, DollarSign, Lock } from 'lucide-react';
 import EmployeeForm from '@/components/EmployeeForm';
@@ -38,6 +48,7 @@ const EmployeesPage: React.FC = () => {
   const [wageRateEmployee, setWageRateEmployee] = useState<Employee | null>(null);
   const [passwordChangeEmployee, setPasswordChangeEmployee] = useState<Employee | null>(null);
   const [roleChangeAdmin, setRoleChangeAdmin] = useState<any>(null);
+  const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
 
   const { data: employees, isLoading } = useQuery({
     queryKey: ['employees', (user as any)?.current_organization_id || user?.organization_id],
@@ -152,8 +163,13 @@ const EmployeesPage: React.FC = () => {
   };
 
   const handleDelete = (employee: Employee) => {
-    if (window.confirm(`Are you sure you want to delete ${employee.full_name}?`)) {
-      deleteEmployeeMutation.mutate(employee);
+    setEmployeeToDelete(employee);
+  };
+
+  const confirmDelete = () => {
+    if (employeeToDelete) {
+      deleteEmployeeMutation.mutate(employeeToDelete);
+      setEmployeeToDelete(null);
     }
   };
 
@@ -354,6 +370,43 @@ const EmployeesPage: React.FC = () => {
           onClose={() => setRoleChangeAdmin(null)}
         />
       )}
+
+      {/* Modern Delete Confirmation Dialog */}
+      <AlertDialog open={!!employeeToDelete} onOpenChange={(open) => !open && setEmployeeToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" />
+              Delete Employee
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                Are you sure you want to delete <span className="font-semibold text-foreground">{employeeToDelete?.full_name}</span>?
+              </p>
+              <p className="text-sm">
+                This will permanently remove:
+              </p>
+              <ul className="text-sm list-disc list-inside space-y-1 pl-2">
+                <li>Employee profile and information</li>
+                <li>All associated timesheet records</li>
+                <li>Wage rate settings</li>
+              </ul>
+              <p className="text-sm font-semibold text-destructive">
+                ⚠️ This action cannot be undone.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Employee
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
