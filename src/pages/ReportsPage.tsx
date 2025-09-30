@@ -1,13 +1,14 @@
 import React, { useState, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { format } from 'date-fns';
+import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Download, FileBarChart, Users, FileSpreadsheet, Upload, AlertCircle, RefreshCw } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Download, Users, FileSpreadsheet, ChevronRight, AlertCircle, Calendar, Clock, TrendingUp, DollarSign } from 'lucide-react';
 import TimesheetDateFilter from '@/components/TimesheetDateFilter';
 import { HRAnalytics } from '@/components/HRAnalytics';
-import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import {
   Table,
@@ -19,86 +20,57 @@ import {
 } from '@/components/ui/table';
 import { toast } from 'sonner';
 import MobilePageWrapper, { MobileSection, MobileHeader } from '@/components/MobilePageWrapper';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAuth } from '@/hooks/useAuth';
 
 interface DateRange {
   from: Date;
   to: Date;
 }
 
+type ViewType = 'overview' | 'attendance' | 'payroll' | 'analytics';
+
 const ReportsPage: React.FC = () => {
-  const { t } = useTranslation();
-  const { user } = useAuth();
-  const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
+  console.log('ReportsPage: Component rendering...');
   
-  // Set default date range to cover more data - last 6 months
+  // Hooks at top level
+  const { user } = useAuth();
+  const [currentView, setCurrentView] = useState<ViewType>('overview');
+  
+  // Date range state
   const [dateRange, setDateRange] = useState<DateRange>(() => {
-    try {
       const today = new Date();
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(today.getMonth() - 6);
-      return { 
-        from: sixMonthsAgo, 
-        to: today 
-      };
-    } catch (error) {
-      const today = new Date();
-      const lastMonth = new Date();
-      lastMonth.setMonth(today.getMonth() - 1);
-      return { 
-        from: lastMonth, 
-        to: today 
-      };
+    return { from: sixMonthsAgo, to: today };
+  });
+  
+  const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
+  
+  console.log('ReportsPage: User:', user?.username, 'Org:', activeOrganizationId);
+  
+  // Query 1: Employees
+  const { data: employees, isLoading: employeesLoading, error: employeesError } = useQuery({
+    queryKey: ['employees-final', activeOrganizationId],
+    queryFn: async (): Promise<any[]> => {
+      let q = supabase.from('employees').select('id, staff_id, full_name');
+      if (activeOrganizationId) q = q.eq('organization_id', activeOrganizationId);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data || [];
     }
   });
 
-  // Get wage settings for calculations (scoped to org with fallback)
+  // Query 2: Wage Settings
   const { data: wageSettings, isLoading: wageLoading } = useQuery({
-    queryKey: ['wage-settings', activeOrganizationId],
-    queryFn: async () => {
-      console.log('Fetching wage settings for organization:', activeOrganizationId);
-      
-      // Try org-specific first if user has organization
+    queryKey: ['wage-settings-final', activeOrganizationId],
+    queryFn: async (): Promise<any> => {
       if (activeOrganizationId) {
-        const { data: orgSettings } = await (supabase as any)
+        const { data } = await supabase
           .from('wage_settings')
           .select('*')
           .eq('organization_id', activeOrganizationId)
           .maybeSingle();
-
-        if (orgSettings) {
-          console.log('Found org-specific wage settings');
-          return orgSettings;
-        }
+        if (data) return data;
       }
-
-      // Fallback to a global row (organization_id IS NULL) or any single row
-      const { data: globalSettings } = await (supabase as any)
-        .from('wage_settings')
-        .select('*')
-        .is('organization_id', null)
-        .maybeSingle();
-
-      if (globalSettings) {
-        console.log('Found global wage settings');
-        return globalSettings;
-      }
-
-      // As last resort, pick first available row
-      const { data: anySettings } = await (supabase as any)
-        .from('wage_settings')
-        .select('*')
-        .limit(1)
-        .maybeSingle();
-
-      if (anySettings) {
-        console.log('Found fallback wage settings');
-        return anySettings;
-      }
-
-      // Final safe defaults if nothing in DB or access denied
-      console.log('Using default wage settings');
       return {
         morning_start_time: '08:00:00',
         morning_end_time: '17:00:00',
@@ -107,107 +79,86 @@ const ReportsPage: React.FC = () => {
         morning_wage_rate: 17.0,
         night_wage_rate: 20.0,
         default_flat_wage_rate: 20.0,
-      } as any;
+      };
     }
   });
 
-  // Raw timesheet data query with better debugging
+  // Query 3: Timesheet Data (with legacy support like TimesheetsPage)
   const { data: rawTimesheetData, isLoading: timesheetLoading, error: timesheetError } = useQuery({
-    queryKey: ['raw-timesheet-data', dateRange, activeOrganizationId],
-    queryFn: async () => {
-      try {
+    queryKey: ['timesheet-final', dateRange, activeOrganizationId, employees?.length],
+    queryFn: async (): Promise<any[]> => {
         const fromDate = format(dateRange.from, 'yyyy-MM-dd');
         const toDate = format(dateRange.to, 'yyyy-MM-dd');
         
-        console.log('Fetching timesheet data:', { fromDate, toDate, activeOrganizationId });
-        
-        let query = supabase
-          .from('timesheet_entries')
-          .select('*')
+      const applyDateFilter = (q: any) => {
+        return q
           .gte('clock_in_date', fromDate)
           .lte('clock_in_date', toDate)
           .order('clock_in_date', { ascending: false });
+      };
 
-        // Try both organization-specific and null organization_id data
-        if (activeOrganizationId) {
-          // First try to get organization-specific data
-          const { data: orgData, error: orgError } = await query.eq('organization_id', activeOrganizationId);
-          
-          if (orgError) {
-            console.error('Organization timesheet query error:', orgError);
-          }
-          
-          // If no organization-specific data found, try null organization_id
-          if (!orgData || orgData.length === 0) {
-            console.log('No org-specific data, trying null organization_id');
-            const { data: nullOrgData, error: nullError } = await query.is('organization_id', null);
-            
-            if (nullError) {
-              console.error('Null org timesheet query error:', nullError);
-              throw nullError;
-            }
-            
-            console.log('Fetched null org timesheet data:', nullOrgData?.length, 'entries');
-            return nullOrgData || [];
-          }
-          
-          console.log('Fetched org-specific timesheet data:', orgData?.length, 'entries');
-          return orgData || [];
-        } else {
-          // If no organization assigned, get all data
-          const { data, error } = await query;
-          
-          if (error) {
-            console.error('Timesheet query error:', error);
-            throw error;
-          }
-          
-          console.log('Fetched all timesheet data:', data?.length, 'entries');
-          return data || [];
+      if (!activeOrganizationId) {
+        // No organization - get all data
+        let query = supabase.from('timesheet_entries').select('*');
+        query = applyDateFilter(query);
+        const { data, error } = await query;
+        if (error) throw error;
+        return data || [];
+      }
+
+      // Build employee matching for legacy rows (organization_id is null)
+      const employeeIds = employees?.map(e => e.id) || [];
+      const employeeStaffIds = employees?.map(e => e.staff_id).filter(Boolean) || [];
+      const employeeNames = employees?.map(e => e.full_name).filter(Boolean) || [];
+
+      // Query A: organization-specific timesheet entries
+      let queryOrg = supabase
+        .from('timesheet_entries')
+        .select('*')
+        .eq('organization_id', activeOrganizationId);
+      queryOrg = applyDateFilter(queryOrg);
+
+      // Query B: legacy rows with null organization, matched to org employees
+      let queryLegacy = supabase
+        .from('timesheet_entries')
+        .select('*')
+        .is('organization_id', null);
+      queryLegacy = applyDateFilter(queryLegacy);
+      
+      if (employeeIds.length > 0) {
+        queryLegacy = queryLegacy.in('employee_id', employeeIds);
+      } else if (employeeStaffIds.length > 0 || employeeNames.length > 0) {
+        const orParts: string[] = [];
+        if (employeeStaffIds.length > 0) {
+          const staffVals = employeeStaffIds.map((v: string) => `"${v}"`).join(',');
+          orParts.push(`employee_name.in.(${staffVals})`);
         }
-      } catch (error) {
-        console.error('Failed to fetch timesheet data:', error);
-        throw error;
+        if (employeeNames.length > 0) {
+          const nameVals = employeeNames.map((v: string) => `"${v}"`).join(',');
+          orParts.push(`employee_name.in.(${nameVals})`);
+        }
+        if (orParts.length > 0) {
+          queryLegacy = queryLegacy.or(orParts.join(','));
+        }
       }
+
+      const [resOrg, resLegacy] = await Promise.all([queryOrg, queryLegacy]);
+      
+      if (resOrg.error) throw resOrg.error;
+      if (resLegacy.error) throw resLegacy.error;
+
+      // Combine and sort
+      const combined = [...(resOrg.data || []), ...(resLegacy.data || [])];
+      combined.sort((a, b) => (a.clock_in_date < b.clock_in_date ? 1 : -1));
+      return combined.slice(0, 500); // Cap to 500 entries for performance
     },
-    enabled: !!(dateRange?.from && dateRange?.to)
+    enabled: !!(dateRange?.from && dateRange?.to && employees !== undefined)
   });
 
-  // Get all employees for name mapping
-  const { data: employees, isLoading: employeesLoading } = useQuery({
-    queryKey: ['employees-for-reports', activeOrganizationId],
-    queryFn: async () => {
-      console.log('Fetching employees for reports:', activeOrganizationId);
-      
-      let q = supabase
-        .from('employees')
-        .select('id, staff_id, full_name');
-        
-      // Only filter by organization if user has one assigned
-      if (activeOrganizationId) {
-        q = q.eq('organization_id', activeOrganizationId);
-      }
-      
-      const { data, error } = await q;
-      if (error) {
-        console.error('Employees query error:', error);
-        throw error;
-      }
-      
-      console.log('Fetched employees:', data?.length, 'employees');
-      return data || [];
-    }
-  });
-
-  // Process attendance report with better error handling
+  // Process attendance report
   const attendanceReport = useMemo(() => {
-    try {
-          if (!rawTimesheetData || !employees || !wageSettings) {
-      return [];
-    }
-
-      
-      // Create employee name mapping
+    if (!rawTimesheetData || !employees || !wageSettings) return [];
+    
       const employeeMap = new Map();
       employees.forEach(emp => {
         if (emp.staff_id) employeeMap.set(emp.staff_id, emp.full_name);
@@ -215,13 +166,21 @@ const ReportsPage: React.FC = () => {
         if (emp.id) employeeMap.set(emp.id, emp.full_name);
       });
 
-      const processedData = rawTimesheetData.map(entry => {
+    return rawTimesheetData.filter(entry => {
+      // Only include entries for employees that actually exist in the current organization
+      const hasValidEmployee = employeeMap.has(entry.employee_name) || 
+                               employeeMap.has(entry.employee_id) || 
+                               employees.some(emp => 
+                                 emp.full_name === entry.employee_name ||
+                                 emp.staff_id === entry.employee_name ||
+                                 emp.id === entry.employee_id
+                               );
+      return hasValidEmployee;
+    }).map(entry => {
         let morningHours = entry.morning_hours || 0;
         const nightHours = entry.night_hours || 0;
 
-        // If no morning/night hours calculated, try to calculate or use total
         if (morningHours === 0 && nightHours === 0 && entry.total_hours > 0) {
-          // Simple fallback: assign all hours to morning for now
           morningHours = entry.total_hours;
         }
 
@@ -229,30 +188,41 @@ const ReportsPage: React.FC = () => {
                            employeeMap.get(entry.employee_id) || 
                            entry.employee_name || 'Unknown Employee';
 
+      // Calculate amount for individual entries (same logic as payroll summary)
+      const storedAmount = entry.total_card_amount_split || entry.total_card_amount_flat || 0;
+      let calculatedAmount = 0;
+      
+      if (storedAmount > 0) {
+        calculatedAmount = storedAmount;
+      } else {
+        // Calculate from hours and wage rates
+        const morningRate = wageSettings?.morning_wage_rate || 17;
+        const nightRate = wageSettings?.night_wage_rate || 20;
+        
+        if (morningHours > 0 || nightHours > 0) {
+          // Use split calculation
+          calculatedAmount = (morningHours * morningRate) + (nightHours * nightRate);
+        } else if ((entry.total_hours || 0) > 0) {
+          // Use flat rate for total hours
+          calculatedAmount = (entry.total_hours || 0) * morningRate;
+        }
+      }
+
         return {
           ...entry,
           display_name: displayName,
           calculated_morning_hours: Math.max(0, morningHours),
           calculated_night_hours: Math.max(0, nightHours),
-          total_card_amount_flat: Math.round(entry.total_card_amount_flat || 0)
+        total_card_amount_flat: Math.round(calculatedAmount),
+        calculated_amount: Math.round(calculatedAmount)
         };
       });
-
-      return processedData;
-    } catch (error) {
-      return [];
-    }
   }, [rawTimesheetData, employees, wageSettings]);
 
   // Calculate payroll summary
   const payrollSummary = useMemo(() => {
-    try {
-      if (!attendanceReport || attendanceReport.length === 0) {
-        return [];
-      }
-
-
-      // Group by employee
+    if (!attendanceReport.length) return [];
+    
       const grouped = attendanceReport.reduce((acc, entry) => {
         const key = entry.display_name || entry.employee_name || 'Unknown';
         if (!acc[key]) {
@@ -271,20 +241,57 @@ const ReportsPage: React.FC = () => {
         acc[key].morning_hours += entry.calculated_morning_hours || 0;
         acc[key].night_hours += entry.calculated_night_hours || 0;
         acc[key].shifts += 1;
-        acc[key].total_flat_amount += entry.total_card_amount_flat || 0;
-        acc[key].total_split_amount += entry.total_card_amount_split || 0;
+        
+        // Calculate amount if not stored in database
+        const storedAmount = entry.total_card_amount_split || entry.total_card_amount_flat || 0;
+        let calculatedAmount = 0;
+        
+        if (storedAmount > 0) {
+          calculatedAmount = storedAmount;
+        } else {
+          // Calculate from hours and wage rates
+          const morningHours = entry.calculated_morning_hours || 0;
+          const nightHours = entry.calculated_night_hours || 0;
+          const totalHours = entry.total_hours || 0;
+          
+          const morningRate = wageSettings?.morning_wage_rate || 17;
+          const nightRate = wageSettings?.night_wage_rate || 20;
+          
+          if (morningHours > 0 || nightHours > 0) {
+            // Use split calculation
+            calculatedAmount = (morningHours * morningRate) + (nightHours * nightRate);
+          } else if (totalHours > 0) {
+            // Use flat rate for total hours
+            calculatedAmount = totalHours * morningRate;
+          }
+        }
+        
+        acc[key].total_flat_amount += calculatedAmount;
+        acc[key].total_split_amount += calculatedAmount;
 
         return acc;
       }, {} as any);
 
-      const summary = Object.values(grouped);
-      return summary;
-    } catch (error) {
-      return [];
-    }
+    return Object.values(grouped);
   }, [attendanceReport]);
 
-  // Export functionality with cleaner format
+  // Key metrics
+  const keyMetrics = useMemo(() => {
+    const totalHours = attendanceReport.reduce((sum, entry) => sum + (entry.total_hours || 0), 0);
+    const totalAmount = attendanceReport.reduce((sum, entry) => sum + (entry.calculated_amount || entry.total_card_amount_flat || 0), 0);
+    const totalEmployees = new Set(attendanceReport.map(entry => entry.display_name)).size;
+    
+    return {
+      totalShifts: attendanceReport.length,
+      totalHours: totalHours,
+      totalAmount: totalAmount,
+      totalEmployees: totalEmployees,
+      morningHours: attendanceReport.reduce((sum, entry) => sum + (entry.calculated_morning_hours || 0), 0),
+      nightHours: attendanceReport.reduce((sum, entry) => sum + (entry.calculated_night_hours || 0), 0),
+    };
+  }, [attendanceReport]);
+
+  // Export functionality
   const exportReport = (type: string) => {
     try {
       let data: any[] = [];
@@ -300,7 +307,7 @@ const ReportsPage: React.FC = () => {
           'Total Hours': Number(entry.total_hours || 0).toFixed(2),
           'Morning Hours': Number(entry.calculated_morning_hours || 0).toFixed(2),
           'Night Hours': Number(entry.calculated_night_hours || 0).toFixed(2),
-          'Total Amount (LE)': Number(entry.total_card_amount_flat || 0).toFixed(2)
+          'Total Amount (LE)': Number(entry.calculated_amount || entry.total_card_amount_flat || 0).toFixed(2)
         }));
         filename = `Attendance_Report_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
       } else if (type === 'payroll') {
@@ -321,22 +328,16 @@ const ReportsPage: React.FC = () => {
         return;
       }
 
-      // Create worksheet with proper formatting
       const ws = XLSX.utils.json_to_sheet(data);
-      
-      // Auto-size columns
       const cols = Object.keys(data[0]).map(key => ({
         wch: Math.max(key.length, 12)
       }));
       ws['!cols'] = cols;
 
-      // Create workbook and add worksheet
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, type === 'attendance' ? 'Attendance Report' : 'Payroll Summary');
       
-      // Write file
       XLSX.writeFile(wb, filename);
-      
       toast.success(`${filename} exported successfully`);
     } catch (error) {
       console.error('Export error:', error);
@@ -344,11 +345,15 @@ const ReportsPage: React.FC = () => {
     }
   };
 
-  const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    toast.info('File import functionality coming soon!');
+  const formatDateRange = () => {
+    try {
+      if (dateRange?.from && dateRange?.to) {
+        return `${format(dateRange.from, 'MMM dd')} - ${format(dateRange.to, 'MMM dd, yyyy')}`;
+      }
+      return 'Invalid date range';
+    } catch (error) {
+      return 'Invalid date range';
+    }
   };
 
   // Loading state
@@ -364,7 +369,7 @@ const ReportsPage: React.FC = () => {
   }
 
   // Error state
-  if (timesheetError) {
+  if (timesheetError || employeesError) {
     return (
       <MobilePageWrapper>
         <MobileHeader title="Reports" subtitle="Error loading data" />
@@ -374,34 +379,26 @@ const ReportsPage: React.FC = () => {
               <AlertCircle className="h-5 w-5" />
               <p>Failed to load reports data. Please try again.</p>
             </div>
-            <details className="mt-4">
-              <summary className="cursor-pointer">Error details</summary>
-              <pre className="text-xs mt-2 p-2 bg-muted rounded">
-                {JSON.stringify(timesheetError, null, 2)}
-              </pre>
-            </details>
           </CardContent>
         </Card>
       </MobilePageWrapper>
     );
   }
 
-  const formatDateRange = () => {
-    try {
-      if (dateRange?.from && dateRange?.to) {
-        return `${format(dateRange.from, 'MMM dd')} - ${format(dateRange.to, 'MMM dd, yyyy')}`;
-      }
-      return 'Invalid date range';
-    } catch (error) {
-      return 'Invalid date range';
-    }
-  };
+  console.log('ReportsPage: Ready to render with', attendanceReport.length, 'entries');
+  console.log('ReportsPage: Current org employees:', employees?.map(e => e.full_name) || []);
+  console.log('ReportsPage: Attendance report employees:', [...new Set(attendanceReport.map(e => e.display_name))]);
+  console.log('ReportsPage: Sample payroll with amounts:', payrollSummary.slice(0, 3).map(p => ({
+    name: p.employee_name,
+    hours: p.total_hours,
+    amount: p.total_split_amount || p.total_flat_amount
+  })));
 
   return (
     <MobilePageWrapper>
       <MobileHeader 
         title="Reports" 
-        subtitle={`${attendanceReport.length} entries found`}
+        subtitle={currentView === 'overview' ? `${attendanceReport.length} entries • ${formatDateRange()}` : ''}
       />
 
       <MobileSection>
@@ -413,22 +410,172 @@ const ReportsPage: React.FC = () => {
         />
       </MobileSection>
 
-      <Tabs defaultValue="attendance" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="attendance">Attendance</TabsTrigger>
-          <TabsTrigger value="payroll">Payroll</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="import">Import</TabsTrigger>
-        </TabsList>
+      <MobileSection>
+        {currentView === 'overview' && (
+          <div className="space-y-6">
+            {/* Key Metrics Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-blue-700">Total Hours</p>
+                      <p className="text-2xl font-bold text-blue-900">{keyMetrics.totalHours.toFixed(1)}h</p>
+                    </div>
+                    <Clock className="h-8 w-8 text-blue-600" />
+                  </div>
+                </CardContent>
+              </Card>
 
-        <TabsContent value="attendance">
+              <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-green-700">Total Shifts</p>
+                      <p className="text-2xl font-bold text-green-900">{keyMetrics.totalShifts}</p>
+                    </div>
+                    <Calendar className="h-8 w-8 text-green-600" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-purple-700">Employees</p>
+                      <p className="text-2xl font-bold text-purple-900">{keyMetrics.totalEmployees}</p>
+                    </div>
+                    <Users className="h-8 w-8 text-purple-600" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-amber-700">Total Amount</p>
+                      <p className="text-2xl font-bold text-amber-900">{keyMetrics.totalAmount.toFixed(0)} LE</p>
+                    </div>
+                    <DollarSign className="h-8 w-8 text-amber-600" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Quick Actions */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Button 
+                    variant="outline" 
+                    className="justify-between h-auto p-4"
+                    onClick={() => setCurrentView('attendance')}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Users className="h-5 w-5 text-blue-600" />
+                      <div className="text-left">
+                        <p className="font-medium">View Attendance</p>
+                        <p className="text-sm text-muted-foreground">Detailed timesheet records</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+
+                  <Button 
+                    variant="outline" 
+                    className="justify-between h-auto p-4"
+                    onClick={() => setCurrentView('payroll')}
+                  >
+                    <div className="flex items-center gap-3">
+                      <FileSpreadsheet className="h-5 w-5 text-green-600" />
+                      <div className="text-left">
+                        <p className="font-medium">Payroll Summary</p>
+                        <p className="text-sm text-muted-foreground">Employee wage calculations</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+
+                  <Button 
+                    variant="outline" 
+                    className="justify-between h-auto p-4"
+                    onClick={() => setCurrentView('analytics')}
+                  >
+                    <div className="flex items-center gap-3">
+                      <TrendingUp className="h-5 w-5 text-purple-600" />
+                      <div className="text-left">
+                        <p className="font-medium">Analytics</p>
+                        <p className="text-sm text-muted-foreground">Charts and insights</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Recent Activity Preview */}
+            {attendanceReport.length > 0 && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="text-lg">Recent Activity</CardTitle>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setCurrentView('attendance')}
+                  >
+                    View All <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {attendanceReport.slice(0, 5).map((entry, index) => (
+                      <div key={index} className="flex items-center justify-between py-2 border-b last:border-0">
+                        <div className="flex items-center gap-3">
+                          <div className="w-2 h-2 bg-primary rounded-full"></div>
+                          <div>
+                            <p className="font-medium">{entry.display_name}</p>
+                            <p className="text-sm text-muted-foreground">{entry.clock_in_date}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">{entry.total_hours?.toFixed(1)}h</p>
+                          <Badge variant="secondary" className="text-xs">
+                            {entry.calculated_amount || entry.total_card_amount_flat || 0} LE
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {currentView === 'attendance' && (
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-center">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setCurrentView('overview')}
+                    className="mr-2"
+                  >
+                    ← Back
+                  </Button>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5" />
                   Attendance Report
                 </CardTitle>
+                </div>
                 <Button
                   onClick={() => exportReport('attendance')}
                   variant="outline"
@@ -441,50 +588,13 @@ const ReportsPage: React.FC = () => {
               </div>
             </CardHeader>
             <CardContent>
-              {/* Summary Section */}
-              {attendanceReport.length > 0 && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 p-4 bg-muted/50 rounded-lg">
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground">Total Shifts</p>
-                    <p className="text-2xl font-bold text-primary">{attendanceReport.length}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground">Total Hours</p>
-                    <p className="text-2xl font-bold text-blue-600">
-                      {attendanceReport.reduce((sum, entry) => sum + (entry.total_hours || 0), 0).toFixed(1)}h
-                    </p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground">Morning Hours</p>
-                    <p className="text-2xl font-bold text-orange-600">
-                      {attendanceReport.reduce((sum, entry) => sum + (entry.calculated_morning_hours || 0), 0).toFixed(1)}h
-                    </p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground">Night Hours</p>
-                    <p className="text-2xl font-bold text-purple-600">
-                      {attendanceReport.reduce((sum, entry) => sum + (entry.calculated_night_hours || 0), 0).toFixed(1)}h
-                    </p>
-                  </div>
-                </div>
-              )}
-
               {attendanceReport.length === 0 ? (
-                <div className="text-center py-8">
-                  <FileBarChart className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No Data Found</h3>
-                  <p className="text-muted-foreground mb-4">No timesheet entries found for the selected date range.</p>
-                  <div className="bg-muted/50 rounded-lg p-4 mb-4 text-left max-w-md mx-auto">
-                    <h4 className="font-semibold mb-2">To see data in reports:</h4>
-                    <ol className="text-sm space-y-1 list-decimal list-inside">
-                      <li>Employees need to clock in/out using the Clock In/Out page</li>
-                      <li>Or import timesheet data using the Import tab above</li>
-                      <li>Adjust the date range filter to include days with data</li>
-                      <li>Current range: {formatDateRange()}</li>
-                    </ol>
-                  </div>
+                <div className="text-center py-12">
+                  <Users className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-xl font-semibold mb-2">No Data Found</h3>
+                  <p className="text-muted-foreground mb-4">No timesheet entries found for {formatDateRange()}</p>
                   <p className="text-sm text-muted-foreground">
-                    💡 Try expanding the date range to the last 3-6 months to find existing data.
+                    Try expanding the date range or check if employees have clocked in.
                   </p>
                 </div>
               ) : (
@@ -494,25 +604,25 @@ const ReportsPage: React.FC = () => {
                       <TableRow>
                         <TableHead>Employee</TableHead>
                         <TableHead>Date</TableHead>
-                        <TableHead>Clock In</TableHead>
-                        <TableHead>Clock Out</TableHead>
-                        <TableHead>Total Hours</TableHead>
-                        <TableHead>Morning Hours</TableHead>
-                        <TableHead>Night Hours</TableHead>
-                        <TableHead>Amount (LE)</TableHead>
+                        <TableHead className="hidden sm:table-cell">Clock In</TableHead>
+                        <TableHead className="hidden sm:table-cell">Clock Out</TableHead>
+                        <TableHead>Hours</TableHead>
+                        <TableHead className="hidden md:table-cell">Morning</TableHead>
+                        <TableHead className="hidden md:table-cell">Night</TableHead>
+                        <TableHead>Amount</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {attendanceReport.map((entry, index) => (
                         <TableRow key={index}>
                           <TableCell className="font-medium">{entry.display_name}</TableCell>
-                          <TableCell>{entry.clock_in_date}</TableCell>
-                          <TableCell>{entry.clock_in_time}</TableCell>
-                          <TableCell>{entry.clock_out_time || 'Active'}</TableCell>
-                          <TableCell>{entry.total_hours?.toFixed(2) || '0.00'}</TableCell>
-                          <TableCell>{entry.calculated_morning_hours?.toFixed(2) || '0.00'}</TableCell>
-                          <TableCell>{entry.calculated_night_hours?.toFixed(2) || '0.00'}</TableCell>
-                          <TableCell>{entry.total_card_amount_flat || 0}</TableCell>
+                          <TableCell>{format(new Date(entry.clock_in_date), 'MMM dd')}</TableCell>
+                          <TableCell className="hidden sm:table-cell text-sm">{entry.clock_in_time}</TableCell>
+                          <TableCell className="hidden sm:table-cell text-sm">{entry.clock_out_time || 'Active'}</TableCell>
+                          <TableCell className="font-medium">{entry.total_hours?.toFixed(1) || '0.0'}h</TableCell>
+                          <TableCell className="hidden md:table-cell text-sm">{entry.calculated_morning_hours?.toFixed(1) || '0.0'}h</TableCell>
+                          <TableCell className="hidden md:table-cell text-sm">{entry.calculated_night_hours?.toFixed(1) || '0.0'}h</TableCell>
+                          <TableCell className="font-medium">{entry.calculated_amount || entry.total_card_amount_flat || 0} LE</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -521,16 +631,26 @@ const ReportsPage: React.FC = () => {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
+        )}
 
-        <TabsContent value="payroll">
+        {currentView === 'payroll' && (
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-center">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setCurrentView('overview')}
+                    className="mr-2"
+                  >
+                    ← Back
+                  </Button>
                 <CardTitle className="flex items-center gap-2">
                   <FileSpreadsheet className="h-5 w-5" />
                   Payroll Summary
                 </CardTitle>
+                </div>
                 <Button
                   onClick={() => exportReport('payroll')}
                   variant="outline"
@@ -544,9 +664,9 @@ const ReportsPage: React.FC = () => {
             </CardHeader>
             <CardContent>
               {payrollSummary.length === 0 ? (
-                <div className="text-center py-8">
-                  <FileSpreadsheet className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No Payroll Data</h3>
+                <div className="text-center py-12">
+                  <FileSpreadsheet className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-xl font-semibold mb-2">No Payroll Data</h3>
                   <p className="text-muted-foreground">No payroll data available for the selected period.</p>
                 </div>
               ) : (
@@ -556,21 +676,21 @@ const ReportsPage: React.FC = () => {
                       <TableRow>
                         <TableHead>Employee</TableHead>
                         <TableHead>Total Hours</TableHead>
-                        <TableHead>Morning Hours</TableHead>
-                        <TableHead>Night Hours</TableHead>
-                        <TableHead>Shifts</TableHead>
-                        <TableHead>Total Amount (LE)</TableHead>
+                        <TableHead className="hidden md:table-cell">Morning</TableHead>
+                        <TableHead className="hidden md:table-cell">Night</TableHead>
+                        <TableHead className="hidden sm:table-cell">Shifts</TableHead>
+                        <TableHead>Amount</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {payrollSummary.map((summary: any, index) => (
                         <TableRow key={index}>
                           <TableCell className="font-medium">{summary.employee_name}</TableCell>
-                          <TableCell>{summary.total_hours?.toFixed(2)}</TableCell>
-                          <TableCell>{summary.morning_hours?.toFixed(2)}</TableCell>
-                          <TableCell>{summary.night_hours?.toFixed(2)}</TableCell>
-                          <TableCell>{summary.shifts}</TableCell>
-                          <TableCell>{Math.round(summary.total_split_amount || 0)}</TableCell>
+                          <TableCell className="font-medium">{summary.total_hours?.toFixed(1)}h</TableCell>
+                          <TableCell className="hidden md:table-cell">{summary.morning_hours?.toFixed(1)}h</TableCell>
+                          <TableCell className="hidden md:table-cell">{summary.night_hours?.toFixed(1)}h</TableCell>
+                          <TableCell className="hidden sm:table-cell">{summary.shifts}</TableCell>
+                          <TableCell className="font-bold text-green-600">{Math.round(summary.total_split_amount || summary.total_flat_amount || 0)} LE</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -579,47 +699,24 @@ const ReportsPage: React.FC = () => {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
+        )}
 
-        <TabsContent value="analytics">
+        {currentView === 'analytics' && (
+          <div>
+            <div className="flex items-center gap-2 mb-6">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setCurrentView('overview')}
+              >
+                ← Back
+              </Button>
+              <h2 className="text-xl font-semibold">Analytics Dashboard</h2>
+            </div>
           <HRAnalytics dateRange={dateRange} />
-        </TabsContent>
-
-        <TabsContent value="import">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="h-5 w-5" />
-                Import Data
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Upload a CSV or Excel file to import employee data
-                </p>
-                <div className="flex items-center justify-center w-full">
-                  <label className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-border rounded-lg cursor-pointer bg-muted/50 hover:bg-muted/80 transition-colors">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <Upload className="w-8 h-8 mb-4 text-muted-foreground" />
-                      <p className="mb-2 text-sm text-muted-foreground">
-                        <span className="font-semibold">Click to upload</span> or drag and drop
-                      </p>
-                      <p className="text-xs text-muted-foreground">CSV or Excel (MAX. 10MB)</p>
                     </div>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept=".csv,.xlsx,.xls"
-                      onChange={handleFileImport}
-                    />
-                  </label>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        )}
+      </MobileSection>
     </MobilePageWrapper>
   );
 };
