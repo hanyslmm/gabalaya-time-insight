@@ -366,11 +366,9 @@ const Layout = () => {
               <Menu className="h-5 w-5" />
             </Button>
 
-            {/* Page Title */}
+            {/* Page Title - Removed to avoid duplication with MobileHeader */}
             <div className="flex-1 px-4 lg:px-0">
-              <h2 className="text-lg font-semibold capitalize truncate">
-                {location.pathname.split('/').pop()?.replace('-', ' ') || 'Dashboard'}
-              </h2>
+              {/* Title now handled by MobileHeader component in each page */}
             </div>
             
             {/* Right Section */}

@@ -396,12 +396,10 @@ const ReportsPage: React.FC = () => {
 
   return (
     <MobilePageWrapper>
-      {currentView === 'overview' && (
       <MobileHeader 
-          title="" 
-          subtitle={`${attendanceReport.length} entries • ${formatDateRange()}`}
+        title="Reports" 
+        subtitle={currentView === 'overview' ? `${attendanceReport.length} entries • ${formatDateRange()}` : ''}
       />
-      )}
 
       <MobileSection>
         <TimesheetDateFilter
