@@ -388,7 +388,7 @@ const ReportsPage: React.FC = () => {
   console.log('ReportsPage: Ready to render with', attendanceReport.length, 'entries');
   console.log('ReportsPage: Current org employees:', employees?.map(e => e.full_name) || []);
   console.log('ReportsPage: Attendance report employees:', [...new Set(attendanceReport.map(e => e.display_name))]);
-  console.log('ReportsPage: Sample payroll with amounts:', payrollSummary.slice(0, 3).map(p => ({
+  console.log('ReportsPage: Sample payroll with amounts:', payrollSummary.slice(0, 3).map((p: any) => ({
     name: p.employee_name,
     hours: p.total_hours,
     amount: p.total_split_amount || p.total_flat_amount
@@ -396,10 +396,12 @@ const ReportsPage: React.FC = () => {
 
   return (
     <MobilePageWrapper>
+      {currentView === 'overview' && (
       <MobileHeader 
-        title="Reports" 
-        subtitle={currentView === 'overview' ? `${attendanceReport.length} entries • ${formatDateRange()}` : ''}
+          title="" 
+          subtitle={`${attendanceReport.length} entries • ${formatDateRange()}`}
       />
+      )}
 
       <MobileSection>
         <TimesheetDateFilter
