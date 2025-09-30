@@ -448,7 +448,7 @@ export const HRAnalytics: React.FC<HRAnalyticsProps> = ({ dateRange }) => {
           <CardHeader className="border-b border-border/50">
             <CardTitle className={`flex items-center space-x-2 ${isRTL ? 'space-x-reverse font-arabic' : ''}`}>
               <TrendingUp className="h-5 w-5 text-primary" />
-              <span>{isRTL ? 'ذروة الساعات في اليوم' : 'Peak Hours of Day'}</span>
+              <span>{isRTL ? 'نمط الدخول والخروج' : 'Clock-In vs Clock-Out Pattern'}</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">
