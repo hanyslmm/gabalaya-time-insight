@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, Save, Settings, Clock, Shield } from 'lucide-react';
+import { MessageCircle, Save, Settings, Clock, Shield, Timer } from 'lucide-react';
 import { COMMON_TIMEZONES, clearTimezoneCache } from '@/utils/timezoneUtils';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -25,6 +25,9 @@ const CompanySettingsPage: React.FC = () => {
   const [autoClockoutTime, setAutoClockoutTime] = useState('01:00');
   const [maxWorkHours, setMaxWorkHours] = useState(8);
   const [autoClockoutLocation, setAutoClockoutLocation] = useState('Auto Clock-Out');
+  const [workingHoursWindowEnabled, setWorkingHoursWindowEnabled] = useState(true);
+  const [workingHoursStartTime, setWorkingHoursStartTime] = useState('08:00');
+  const [workingHoursEndTime, setWorkingHoursEndTime] = useState('01:00');
 
   // Fetch current company settings
   const { data: currentSettings, isLoading } = useQuery({
@@ -64,6 +67,49 @@ const CompanySettingsPage: React.FC = () => {
     }
   });
 
+  // Fetch working hours window settings from company_settings
+  const { data: workingHoursSettings } = useQuery({
+    queryKey: ['working-hours-settings', activeOrganizationId],
+    enabled: !!activeOrganizationId,
+    queryFn: async () => {
+      try {
+        let query = supabase
+          .from('company_settings')
+          .select('working_hours_window_enabled, working_hours_start_time, working_hours_end_time');
+        
+        if (activeOrganizationId) {
+          query = query.eq('organization_id', activeOrganizationId);
+        }
+        
+        const { data, error } = await query.maybeSingle();
+
+        if (error) {
+          console.error('Error fetching working hours settings:', error);
+          // Return default values if columns don't exist
+          return {
+            working_hours_window_enabled: true,
+            working_hours_start_time: '08:00:00',
+            working_hours_end_time: '01:00:00'
+          };
+        }
+
+        return data || {
+          working_hours_window_enabled: true,
+          working_hours_start_time: '08:00:00',
+          working_hours_end_time: '01:00:00'
+        };
+      } catch (error) {
+        console.error('Error in working hours settings query:', error);
+        // Return default values if query fails
+        return {
+          working_hours_window_enabled: true,
+          working_hours_start_time: '08:00:00',
+          working_hours_end_time: '01:00:00'
+        };
+      }
+    }
+  });
+
   // Save company settings
   const saveMutation = useMutation({
     mutationFn: async (settings: {
@@ -73,7 +119,11 @@ const CompanySettingsPage: React.FC = () => {
       autoClockoutTime: string;
       maxWorkHours: number;
       autoClockoutLocation: string;
+      workingHoursWindowEnabled: boolean;
+      workingHoursStartTime: string;
+      workingHoursEndTime: string;
     }) => {
+      // Save company settings including working hours window
       const { data, error } = await supabase
         .from('company_settings')
         .upsert({ 
@@ -83,12 +133,20 @@ const CompanySettingsPage: React.FC = () => {
           auto_clockout_enabled: settings.autoClockoutEnabled,
           auto_clockout_time: settings.autoClockoutTime + ':00', // Add seconds
           max_work_hours: settings.maxWorkHours,
-          auto_clockout_location: settings.autoClockoutLocation
+          auto_clockout_location: settings.autoClockoutLocation,
+          working_hours_window_enabled: settings.workingHoursWindowEnabled,
+          working_hours_start_time: settings.workingHoursStartTime + ':00',
+          working_hours_end_time: settings.workingHoursEndTime + ':00'
         }, {
           onConflict: 'organization_id'
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error saving company settings:', error);
+        throw error;
+      }
+
+
       return data;
     },
     onSuccess: () => {
@@ -99,6 +157,7 @@ const CompanySettingsPage: React.FC = () => {
       // Clear timezone cache to force reload
       clearTimezoneCache();
       queryClient.invalidateQueries({ queryKey: ['company-settings', activeOrganizationId] });
+      queryClient.invalidateQueries({ queryKey: ['working-hours-settings', activeOrganizationId] });
       queryClient.invalidateQueries({ queryKey: ['motivational-message'] });
     },
     onError: (error) => {
@@ -111,16 +170,20 @@ const CompanySettingsPage: React.FC = () => {
   });
 
   const handleSave = () => {
-    if (message.trim()) {
+    // Allow saving even without message if other settings are being changed
+    const messageToSave = message.trim() || "Keep up the great work! Your dedication and effort make a real difference to our team.";
+    
       saveMutation.mutate({ 
-        newMessage: message.trim(),
+      newMessage: messageToSave,
         newTimezone: timezone,
         autoClockoutEnabled,
         autoClockoutTime,
         maxWorkHours,
-        autoClockoutLocation
+      autoClockoutLocation,
+      workingHoursWindowEnabled,
+      workingHoursStartTime,
+      workingHoursEndTime
       });
-    }
   };
 
   React.useEffect(() => {
@@ -144,6 +207,18 @@ const CompanySettingsPage: React.FC = () => {
       setAutoClockoutLocation(currentSettings.auto_clockout_location);
     }
   }, [currentSettings]);
+
+  React.useEffect(() => {
+    if (workingHoursSettings?.working_hours_window_enabled !== undefined) {
+      setWorkingHoursWindowEnabled(workingHoursSettings.working_hours_window_enabled);
+    }
+    if (workingHoursSettings?.working_hours_start_time) {
+      setWorkingHoursStartTime(workingHoursSettings.working_hours_start_time.substring(0, 5));
+    }
+    if (workingHoursSettings?.working_hours_end_time) {
+      setWorkingHoursEndTime(workingHoursSettings.working_hours_end_time.substring(0, 5));
+    }
+  }, [workingHoursSettings]);
 
   if (isLoading) {
     return (
@@ -278,7 +353,7 @@ const CompanySettingsPage: React.FC = () => {
             <div className="flex justify-end gap-4">
               <Button
                 onClick={handleSave}
-                disabled={saveMutation.isPending || !message.trim()}
+                disabled={saveMutation.isPending}
                 className="bg-primary hover:bg-primary/90"
               >
                 <Save className="h-4 w-4 mr-2" />
@@ -386,7 +461,94 @@ const CompanySettingsPage: React.FC = () => {
             <div className="flex justify-end gap-4">
               <Button
                 onClick={handleSave}
-                disabled={saveMutation.isPending || !message.trim()}
+                disabled={saveMutation.isPending}
+                className="bg-primary hover:bg-primary/90"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {saveMutation.isPending ? 'Saving...' : 'Save All Settings'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="mt-6 bg-gradient-to-br from-card via-card to-primary/5 border-border/50 shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Timer className="h-5 w-5 text-primary" />
+              </div>
+              Working Hours Window
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Label htmlFor="working-hours-enabled">
+                  Enable Working Hours Window
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Limit payable hours to specific time periods (e.g., 8 AM to 1 AM)
+                </p>
+              </div>
+              <Switch
+                id="working-hours-enabled"
+                checked={workingHoursWindowEnabled}
+                onCheckedChange={setWorkingHoursWindowEnabled}
+              />
+            </div>
+
+            {workingHoursWindowEnabled && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="working-hours-start">
+                      Working Hours Start Time
+                    </Label>
+                    <Input
+                      id="working-hours-start"
+                      type="time"
+                      value={workingHoursStartTime}
+                      onChange={(e) => setWorkingHoursStartTime(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Earliest time for payable hours (e.g., 08:00 for 8 AM)
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="working-hours-end">
+                      Working Hours End Time
+                    </Label>
+                    <Input
+                      id="working-hours-end"
+                      type="time"
+                      value={workingHoursEndTime}
+                      onChange={(e) => setWorkingHoursEndTime(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Latest time for payable hours (e.g., 01:00 for 1 AM next day)
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4 rounded-lg">
+                  <h4 className="font-medium text-sm text-blue-800 dark:text-blue-200 mb-2">
+                    📋 Working Hours Window Rules:
+                  </h4>
+                  <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                    <li>• Only hours worked between {workingHoursStartTime} and {workingHoursEndTime} will be counted as payable hours</li>
+                    <li>• Hours worked outside this window will not be included in payroll calculations</li>
+                    <li>• This applies to both morning and night shift calculations</li>
+                    <li>• Employees can still clock in/out outside these hours, but those hours won't be paid</li>
+                  </ul>
+                </div>
+              </>
+            )}
+
+            <div className="flex justify-end gap-4">
+              <Button
+                onClick={handleSave}
+                disabled={saveMutation.isPending}
                 className="bg-primary hover:bg-primary/90"
               >
                 <Save className="h-4 w-4 mr-2" />

@@ -9,6 +9,9 @@ interface WageSettings {
   night_end_time: string;
   morning_wage_rate: number;
   night_wage_rate: number;
+  working_hours_window_enabled: boolean;
+  working_hours_start_time: string;
+  working_hours_end_time: string;
 }
 
 interface TimesheetEntry {
@@ -62,6 +65,30 @@ export const calculateMorningNightHours = async (
     let shiftEnd = toMinutes(entry.clock_out_time);
     if (shiftEnd < shiftStart) shiftEnd += 24 * 60;
 
+    // Apply working hours window filter if enabled
+    let payableShiftStart = shiftStart;
+    let payableShiftEnd = shiftEnd;
+    
+    if (wageSettings.working_hours_window_enabled) {
+      const workingStart = toMinutes(wageSettings.working_hours_start_time || '08:00:00');
+      let workingEnd = toMinutes(wageSettings.working_hours_end_time || '01:00:00');
+      if (workingEnd <= workingStart) workingEnd += 24 * 60;
+      
+      // Clamp shift times to working hours window
+      payableShiftStart = Math.max(shiftStart, workingStart);
+      payableShiftEnd = Math.min(shiftEnd, workingEnd);
+      
+      // If no overlap with working hours window, return zero hours
+      if (payableShiftStart >= payableShiftEnd) {
+        console.log(`No overlap with working hours window (${wageSettings.working_hours_start_time} - ${wageSettings.working_hours_end_time})`);
+        return { morningHours: 0, nightHours: 0 };
+      }
+      
+      console.log(`Working hours window applied: ${wageSettings.working_hours_start_time} - ${wageSettings.working_hours_end_time}`);
+      console.log(`Original shift: ${(shiftStart/60).toFixed(2)}h - ${(shiftEnd/60).toFixed(2)}h`);
+      console.log(`Payable shift: ${(payableShiftStart/60).toFixed(2)}h - ${(payableShiftEnd/60).toFixed(2)}h`);
+    }
+
   // Morning window
   const morningStart = toMinutes(wageSettings.morning_start_time || '08:00:00');
   const morningEnd = toMinutes(wageSettings.morning_end_time || '17:00:00');
@@ -72,13 +99,13 @@ export const calculateMorningNightHours = async (
   if (nightEnd <= nightStart) nightEnd += 24 * 60;
 
   // Compute overlaps, accounting for windows repeating every 24h
-  const morningMinutes = overlap(shiftStart, shiftEnd, morningStart, morningEnd)
-    + overlap(shiftStart, shiftEnd, morningStart + 24 * 60, morningEnd + 24 * 60);
+  const morningMinutes = overlap(payableShiftStart, payableShiftEnd, morningStart, morningEnd)
+    + overlap(payableShiftStart, payableShiftEnd, morningStart + 24 * 60, morningEnd + 24 * 60);
 
-  const nightMinutes = overlap(shiftStart, shiftEnd, nightStart, nightEnd)
-    + overlap(shiftStart, shiftEnd, nightStart + 24 * 60, nightEnd + 24 * 60);
+  const nightMinutes = overlap(payableShiftStart, payableShiftEnd, nightStart, nightEnd)
+    + overlap(payableShiftStart, payableShiftEnd, nightStart + 24 * 60, nightEnd + 24 * 60);
 
-  const totalWorkedMinutes = shiftEnd - shiftStart;
+  const totalWorkedMinutes = payableShiftEnd - payableShiftStart;
   let m = morningMinutes;
   let n = nightMinutes;
 
@@ -102,7 +129,7 @@ export const calculateMorningNightHours = async (
       nightHours: Math.max(0, parseFloat((n / 60).toFixed(2)))
     };
 
-    console.log(`✓ Result for ${entry.clock_in_date} ${entry.clock_in_time}-${entry.clock_out_time}: Morning=${result.morningHours}h, Night=${result.nightHours}h (Total shift: ${((shiftEnd-shiftStart)/60).toFixed(2)}h)`);
+    console.log(`✓ Result for ${entry.clock_in_date} ${entry.clock_in_time}-${entry.clock_out_time}: Morning=${result.morningHours}h, Night=${result.nightHours}h (Total shift: ${((shiftEnd-shiftStart)/60).toFixed(2)}h, Payable: ${((payableShiftEnd-payableShiftStart)/60).toFixed(2)}h)`);
     return result;
   } catch (error) {
     console.error('Error in calculateMorningNightHours:', error);
@@ -117,12 +144,29 @@ export const calculateMorningNightHours = async (
     let shiftEnd = toMinutes(entry.clock_out_time);
     if (shiftEnd < shiftStart) shiftEnd += 24 * 60;
     
-    const totalWorkedMinutes = shiftEnd - shiftStart;
+    // Apply working hours window filter if enabled (fallback version)
+    let payableShiftStart = shiftStart;
+    let payableShiftEnd = shiftEnd;
+    
+    if (wageSettings.working_hours_window_enabled) {
+      const workingStart = toMinutes(wageSettings.working_hours_start_time || '08:00:00');
+      let workingEnd = toMinutes(wageSettings.working_hours_end_time || '01:00:00');
+      if (workingEnd <= workingStart) workingEnd += 24 * 60;
+      
+      payableShiftStart = Math.max(shiftStart, workingStart);
+      payableShiftEnd = Math.min(shiftEnd, workingEnd);
+      
+      if (payableShiftStart >= payableShiftEnd) {
+        return { morningHours: 0, nightHours: 0 };
+      }
+    }
+    
+    const totalWorkedMinutes = payableShiftEnd - payableShiftStart;
     const morningStart = toMinutes(wageSettings.morning_start_time || '08:00:00');
     const morningEnd = toMinutes(wageSettings.morning_end_time || '17:00:00');
     
     // Simple fallback: if shift overlaps with morning hours, count as morning
-    const morningHours = (shiftStart < morningEnd && shiftEnd > morningStart) ? 
+    const morningHours = (payableShiftStart < morningEnd && payableShiftEnd > morningStart) ? 
       parseFloat((totalWorkedMinutes / 60).toFixed(2)) : 0;
     
     return { morningHours, nightHours: 0 };
@@ -147,6 +191,20 @@ export const calculateAllTimesheetHours = async (): Promise<void> => {
       throw new Error('No wage settings found. Please configure wage settings first.');
     }
 
+    // Get working hours window settings from company_settings
+    const { data: companySettings, error: companyError } = await supabase
+      .from('company_settings')
+      .select('working_hours_window_enabled, working_hours_start_time, working_hours_end_time')
+      .maybeSingle();
+
+    // Merge wage settings with working hours window settings
+    const combinedSettings = {
+      ...wageSettings,
+      working_hours_window_enabled: companySettings?.working_hours_window_enabled ?? true,
+      working_hours_start_time: companySettings?.working_hours_start_time ?? '08:00:00',
+      working_hours_end_time: companySettings?.working_hours_end_time ?? '01:00:00'
+    };
+
     // Get employees for wage rates (without INNER join to avoid RLS issues)
     const { data: employees, error: empError } = await supabase
       .from('employees')
@@ -160,8 +218,8 @@ export const calculateAllTimesheetHours = async (): Promise<void> => {
     const employeeRates = new Map();
     (employees || []).forEach(emp => {
       const rates = {
-        morning: emp.morning_wage_rate || wageSettings.morning_wage_rate,
-        night: emp.night_wage_rate || wageSettings.night_wage_rate
+        morning: emp.morning_wage_rate || combinedSettings.morning_wage_rate,
+        night: emp.night_wage_rate || combinedSettings.night_wage_rate
       };
       if (emp.id) employeeRates.set(emp.id, rates);
       if (emp.staff_id) employeeRates.set(emp.staff_id, rates);
@@ -199,8 +257,8 @@ export const calculateAllTimesheetHours = async (): Promise<void> => {
       const outMinutes = parseTime(entry.clock_out_time);
       
       // Morning window: 8 AM (480 min) - 5 PM (1020 min)
-      const morningStart = parseTime(wageSettings.morning_start_time || '08:00:00');
-      const morningEnd = parseTime(wageSettings.morning_end_time || '17:00:00');
+      const morningStart = parseTime(combinedSettings.morning_start_time || '08:00:00');
+      const morningEnd = parseTime(combinedSettings.morning_end_time || '17:00:00');
       
       const shiftStart = inMinutes;
       const shiftEnd = outMinutes >= inMinutes ? outMinutes : outMinutes + 24 * 60;
@@ -213,7 +271,7 @@ export const calculateAllTimesheetHours = async (): Promise<void> => {
       // Get employee-specific rates
       const rates = employeeRates.get(entry.employee_id) || 
                    employeeRates.get(entry.employee_name) ||
-                   { morning: wageSettings.morning_wage_rate, night: wageSettings.night_wage_rate };
+                   { morning: combinedSettings.morning_wage_rate, night: combinedSettings.night_wage_rate };
 
       const splitAmount = (morningHours * rates.morning) + (nightHours * rates.night);
 

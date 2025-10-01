@@ -57,12 +57,33 @@ const TimesheetsPage: React.FC = () => {
     queryFn: async () => {
       const { data } = await supabase
         .from('wage_settings')
-        .select('*')
+        .select('morning_start_time, morning_end_time, night_start_time, night_end_time')
         .limit(1)
         .maybeSingle();
       return data;
     }
   });
+
+  // Load working hours window settings from company_settings
+  const { data: workingHoursSettings } = useQuery({
+    queryKey: ['working-hours-settings'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('company_settings')
+        .select('working_hours_window_enabled, working_hours_start_time, working_hours_end_time')
+        .limit(1)
+        .maybeSingle();
+      return data;
+    }
+  });
+
+  // Combine wage settings with working hours window settings
+  const combinedWageSettings = wageSettings && workingHoursSettings ? {
+    ...wageSettings,
+    working_hours_window_enabled: workingHoursSettings.working_hours_window_enabled ?? true,
+    working_hours_start_time: workingHoursSettings.working_hours_start_time ?? '08:00:00',
+    working_hours_end_time: workingHoursSettings.working_hours_end_time ?? '01:00:00'
+  } : wageSettings;
 
   // Reverted auto-calculate effect to prevent page issues
 
@@ -379,12 +400,32 @@ const TimesheetsPage: React.FC = () => {
                   if (entry.morning_hours && entry.morning_hours > 0) {
                     return sum + entry.morning_hours;
                   }
-                  if (wageSettings && entry.clock_in_time && entry.clock_out_time) {
-                    const shiftStart = timeToMinutes(entry.clock_in_time);
+                  if (combinedWageSettings && entry.clock_in_time && entry.clock_out_time) {
+                    let shiftStart = timeToMinutes(entry.clock_in_time);
                     let shiftEnd = timeToMinutes(entry.clock_out_time);
                     if (shiftEnd < shiftStart) shiftEnd += 24 * 60;
-                    const morningStart = timeToMinutes(wageSettings.morning_start_time || '08:00:00');
-                    const morningEnd = timeToMinutes(wageSettings.morning_end_time || '17:00:00');
+                    
+                    // Apply working hours window filter if enabled
+                    if (combinedWageSettings.working_hours_window_enabled) {
+                      const workingStart = timeToMinutes(combinedWageSettings.working_hours_start_time || '08:00:00');
+                      let workingEnd = timeToMinutes(combinedWageSettings.working_hours_end_time || '01:00:00');
+                      if (workingEnd <= workingStart) workingEnd += 24 * 60;
+                      
+                      // Clamp shift times to working hours window
+                      const payableStart = Math.max(shiftStart, workingStart);
+                      const payableEnd = Math.min(shiftEnd, workingEnd);
+                      
+                      // If no overlap with working hours window, skip this entry
+                      if (payableStart >= payableEnd) {
+                        return sum;
+                      }
+                      
+                      shiftStart = payableStart;
+                      shiftEnd = payableEnd;
+                    }
+                    
+                    const morningStart = timeToMinutes(combinedWageSettings.morning_start_time || '08:00:00');
+                    const morningEnd = timeToMinutes(combinedWageSettings.morning_end_time || '17:00:00');
                     const minutes = overlapMinutes(shiftStart, shiftEnd, morningStart, morningEnd);
                     return sum + minutes / 60;
                   }
@@ -395,12 +436,32 @@ const TimesheetsPage: React.FC = () => {
                   if (entry.night_hours && entry.night_hours > 0) {
                     return sum + entry.night_hours;
                   }
-                  if (wageSettings && entry.clock_in_time && entry.clock_out_time) {
-                    const shiftStart = timeToMinutes(entry.clock_in_time);
+                  if (combinedWageSettings && entry.clock_in_time && entry.clock_out_time) {
+                    let shiftStart = timeToMinutes(entry.clock_in_time);
                     let shiftEnd = timeToMinutes(entry.clock_out_time);
                     if (shiftEnd < shiftStart) shiftEnd += 24 * 60;
-                    const nightStart = timeToMinutes(wageSettings.night_start_time || '17:00:00');
-                    let nightEnd = timeToMinutes(wageSettings.night_end_time || '01:00:00');
+                    
+                    // Apply working hours window filter if enabled
+                    if (combinedWageSettings.working_hours_window_enabled) {
+                      const workingStart = timeToMinutes(combinedWageSettings.working_hours_start_time || '08:00:00');
+                      let workingEnd = timeToMinutes(combinedWageSettings.working_hours_end_time || '01:00:00');
+                      if (workingEnd <= workingStart) workingEnd += 24 * 60;
+                      
+                      // Clamp shift times to working hours window
+                      const payableStart = Math.max(shiftStart, workingStart);
+                      const payableEnd = Math.min(shiftEnd, workingEnd);
+                      
+                      // If no overlap with working hours window, skip this entry
+                      if (payableStart >= payableEnd) {
+                        return sum;
+                      }
+                      
+                      shiftStart = payableStart;
+                      shiftEnd = payableEnd;
+                    }
+                    
+                    const nightStart = timeToMinutes(combinedWageSettings.night_start_time || '17:00:00');
+                    let nightEnd = timeToMinutes(combinedWageSettings.night_end_time || '01:00:00');
                     if (nightEnd < nightStart) nightEnd += 24 * 60;
                     const minutes = overlapMinutes(shiftStart, shiftEnd, nightStart, nightEnd);
                     return sum + minutes / 60;
@@ -584,7 +645,7 @@ const TimesheetsPage: React.FC = () => {
               onDataChange={refetch}
               dateRange={dateRange}
               selectedEmployee={selectedEmployee}
-              wageSettings={wageSettings as any}
+              wageSettings={combinedWageSettings as any}
               employees={employees as any}
             />
           )}

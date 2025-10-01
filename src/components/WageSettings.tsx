@@ -18,6 +18,9 @@ interface WageSettings {
   morning_wage_rate: number;
   night_wage_rate: number;
   default_flat_wage_rate: number;
+  working_hours_window_enabled: boolean;
+  working_hours_start_time: string;
+  working_hours_end_time: string;
 }
 
 const WageSettings: React.FC = () => {
@@ -68,6 +71,9 @@ const WageSettings: React.FC = () => {
               morning_wage_rate: globalSettings.morning_wage_rate,
               night_wage_rate: globalSettings.night_wage_rate,
               default_flat_wage_rate: globalSettings.default_flat_wage_rate,
+              working_hours_window_enabled: globalSettings.working_hours_window_enabled ?? true,
+              working_hours_start_time: globalSettings.working_hours_start_time ?? '08:00:00',
+              working_hours_end_time: globalSettings.working_hours_end_time ?? '01:00:00',
               organization_id: activeOrganizationId
             })
             .select()
@@ -92,6 +98,9 @@ const WageSettings: React.FC = () => {
               morning_wage_rate: 17.00,
               night_wage_rate: 20.00,
               default_flat_wage_rate: 20.00,
+              working_hours_window_enabled: true,
+              working_hours_start_time: '08:00:00',
+              working_hours_end_time: '01:00:00',
               organization_id: activeOrganizationId
             })
             .select()
@@ -274,6 +283,89 @@ const WageSettings: React.FC = () => {
             className="w-full"
           />
         </div>
+      </div>
+
+      {/* Working Hours Window Configuration */}
+      <div className="border-t pt-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          {t('workingHoursWindow') || 'Working Hours Window'}
+        </h3>
+        <p className="text-sm text-gray-600 mb-4">
+          {t('workingHoursWindowDescription') || 'Configure when employees can earn payable hours. Hours worked outside this window will not be counted for payroll.'}
+        </p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="space-y-3">
+            <Label htmlFor="working-hours-enabled" className="text-sm font-medium text-gray-700">
+              {t('enableWorkingHoursWindow') || 'Enable Working Hours Window'}
+            </Label>
+            <div className="flex items-center space-x-2">
+              <input
+                id="working-hours-enabled"
+                type="checkbox"
+                checked={settings.working_hours_window_enabled ?? true}
+                onChange={(e) => handleInputChange('working_hours_window_enabled', e.target.checked)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <Label htmlFor="working-hours-enabled" className="text-sm text-gray-700">
+                {settings.working_hours_window_enabled ? 'Enabled' : 'Disabled'}
+              </Label>
+            </div>
+            <p className="text-xs text-gray-500">
+              {t('workingHoursWindowHelp') || 'When enabled, only hours within the specified window are payable'}
+            </p>
+          </div>
+          
+          {settings.working_hours_window_enabled && (
+            <>
+              <div className="space-y-3">
+                <Label htmlFor="working-hours-start" className="text-sm font-medium text-gray-700">
+                  {t('workingHoursStartTime') || 'Working Hours Start Time'}
+                </Label>
+                <Input
+                  id="working-hours-start"
+                  type="time"
+                  value={settings.working_hours_start_time || '08:00'}
+                  onChange={(e) => handleInputChange('working_hours_start_time', e.target.value)}
+                  className="w-full"
+                />
+                <p className="text-xs text-gray-500">
+                  {t('workingHoursStartHelp') || 'Earliest time for payable hours (e.g., 08:00 for 8 AM)'}
+                </p>
+              </div>
+              
+              <div className="space-y-3">
+                <Label htmlFor="working-hours-end" className="text-sm font-medium text-gray-700">
+                  {t('workingHoursEndTime') || 'Working Hours End Time'}
+                </Label>
+                <Input
+                  id="working-hours-end"
+                  type="time"
+                  value={settings.working_hours_end_time || '01:00'}
+                  onChange={(e) => handleInputChange('working_hours_end_time', e.target.value)}
+                  className="w-full"
+                />
+                <p className="text-xs text-gray-500">
+                  {t('workingHoursEndHelp') || 'Latest time for payable hours (e.g., 01:00 for 1 AM next day)'}
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+        
+        {settings.working_hours_window_enabled && (
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h4 className="font-medium text-blue-900 mb-2">
+              {t('workingHoursWindowRules') || 'Working Hours Window Rules:'}
+            </h4>
+            <ul className="text-sm text-blue-800 space-y-1">
+              <li>• Only hours worked between {settings.working_hours_start_time || '08:00'} and {settings.working_hours_end_time || '01:00'} will be counted as payable hours</li>
+              <li>• Hours worked outside this window will not be included in payroll calculations</li>
+              <li>• This applies to both morning and night shift calculations</li>
+              <li>• Employees can still clock in/out outside these hours, but those hours won't be paid</li>
+            </ul>
+          </div>
+        )}
       </div>
       
       <Button 

@@ -230,6 +230,52 @@ Deno.serve(async (req) => {
           const nightStart = wageSettings.night_start_time || '17:00:00';
           const nightEnd = wageSettings.night_end_time || '01:00:00';
           
+          // Apply working hours window filter if enabled
+          let payableClockInTime = clockInTimeFormatted;
+          let payableClockOutTime = clockOutTimeFormatted;
+          
+          if (wageSettings.working_hours_window_enabled) {
+            const workingStart = wageSettings.working_hours_start_time || '08:00:00';
+            const workingEnd = wageSettings.working_hours_end_time || '01:00:00';
+            
+            // Convert to minutes for comparison
+            const clockInMinutes = timeToMinutes(clockInTimeFormatted);
+            const clockOutMinutes = timeToMinutes(clockOutTimeFormatted);
+            const workingStartMinutes = timeToMinutes(workingStart);
+            let workingEndMinutes = timeToMinutes(workingEnd);
+            
+            // Handle working hours window crossing midnight
+            if (workingEndMinutes < workingStartMinutes) {
+              workingEndMinutes += 24 * 60;
+            }
+            
+            // Handle shift crossing midnight
+            let actualClockOutMinutes = clockOutMinutes;
+            if (clockOutMinutes < clockInMinutes) {
+              actualClockOutMinutes = clockOutMinutes + 24 * 60;
+            }
+            
+            // Clamp to working hours window
+            const payableStartMinutes = Math.max(clockInMinutes, workingStartMinutes);
+            const payableEndMinutes = Math.min(actualClockOutMinutes, workingEndMinutes);
+            
+            // If no overlap with working hours window, skip this entry
+            if (payableStartMinutes >= payableEndMinutes) {
+              console.log(`No overlap with working hours window (${workingStart} - ${workingEnd})`);
+              morningHours = 0;
+              nightHours = 0;
+            } else {
+              // Convert back to time format
+              payableClockInTime = `${Math.floor(payableStartMinutes / 60).toString().padStart(2, '0')}:${(payableStartMinutes % 60).toString().padStart(2, '0')}`;
+              const payableEndMinutesNormalized = payableEndMinutes > 24 * 60 ? payableEndMinutes - 24 * 60 : payableEndMinutes;
+              payableClockOutTime = `${Math.floor(payableEndMinutesNormalized / 60).toString().padStart(2, '0')}:${(payableEndMinutesNormalized % 60).toString().padStart(2, '0')}`;
+              
+              console.log(`Working hours window applied: ${workingStart} - ${workingEnd}`);
+              console.log(`Original: ${clockInTimeFormatted} - ${clockOutTimeFormatted}`);
+              console.log(`Payable: ${payableClockInTime} - ${payableClockOutTime}`);
+            }
+          }
+          
           console.log(`Calculating hours for shift ${clockInTimeFormatted} to ${clockOutTimeFormatted}`);
           console.log(`Morning period: ${morningStart} to ${morningEnd}`);
           console.log(`Night period: ${nightStart} to ${nightEnd}`);
@@ -240,9 +286,9 @@ Deno.serve(async (req) => {
             return hours * 60 + minutes;
           };
           
-          // Convert shift times to minutes from midnight
-          const shiftStartMinutes = timeToMinutes(clockInTimeFormatted);
-          const shiftEndMinutes = timeToMinutes(clockOutTimeFormatted);
+          // Convert shift times to minutes from midnight (use payable times if working hours window is applied)
+          const shiftStartMinutes = timeToMinutes(payableClockInTime);
+          const shiftEndMinutes = timeToMinutes(payableClockOutTime);
           
           // Convert period times to minutes
           const morningStartMinutes = timeToMinutes(morningStart);

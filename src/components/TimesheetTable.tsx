@@ -243,13 +243,34 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
 
   const computeDisplay = (entry: TimesheetEntry) => {
     // If DB already has values, use them; otherwise compute
-    const inMins = timeToMinutes(entry.clock_in_time);
+    let inMins = timeToMinutes(entry.clock_in_time);
     let outMins = timeToMinutes(entry.clock_out_time);
     let morning = entry.morning_hours ?? 0;
     let night = entry.night_hours ?? 0;
 
     if ((morning === 0 && night === 0) && inMins !== null && outMins !== null) {
       if (outMins < inMins) outMins += 24 * 60; // overnight shift
+      
+      // Apply working hours window filter if enabled
+      if (wageSettings?.working_hours_window_enabled) {
+        const workingStart = timeToMinutes(wageSettings.working_hours_start_time || '08:00:00')!;
+        let workingEnd = timeToMinutes(wageSettings.working_hours_end_time || '01:00:00')!;
+        if (workingEnd <= workingStart) workingEnd += 24 * 60;
+        
+        // Clamp shift times to working hours window
+        const payableStart = Math.max(inMins, workingStart);
+        const payableEnd = Math.min(outMins, workingEnd);
+        
+        // If no overlap with working hours window, set all to zero
+        if (payableStart >= payableEnd) {
+          morning = 0;
+          night = 0;
+        } else {
+          inMins = payableStart;
+          outMins = payableEnd;
+        }
+      }
+      
       const morningStart = timeToMinutes(wageSettings?.morning_start_time || '08:00:00')!;
       const morningEnd = timeToMinutes(wageSettings?.morning_end_time || '17:00:00')!;
       const nightStart = timeToMinutes(wageSettings?.night_start_time || '17:00:00')!;
