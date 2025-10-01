@@ -216,16 +216,8 @@ const ReportsPage: React.FC = () => {
         let nightHours = entry.night_hours || 0;
         let totalHours = entry.total_hours || 0;
 
-        // Apply working hours window filter if enabled (same logic as TimesheetTable)
-        const windowEnabled = (workingHoursSettings && !workingHoursSettings.error) ? 
-          (workingHoursSettings as any).working_hours_window_enabled ?? false : false;
-        const windowStart = (workingHoursSettings && !workingHoursSettings.error) ? 
-          (workingHoursSettings as any).working_hours_start_time ?? '08:00:00' : '08:00:00';
-        const windowEnd = (workingHoursSettings && !workingHoursSettings.error) ? 
-          (workingHoursSettings as any).working_hours_end_time ?? '01:00:00' : '01:00:00';
-        
-        if (windowEnabled && entry.clock_in_time && entry.clock_out_time) {
-          // Helper functions for minute-based calculation
+        // Simple calculation: 6 AM - 5 PM = morning, 5 PM - 6 AM = night
+        if (entry.clock_in_time && entry.clock_out_time) {
           const clean = (t: string) => (t || '00:00:00').split('.')[0];
           const toMinutes = (t: string) => {
             const [h, m, s] = clean(t).split(':').map((v) => parseInt(v, 10) || 0);
@@ -241,56 +233,19 @@ const ReportsPage: React.FC = () => {
           let shiftEnd = toMinutes(entry.clock_out_time);
           if (shiftEnd < shiftStart) shiftEnd += 24 * 60;
 
-          // Apply working hours window filter
-          const workingStart = toMinutes(windowStart);
-          let workingEnd = toMinutes(windowEnd);
-          if (workingEnd <= workingStart) workingEnd += 24 * 60;
-          
-          // Clamp shift times to working hours window
-          const payableShiftStart = Math.max(shiftStart, workingStart);
-          const payableShiftEnd = Math.min(shiftEnd, workingEnd);
-          
-          // If no overlap with working hours window, set all to zero
-          if (payableShiftStart >= payableShiftEnd) {
-            morningHours = 0;
-            nightHours = 0;
-            totalHours = 0;
-          } else {
-            // Calculate morning and night hours within the payable window
-            const morningStart = toMinutes(wageSettings?.morning_start_time || '06:00:00');
-            const morningEnd = toMinutes(wageSettings?.morning_end_time || '17:00:00');
-            const nightStart = toMinutes(wageSettings?.night_start_time || '17:00:00');
-            let nightEnd = toMinutes(wageSettings?.night_end_time || '06:00:00');
-            if (nightEnd <= nightStart) nightEnd += 24 * 60;
+          // Morning: 6 AM (360 min) to 5 PM (1020 min)
+          const morningStart = 360; // 6 AM
+          const morningEnd = 1020; // 5 PM
+          const morningMinutes = overlap(shiftStart, shiftEnd, morningStart, morningEnd);
 
-            const morningMinutes = overlap(payableShiftStart, payableShiftEnd, morningStart, morningEnd)
-              + overlap(payableShiftStart, payableShiftEnd, morningStart + 24 * 60, morningEnd + 24 * 60);
-            const nightMinutes = overlap(payableShiftStart, payableShiftEnd, nightStart, nightEnd)
-              + overlap(payableShiftStart, payableShiftEnd, nightStart + 24 * 60, nightEnd + 24 * 60);
+          // Night: 5 PM (1020 min) to 6 AM next day (1440 min + 360 min)
+          const nightStart = 1020; // 5 PM
+          const nightEnd = 1440 + 360; // 6 AM next day
+          const nightMinutes = overlap(shiftStart, shiftEnd, nightStart, nightEnd);
 
-            const totalWorkedMinutes = payableShiftEnd - payableShiftStart;
-            let m = morningMinutes;
-            let n = nightMinutes;
-
-            // Allocate any remaining minutes to the dominant window
-            const accounted = m + n;
-            if (accounted < totalWorkedMinutes) {
-              const remainder = totalWorkedMinutes - accounted;
-              if (m >= n) m += remainder; else n += remainder;
-            }
-
-            // Final sanity cap
-            const cap = Math.max(1, totalWorkedMinutes);
-            const total = m + n;
-            if (total > cap) {
-              const ratio = cap / total;
-              m *= ratio; n *= ratio;
-            }
-
-            morningHours = Math.max(0, parseFloat((m / 60).toFixed(2)));
-            nightHours = Math.max(0, parseFloat((n / 60).toFixed(2)));
-            totalHours = morningHours + nightHours;
-          }
+          morningHours = Math.max(0, parseFloat((morningMinutes / 60).toFixed(2)));
+          nightHours = Math.max(0, parseFloat((nightMinutes / 60).toFixed(2)));
+          totalHours = morningHours + nightHours;
         } else if (morningHours === 0 && nightHours === 0 && totalHours > 0) {
           morningHours = totalHours;
         }

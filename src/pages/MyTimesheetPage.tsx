@@ -254,28 +254,11 @@ const MyTimesheetPage: React.FC = () => {
       // Handle overnight
       if (shiftEnd < shiftStart) shiftEnd += 24 * 60;
 
-      // Apply working hours window filter if enabled
-      if (combinedWageSettings.working_hours_window_enabled) {
-        const workingStart = timeToMinutes(combinedWageSettings.working_hours_start_time || '08:00:00');
-        let workingEnd = timeToMinutes(combinedWageSettings.working_hours_end_time || '01:00:00');
-        if (workingEnd <= workingStart) workingEnd += 24 * 60;
-        
-        // Clamp shift times to working hours window
-        const payableStart = Math.max(shiftStart, workingStart);
-        const payableEnd = Math.min(shiftEnd, workingEnd);
-        
-        // If no overlap with working hours window, skip this entry
-        if (payableStart >= payableEnd) {
-          console.log('No overlap with working hours window for entry:', entry.id);
-          return sum;
-        }
-        
-        shiftStart = payableStart;
-        shiftEnd = payableEnd;
-      }
+      // No working hours window filter - use all time
 
-      const morningStart = timeToMinutes(combinedWageSettings.morning_start_time || '06:00:00');
-      const morningEnd = timeToMinutes(combinedWageSettings.morning_end_time || '17:00:00');
+      // Simple calculation: 6 AM - 5 PM = morning
+      const morningStart = 360; // 6 AM
+      const morningEnd = 1020; // 5 PM
 
       const minutes = overlapMinutes(shiftStart, shiftEnd, morningStart, morningEnd);
       console.log('Morning calc for entry:', entry.id, {
@@ -300,28 +283,11 @@ const MyTimesheetPage: React.FC = () => {
       let shiftEnd = timeToMinutes(entry.clock_out_time);
       if (shiftEnd < shiftStart) shiftEnd += 24 * 60; // overnight shift
 
-      // Apply working hours window filter if enabled
-      if (combinedWageSettings.working_hours_window_enabled) {
-        const workingStart = timeToMinutes(combinedWageSettings.working_hours_start_time || '08:00:00');
-        let workingEnd = timeToMinutes(combinedWageSettings.working_hours_end_time || '01:00:00');
-        if (workingEnd <= workingStart) workingEnd += 24 * 60;
-        
-        // Clamp shift times to working hours window
-        const payableStart = Math.max(shiftStart, workingStart);
-        const payableEnd = Math.min(shiftEnd, workingEnd);
-        
-        // If no overlap with working hours window, skip this entry
-        if (payableStart >= payableEnd) {
-          console.log('No overlap with working hours window for night entry:', entry.id);
-          return sum;
-        }
-        
-        shiftStart = payableStart;
-        shiftEnd = payableEnd;
-      }
+      // No working hours window filter - use all time
 
-      const nightStart = timeToMinutes(combinedWageSettings.night_start_time || '17:00:00');
-      let nightEnd = timeToMinutes(combinedWageSettings.night_end_time || '06:00:00');
+      // Simple calculation: 5 PM - 6 AM = night
+      const nightStart = 1020; // 5 PM
+      let nightEnd = 1440 + 360; // 6 AM next day
       if (nightEnd < nightStart) nightEnd += 24 * 60; // crosses midnight
 
       const minutes = overlapMinutes(shiftStart, shiftEnd, nightStart, nightEnd);
