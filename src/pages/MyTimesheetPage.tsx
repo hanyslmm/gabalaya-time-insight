@@ -220,7 +220,7 @@ const MyTimesheetPage: React.FC = () => {
   // Combine wage settings with working hours window settings
   const combinedWageSettings = wageSettings && workingHoursSettings ? {
     ...wageSettings,
-    working_hours_window_enabled: workingHoursSettings.working_hours_window_enabled ?? true,
+    working_hours_window_enabled: workingHoursSettings.working_hours_window_enabled ?? false,
     working_hours_start_time: workingHoursSettings.working_hours_start_time ?? '08:00:00',
     working_hours_end_time: workingHoursSettings.working_hours_end_time ?? '01:00:00'
   } : wageSettings;

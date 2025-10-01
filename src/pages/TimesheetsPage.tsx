@@ -80,7 +80,7 @@ const TimesheetsPage: React.FC = () => {
   // Combine wage settings with working hours window settings
   const combinedWageSettings = wageSettings && workingHoursSettings ? {
     ...wageSettings,
-    working_hours_window_enabled: workingHoursSettings.working_hours_window_enabled ?? true,
+    working_hours_window_enabled: workingHoursSettings.working_hours_window_enabled ?? false,
     working_hours_start_time: workingHoursSettings.working_hours_start_time ?? '08:00:00',
     working_hours_end_time: workingHoursSettings.working_hours_end_time ?? '01:00:00'
   } : wageSettings;
@@ -424,7 +424,7 @@ const TimesheetsPage: React.FC = () => {
                       shiftEnd = payableEnd;
                     }
                     
-                    const morningStart = timeToMinutes(combinedWageSettings.morning_start_time || '08:00:00');
+                    const morningStart = timeToMinutes(combinedWageSettings.morning_start_time || '06:00:00');
                     const morningEnd = timeToMinutes(combinedWageSettings.morning_end_time || '17:00:00');
                     const minutes = overlapMinutes(shiftStart, shiftEnd, morningStart, morningEnd);
                     return sum + minutes / 60;
@@ -461,7 +461,7 @@ const TimesheetsPage: React.FC = () => {
                     }
                     
                     const nightStart = timeToMinutes(combinedWageSettings.night_start_time || '17:00:00');
-                    let nightEnd = timeToMinutes(combinedWageSettings.night_end_time || '01:00:00');
+                    let nightEnd = timeToMinutes(combinedWageSettings.night_end_time || '06:00:00');
                     if (nightEnd < nightStart) nightEnd += 24 * 60;
                     const minutes = overlapMinutes(shiftStart, shiftEnd, nightStart, nightEnd);
                     return sum + minutes / 60;

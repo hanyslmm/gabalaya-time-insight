@@ -218,7 +218,7 @@ const ReportsPage: React.FC = () => {
 
         // Apply working hours window filter if enabled (same logic as TimesheetTable)
         const windowEnabled = (workingHoursSettings && !workingHoursSettings.error) ? 
-          (workingHoursSettings as any).working_hours_window_enabled ?? true : true;
+          (workingHoursSettings as any).working_hours_window_enabled ?? false : false;
         const windowStart = (workingHoursSettings && !workingHoursSettings.error) ? 
           (workingHoursSettings as any).working_hours_start_time ?? '08:00:00' : '08:00:00';
         const windowEnd = (workingHoursSettings && !workingHoursSettings.error) ? 
