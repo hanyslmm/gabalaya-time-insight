@@ -85,6 +85,19 @@ const ReportsPage: React.FC = () => {
     }
   });
 
+  // Query 2.5: Working Hours Window Settings
+  const { data: workingHoursSettings } = useQuery({
+    queryKey: ['working-hours-settings'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('company_settings')
+        .select('working_hours_window_enabled, working_hours_start_time, working_hours_end_time')
+        .limit(1)
+        .maybeSingle();
+      return data;
+    }
+  });
+
   // Query 3: Timesheet Data (with legacy support like TimesheetsPage)
   const { data: rawTimesheetData, isLoading: timesheetLoading, error: timesheetError } = useQuery({
     queryKey: ['timesheet-final', dateRange, activeOrganizationId, employees?.length],
@@ -200,10 +213,86 @@ const ReportsPage: React.FC = () => {
       return hasValidEmployee;
     }).map(entry => {
         let morningHours = entry.morning_hours || 0;
-        const nightHours = entry.night_hours || 0;
+        let nightHours = entry.night_hours || 0;
+        let totalHours = entry.total_hours || 0;
 
-        if (morningHours === 0 && nightHours === 0 && entry.total_hours > 0) {
-          morningHours = entry.total_hours;
+        // Apply working hours window filter if enabled (same logic as TimesheetTable)
+        const windowEnabled = (workingHoursSettings && !workingHoursSettings.error) ? 
+          (workingHoursSettings as any).working_hours_window_enabled ?? true : true;
+        const windowStart = (workingHoursSettings && !workingHoursSettings.error) ? 
+          (workingHoursSettings as any).working_hours_start_time ?? '08:00:00' : '08:00:00';
+        const windowEnd = (workingHoursSettings && !workingHoursSettings.error) ? 
+          (workingHoursSettings as any).working_hours_end_time ?? '01:00:00' : '01:00:00';
+        
+        if (windowEnabled && entry.clock_in_time && entry.clock_out_time) {
+          // Helper functions for minute-based calculation
+          const clean = (t: string) => (t || '00:00:00').split('.')[0];
+          const toMinutes = (t: string) => {
+            const [h, m, s] = clean(t).split(':').map((v) => parseInt(v, 10) || 0);
+            return (h % 24) * 60 + (m % 60) + Math.floor((s % 60) / 60);
+          };
+          const overlap = (aStart: number, aEnd: number, bStart: number, bEnd: number) => {
+            const start = Math.max(aStart, bStart);
+            const end = Math.min(aEnd, bEnd);
+            return Math.max(0, end - start);
+          };
+
+          let shiftStart = toMinutes(entry.clock_in_time);
+          let shiftEnd = toMinutes(entry.clock_out_time);
+          if (shiftEnd < shiftStart) shiftEnd += 24 * 60;
+
+          // Apply working hours window filter
+          const workingStart = toMinutes(windowStart);
+          let workingEnd = toMinutes(windowEnd);
+          if (workingEnd <= workingStart) workingEnd += 24 * 60;
+          
+          // Clamp shift times to working hours window
+          const payableShiftStart = Math.max(shiftStart, workingStart);
+          const payableShiftEnd = Math.min(shiftEnd, workingEnd);
+          
+          // If no overlap with working hours window, set all to zero
+          if (payableShiftStart >= payableShiftEnd) {
+            morningHours = 0;
+            nightHours = 0;
+            totalHours = 0;
+          } else {
+            // Calculate morning and night hours within the payable window
+            const morningStart = toMinutes(wageSettings?.morning_start_time || '08:00:00');
+            const morningEnd = toMinutes(wageSettings?.morning_end_time || '17:00:00');
+            const nightStart = toMinutes(wageSettings?.night_start_time || '17:00:00');
+            let nightEnd = toMinutes(wageSettings?.night_end_time || '01:00:00');
+            if (nightEnd <= nightStart) nightEnd += 24 * 60;
+
+            const morningMinutes = overlap(payableShiftStart, payableShiftEnd, morningStart, morningEnd)
+              + overlap(payableShiftStart, payableShiftEnd, morningStart + 24 * 60, morningEnd + 24 * 60);
+            const nightMinutes = overlap(payableShiftStart, payableShiftEnd, nightStart, nightEnd)
+              + overlap(payableShiftStart, payableShiftEnd, nightStart + 24 * 60, nightEnd + 24 * 60);
+
+            const totalWorkedMinutes = payableShiftEnd - payableShiftStart;
+            let m = morningMinutes;
+            let n = nightMinutes;
+
+            // Allocate any remaining minutes to the dominant window
+            const accounted = m + n;
+            if (accounted < totalWorkedMinutes) {
+              const remainder = totalWorkedMinutes - accounted;
+              if (m >= n) m += remainder; else n += remainder;
+            }
+
+            // Final sanity cap
+            const cap = Math.max(1, totalWorkedMinutes);
+            const total = m + n;
+            if (total > cap) {
+              const ratio = cap / total;
+              m *= ratio; n *= ratio;
+            }
+
+            morningHours = Math.max(0, parseFloat((m / 60).toFixed(2)));
+            nightHours = Math.max(0, parseFloat((n / 60).toFixed(2)));
+            totalHours = morningHours + nightHours;
+          }
+        } else if (morningHours === 0 && nightHours === 0 && totalHours > 0) {
+          morningHours = totalHours;
         }
 
         const displayName = employeeMap.get(entry.employee_name) || 
@@ -231,22 +320,23 @@ const ReportsPage: React.FC = () => {
         if (morningHours > 0 || nightHours > 0) {
           // Use split calculation
           calculatedAmount = (morningHours * morningRate) + (nightHours * nightRate);
-        } else if ((entry.total_hours || 0) > 0) {
+        } else if (totalHours > 0) {
           // Use flat rate for total hours
-          calculatedAmount = (entry.total_hours || 0) * morningRate;
+          calculatedAmount = totalHours * morningRate;
         }
       }
 
         return {
           ...entry,
           display_name: displayName,
+          total_hours: totalHours, // Use recalculated total hours
           calculated_morning_hours: Math.max(0, morningHours),
           calculated_night_hours: Math.max(0, nightHours),
         total_card_amount_flat: Math.round(calculatedAmount),
         calculated_amount: Math.round(calculatedAmount)
         };
       });
-  }, [rawTimesheetData, employees, wageSettings]);
+  }, [rawTimesheetData, employees, wageSettings, workingHoursSettings]);
 
   // Calculate payroll summary - using employee-specific rates from attendanceReport
   const payrollSummary = useMemo(() => {
