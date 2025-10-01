@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload, Download, Split, Trash2, User, Filter, RefreshCw, Globe2, Plus, Calculator } from 'lucide-react';
+import { Upload, Download, Split, Trash2, User, Filter, RefreshCw, Globe2, Plus } from 'lucide-react';
 import TimesheetUpload from '@/components/TimesheetUpload';
 import TimesheetTable from '@/components/TimesheetTable';
 import TimesheetDateFilter from '@/components/TimesheetDateFilter';
@@ -20,8 +20,6 @@ import { useCompanyTimezone } from '@/hooks/useCompanyTimezone';
 import { toast } from 'sonner';
 import MobilePageWrapper, { MobileSection, MobileHeader } from '@/components/MobilePageWrapper';
 import { getCompanyTimezone } from '@/utils/timezoneUtils';
-import { recalculateAllTimesheetHours } from '@/utils/recalculateAllHours';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 interface DateRange {
   from: Date;
   to: Date;
@@ -31,7 +29,6 @@ const TimesheetsPage: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { timezone } = useCompanyTimezone();
-  const queryClient = useQueryClient();
   const [showUpload, setShowUpload] = useState(false);
   const [showNewEntryDialog, setShowNewEntryDialog] = useState(false);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
@@ -87,19 +84,6 @@ const TimesheetsPage: React.FC = () => {
     working_hours_start_time: workingHoursSettings.working_hours_start_time ?? '08:00:00',
     working_hours_end_time: workingHoursSettings.working_hours_end_time ?? '01:00:00'
   } : wageSettings;
-
-  // Recalculation mutation to fix unassigned hours
-  const recalculateMutation = useMutation({
-    mutationFn: recalculateAllTimesheetHours,
-    onSuccess: (result) => {
-      toast.success(`Successfully recalculated ${result.count} timesheet entries!`);
-      queryClient.invalidateQueries({ queryKey: ['timesheets'] });
-      refetch();
-    },
-    onError: (error) => {
-      toast.error('Failed to recalculate hours: ' + error.message);
-    }
-  });
 
   // Reverted auto-calculate effect to prevent page issues
 
@@ -279,17 +263,6 @@ const TimesheetsPage: React.FC = () => {
          actions={
            <div className="flex items-center gap-1 sm:gap-2">
              <AutoCalculateWages />
-             <Button 
-               onClick={() => recalculateMutation.mutate()} 
-               size="sm" 
-               variant="outline" 
-               className="h-7 sm:h-9"
-               disabled={recalculateMutation.isPending}
-               title="Recalculate all hours to fix unassigned hours"
-             >
-               <Calculator className="h-3 w-3 sm:h-4 sm:w-4" />
-               {recalculateMutation.isPending && <span className="ml-1">...</span>}
-             </Button>
              <Button onClick={handleRefresh} size="sm" variant="outline" className="h-7 sm:h-9">
                <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
              </Button>
