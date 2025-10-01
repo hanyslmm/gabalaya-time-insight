@@ -102,8 +102,11 @@ const EmployeeMonitorPage: React.FC = () => {
           return;
         }
         const isActive = !entry.clock_out_time || entry.clock_out_time === '00:00:00';
+        // Add 'Z' to treat DB time as UTC, then calculate duration correctly
+        const clockInTimeStr = entry.clock_in_time.split('.')[0];
+        const clockInUTC = new Date(`${entry.clock_in_date}T${clockInTimeStr}Z`);
         const duration = isActive 
-          ? differenceInMinutes(new Date(), new Date(`${entry.clock_in_date}T${entry.clock_in_time}`))
+          ? differenceInMinutes(new Date(), clockInUTC)
           : entry.total_hours ? entry.total_hours * 60 : 0;
 
         // Map employee ID/name to display name, check both employee_name and employee_id

@@ -51,17 +51,17 @@ export function useCompanyTimezone() {
       if (!dateStr || !timeStr) return '—';
       const timeClean = (timeStr || '').split('.')[0] || '00:00:00';
       
-      // IMPORTANT: Remove 'Z' - times are stored WITHOUT timezone, treat them as local time
-      // Old: new Date(`${dateStr}T${timeClean}Z`) - treated as UTC, caused +3h shift
-      // New: new Date(`${dateStr}T${timeClean}`) - treated as local time
-      const dt = new Date(`${dateStr}T${timeClean}`);
-      
       try {
+        // CRITICAL: Add 'Z' to treat DB time as UTC, then format in company timezone
+        // This matches the working logic in ClockInOutPage.tsx
+        const utcDate = new Date(`${dateStr}T${timeClean}Z`);
+        
         return new Intl.DateTimeFormat('en-US', {
-          hour: '2-digit',
+          timeZone: timezone,
+          hour: 'numeric',
           minute: '2-digit',
           hour12: true,
-        }).format(dt);
+        }).format(utcDate);
       } catch {
         return timeClean;
       }
@@ -74,18 +74,19 @@ export function useCompanyTimezone() {
       if (!dateStr) return '';
       const timeClean = (timeStr || '00:00:00').split('.')[0];
       
-      // IMPORTANT: Remove 'Z' - treat times as local, not UTC
-      const dt = new Date(`${dateStr}T${timeClean}`);
-      
       try {
+        // Add 'Z' to treat DB time as UTC, then format in company timezone
+        const utcDate = new Date(`${dateStr}T${timeClean}Z`);
+        
         return new Intl.DateTimeFormat('en-GB', {
+          timeZone: timezone,
           year: 'numeric',
           month: '2-digit',
           day: '2-digit',
           hour: '2-digit',
           minute: '2-digit',
           hour12: false,
-        }).format(dt);
+        }).format(utcDate);
       } catch {
         return `${dateStr} ${timeStr || ''}`;
       }
