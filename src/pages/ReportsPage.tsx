@@ -34,13 +34,30 @@ const ReportsPage: React.FC = () => {
   // Hooks at top level
   const { user } = useAuth();
   const [currentView, setCurrentView] = useState<ViewType>('overview');
+  const [payPeriodEndDay, setPayPeriodEndDay] = useState(28);
   
-  // Date range state
+  // Date range state - default to current pay period
   const [dateRange, setDateRange] = useState<DateRange>(() => {
-      const today = new Date();
-      const sixMonthsAgo = new Date();
-      sixMonthsAgo.setMonth(today.getMonth() - 6);
-    return { from: sixMonthsAgo, to: today };
+    const today = new Date();
+    const endDay = 28; // Default pay period end day
+    const currentDay = today.getDate();
+    
+    // Calculate current pay period
+    let endDate: Date;
+    if (currentDay <= endDay) {
+      // We're still in the current month's pay period
+      endDate = new Date(today.getFullYear(), today.getMonth(), endDay);
+    } else {
+      // We've passed the end day, so we're in next month's pay period
+      endDate = new Date(today.getFullYear(), today.getMonth() + 1, endDay);
+    }
+    
+    // Start date is the day after the previous period's end
+    const startDate = new Date(endDate);
+    startDate.setMonth(startDate.getMonth() - 1);
+    startDate.setDate(endDay + 1);
+    
+    return { from: startDate, to: endDate };
   });
   
   const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
@@ -459,8 +476,8 @@ const ReportsPage: React.FC = () => {
         <TimesheetDateFilter
           dateRange={dateRange}
           onDateRangeChange={setDateRange}
-          payPeriodEndDay={28}
-          onPayPeriodEndDayChange={() => {}}
+          payPeriodEndDay={payPeriodEndDay}
+          onPayPeriodEndDayChange={setPayPeriodEndDay}
         />
       </MobileSection>
 
