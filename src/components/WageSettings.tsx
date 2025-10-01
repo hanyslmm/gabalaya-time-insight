@@ -91,10 +91,10 @@ const WageSettings: React.FC = () => {
           const { data: defaultSettings, error: defaultError } = await supabase
             .from('wage_settings')
             .insert({
-              morning_start_time: '08:00:00',
+              morning_start_time: '06:00:00',
               morning_end_time: '17:00:00',
               night_start_time: '17:00:00',
-              night_end_time: '01:00:00',
+              night_end_time: '06:00:00',
               morning_wage_rate: 17.00,
               night_wage_rate: 20.00,
               default_flat_wage_rate: 20.00,
@@ -197,7 +197,7 @@ const WageSettings: React.FC = () => {
           <Input
             id="morning-start"
             type="time"
-            value={settings.morning_start_time || '08:00'}
+            value={settings.morning_start_time || '06:00'}
             onChange={(e) => handleInputChange('morning_start_time', e.target.value)}
             className="w-full"
           />

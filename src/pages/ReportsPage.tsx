@@ -74,10 +74,10 @@ const ReportsPage: React.FC = () => {
         if (data) return data;
       }
       return {
-        morning_start_time: '08:00:00',
+        morning_start_time: '06:00:00',
         morning_end_time: '17:00:00',
         night_start_time: '17:00:00',
-        night_end_time: '01:00:00',
+        night_end_time: '06:00:00',
         morning_wage_rate: 17.0,
         night_wage_rate: 20.0,
         default_flat_wage_rate: 20.0,
@@ -257,10 +257,10 @@ const ReportsPage: React.FC = () => {
             totalHours = 0;
           } else {
             // Calculate morning and night hours within the payable window
-            const morningStart = toMinutes(wageSettings?.morning_start_time || '08:00:00');
+            const morningStart = toMinutes(wageSettings?.morning_start_time || '06:00:00');
             const morningEnd = toMinutes(wageSettings?.morning_end_time || '17:00:00');
             const nightStart = toMinutes(wageSettings?.night_start_time || '17:00:00');
-            let nightEnd = toMinutes(wageSettings?.night_end_time || '01:00:00');
+            let nightEnd = toMinutes(wageSettings?.night_end_time || '06:00:00');
             if (nightEnd <= nightStart) nightEnd += 24 * 60;
 
             const morningMinutes = overlap(payableShiftStart, payableShiftEnd, morningStart, morningEnd)

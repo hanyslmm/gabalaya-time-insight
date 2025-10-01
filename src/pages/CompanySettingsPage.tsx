@@ -29,84 +29,46 @@ const CompanySettingsPage: React.FC = () => {
   const [workingHoursStartTime, setWorkingHoursStartTime] = useState('08:00');
   const [workingHoursEndTime, setWorkingHoursEndTime] = useState('01:00');
 
-  // Fetch current company settings
+  // Fetch all company settings in one query
   const { data: currentSettings, isLoading } = useQuery({
     queryKey: ['company-settings', activeOrganizationId],
     enabled: !!activeOrganizationId,
     queryFn: async () => {
-      let query = supabase
+      const query = supabase
         .from('company_settings')
-        .select('motivational_message, timezone, auto_clockout_enabled, auto_clockout_time, max_work_hours, auto_clockout_location');
-      
-      if (activeOrganizationId) {
-        query = query.eq('organization_id', activeOrganizationId);
-      }
+        .select(`
+          motivational_message,
+          timezone,
+          auto_clockout_enabled,
+          auto_clockout_time,
+          max_work_hours,
+          auto_clockout_location,
+          working_hours_window_enabled,
+          working_hours_start_time,
+          working_hours_end_time
+        `)
+        .eq('organization_id', activeOrganizationId);
       
       const { data, error } = await query.single();
 
+      // Handle case where no settings exist for the organization yet
       if (error && error.code !== 'PGRST116') {
-        // If no settings exist, return default
-        return { 
-          motivational_message: "Keep up the great work! Your dedication and effort make a real difference to our team.",
-          timezone: "Africa/Cairo",
-          auto_clockout_enabled: true,
-          auto_clockout_time: "01:00:00",
-          max_work_hours: 8,
-          auto_clockout_location: "Auto Clock-Out"
-        };
+        console.error('Error fetching company settings:', error);
+        throw error;
       }
-      
-      return data || { 
+
+      // Return fetched data or a complete set of default values
+      return data || {
         motivational_message: "Keep up the great work! Your dedication and effort make a real difference to our team.",
         timezone: "Africa/Cairo",
         auto_clockout_enabled: true,
         auto_clockout_time: "01:00:00",
         max_work_hours: 8,
-        auto_clockout_location: "Auto Clock-Out"
+        auto_clockout_location: "Auto Clock-Out",
+        working_hours_window_enabled: false,
+        working_hours_start_time: '08:00:00',
+        working_hours_end_time: '01:00:00'
       };
-    }
-  });
-
-  // Fetch working hours window settings from company_settings
-  const { data: workingHoursSettings } = useQuery({
-    queryKey: ['working-hours-settings', activeOrganizationId],
-    enabled: !!activeOrganizationId,
-    queryFn: async () => {
-      try {
-        let query = supabase
-          .from('company_settings')
-          .select('working_hours_window_enabled, working_hours_start_time, working_hours_end_time');
-        
-        if (activeOrganizationId) {
-          query = query.eq('organization_id', activeOrganizationId);
-        }
-        
-        const { data, error } = await query.maybeSingle();
-
-        if (error) {
-          console.error('Error fetching working hours settings:', error);
-          // Return default values if columns don't exist
-          return {
-            working_hours_window_enabled: true,
-            working_hours_start_time: '08:00:00',
-            working_hours_end_time: '01:00:00'
-          };
-        }
-
-        return data || {
-          working_hours_window_enabled: true,
-          working_hours_start_time: '08:00:00',
-          working_hours_end_time: '01:00:00'
-        };
-      } catch (error) {
-        console.error('Error in working hours settings query:', error);
-        // Return default values if query fails
-        return {
-          working_hours_window_enabled: true,
-          working_hours_start_time: '08:00:00',
-          working_hours_end_time: '01:00:00'
-        };
-      }
     }
   });
 
@@ -186,39 +148,21 @@ const CompanySettingsPage: React.FC = () => {
       });
   };
 
+  // Effect to update local state when settings are fetched
   React.useEffect(() => {
-    if (currentSettings?.motivational_message) {
-      setMessage(currentSettings.motivational_message);
-    }
-    if (currentSettings?.timezone) {
-      setTimezone(currentSettings.timezone);
-    }
-    if (currentSettings?.auto_clockout_enabled !== undefined) {
-      setAutoClockoutEnabled(currentSettings.auto_clockout_enabled);
-    }
-    if (currentSettings?.auto_clockout_time) {
-      // Convert time format from "HH:MM:SS" to "HH:MM"
-      setAutoClockoutTime(currentSettings.auto_clockout_time.substring(0, 5));
-    }
-    if (currentSettings?.max_work_hours !== undefined) {
-      setMaxWorkHours(currentSettings.max_work_hours);
-    }
-    if (currentSettings?.auto_clockout_location) {
-      setAutoClockoutLocation(currentSettings.auto_clockout_location);
+    if (currentSettings && !('error' in currentSettings)) {
+      const settings = currentSettings as any;
+      setMessage(settings.motivational_message || "Keep up the great work!");
+      setTimezone(settings.timezone || 'Africa/Cairo');
+      setAutoClockoutEnabled(settings.auto_clockout_enabled ?? true);
+      setAutoClockoutTime((settings.auto_clockout_time || '01:00:00').substring(0, 5));
+      setMaxWorkHours(settings.max_work_hours || 8);
+      setAutoClockoutLocation(settings.auto_clockout_location || 'Auto Clock-Out');
+      setWorkingHoursWindowEnabled(settings.working_hours_window_enabled ?? false);
+      setWorkingHoursStartTime((settings.working_hours_start_time || '08:00:00').substring(0, 5));
+      setWorkingHoursEndTime((settings.working_hours_end_time || '01:00:00').substring(0, 5));
     }
   }, [currentSettings]);
-
-  React.useEffect(() => {
-    if (workingHoursSettings?.working_hours_window_enabled !== undefined) {
-      setWorkingHoursWindowEnabled(workingHoursSettings.working_hours_window_enabled);
-    }
-    if (workingHoursSettings?.working_hours_start_time) {
-      setWorkingHoursStartTime(workingHoursSettings.working_hours_start_time.substring(0, 5));
-    }
-    if (workingHoursSettings?.working_hours_end_time) {
-      setWorkingHoursEndTime(workingHoursSettings.working_hours_end_time.substring(0, 5));
-    }
-  }, [workingHoursSettings]);
 
   if (isLoading) {
     return (

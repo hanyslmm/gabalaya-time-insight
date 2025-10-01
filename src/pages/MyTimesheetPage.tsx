@@ -274,7 +274,7 @@ const MyTimesheetPage: React.FC = () => {
         shiftEnd = payableEnd;
       }
 
-      const morningStart = timeToMinutes(combinedWageSettings.morning_start_time || '08:00:00');
+      const morningStart = timeToMinutes(combinedWageSettings.morning_start_time || '06:00:00');
       const morningEnd = timeToMinutes(combinedWageSettings.morning_end_time || '17:00:00');
 
       const minutes = overlapMinutes(shiftStart, shiftEnd, morningStart, morningEnd);
@@ -321,7 +321,7 @@ const MyTimesheetPage: React.FC = () => {
       }
 
       const nightStart = timeToMinutes(combinedWageSettings.night_start_time || '17:00:00');
-      let nightEnd = timeToMinutes(combinedWageSettings.night_end_time || '01:00:00');
+      let nightEnd = timeToMinutes(combinedWageSettings.night_end_time || '06:00:00');
       if (nightEnd < nightStart) nightEnd += 24 * 60; // crosses midnight
 
       const minutes = overlapMinutes(shiftStart, shiftEnd, nightStart, nightEnd);

@@ -90,12 +90,12 @@ export const calculateMorningNightHours = async (
     }
 
   // Morning window
-  const morningStart = toMinutes(wageSettings.morning_start_time || '08:00:00');
+  const morningStart = toMinutes(wageSettings.morning_start_time || '06:00:00');
   const morningEnd = toMinutes(wageSettings.morning_end_time || '17:00:00');
 
   // Night window (may cross midnight)
   const nightStart = toMinutes(wageSettings.night_start_time || '17:00:00');
-  let nightEnd = toMinutes(wageSettings.night_end_time || '01:00:00');
+  let nightEnd = toMinutes(wageSettings.night_end_time || '06:00:00');
   if (nightEnd <= nightStart) nightEnd += 24 * 60;
 
   // Compute overlaps, accounting for windows repeating every 24h
@@ -162,7 +162,7 @@ export const calculateMorningNightHours = async (
     }
     
     const totalWorkedMinutes = payableShiftEnd - payableShiftStart;
-    const morningStart = toMinutes(wageSettings.morning_start_time || '08:00:00');
+    const morningStart = toMinutes(wageSettings.morning_start_time || '06:00:00');
     const morningEnd = toMinutes(wageSettings.morning_end_time || '17:00:00');
     
     // Simple fallback: if shift overlaps with morning hours, count as morning
@@ -200,9 +200,12 @@ export const calculateAllTimesheetHours = async (): Promise<void> => {
     // Merge wage settings with working hours window settings
     const combinedSettings = {
       ...wageSettings,
-      working_hours_window_enabled: companySettings?.working_hours_window_enabled ?? true,
-      working_hours_start_time: companySettings?.working_hours_start_time ?? '08:00:00',
-      working_hours_end_time: companySettings?.working_hours_end_time ?? '01:00:00'
+      working_hours_window_enabled: (companySettings && !companySettings.error) ? 
+        (companySettings as any).working_hours_window_enabled ?? false : false,
+      working_hours_start_time: (companySettings && !companySettings.error) ? 
+        (companySettings as any).working_hours_start_time ?? '08:00:00' : '08:00:00',
+      working_hours_end_time: (companySettings && !companySettings.error) ? 
+        (companySettings as any).working_hours_end_time ?? '01:00:00' : '01:00:00'
     };
 
     // Get employees for wage rates (without INNER join to avoid RLS issues)

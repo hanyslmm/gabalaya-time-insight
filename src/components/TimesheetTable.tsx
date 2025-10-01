@@ -271,10 +271,10 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
         }
       }
       
-      const morningStart = timeToMinutes(wageSettings?.morning_start_time || '08:00:00')!;
+      const morningStart = timeToMinutes(wageSettings?.morning_start_time || '06:00:00')!;
       const morningEnd = timeToMinutes(wageSettings?.morning_end_time || '17:00:00')!;
       const nightStart = timeToMinutes(wageSettings?.night_start_time || '17:00:00')!;
-      let nightEnd = timeToMinutes(wageSettings?.night_end_time || '01:00:00')!;
+      let nightEnd = timeToMinutes(wageSettings?.night_end_time || '06:00:00')!;
       if (nightEnd < nightStart) nightEnd += 24 * 60;
       const morningMinutes = overlapMinutes(inMins, outMins, morningStart, morningEnd);
       const nightMinutes = overlapMinutes(inMins, outMins, nightStart, nightEnd);
