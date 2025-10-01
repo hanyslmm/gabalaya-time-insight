@@ -16,12 +16,13 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Plus, Edit, Trash2, Search, DollarSign, Lock } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, DollarSign, Lock, UserX } from 'lucide-react';
 import EmployeeForm from '@/components/EmployeeForm';
 import EmployeeStats from '@/components/EmployeeStats';
 import EmployeeWageRates from '@/components/EmployeeWageRates';
 import AdminPasswordChange from '@/components/AdminPasswordChange';
 import AdminRoleChange from '@/components/AdminRoleChange';
+import TerminateEmployeeDialog from '@/components/TerminateEmployeeDialog';
 import { useAuth } from '@/hooks/useAuth';
 
 interface Employee {
@@ -30,11 +31,19 @@ interface Employee {
   full_name: string;
   role: string;
   hiring_date: string;
+  organization_id: string;
   email?: string;
   phone_number?: string;
   morning_wage_rate?: number;
   night_wage_rate?: number;
   is_admin_user?: boolean;
+  // Employee lifecycle fields
+  status?: string;
+  termination_date?: string;
+  termination_reason?: string;
+  eligible_for_rehire?: boolean;
+  termination_notes?: string;
+  last_organization_id?: string;
 }
 
 const EmployeesPage: React.FC = () => {
@@ -49,32 +58,66 @@ const EmployeesPage: React.FC = () => {
   const [passwordChangeEmployee, setPasswordChangeEmployee] = useState<Employee | null>(null);
   const [roleChangeAdmin, setRoleChangeAdmin] = useState<any>(null);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
+  const [employeeToTerminate, setEmployeeToTerminate] = useState<Employee | null>(null);
 
-  const { data: employees, isLoading } = useQuery({
+  const { data: employees, isLoading, error: employeesError } = useQuery({
     queryKey: ['employees', (user as any)?.current_organization_id || user?.organization_id],
     queryFn: async () => {
       const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
 
-      // Fetch regular employees
+      console.log('🔍 EmployeesPage QUERY START');
+      console.log('🔍 User object:', user);
+      console.log('🔍 Active Organization ID:', activeOrganizationId);
+
+      // Fetch only active employees
       let employeeQuery = supabase
         .from('employees')
         .select('*')
+        .eq('status', 'active')
         .order('created_at', { ascending: false });
 
       if (activeOrganizationId) {
         employeeQuery = employeeQuery.eq('organization_id', activeOrganizationId);
       }
 
+      console.log('🔍 About to execute query with filters:', {
+        status: 'active',
+        organization_id: activeOrganizationId
+      });
+
       const { data: employeeData, error: employeeError } = await employeeQuery;
       
-      if (employeeError) throw employeeError;
+      console.log('🔍 Query completed!');
+      console.log('🔍 Error:', employeeError);
+      console.log('🔍 Data count:', employeeData?.length);
+      console.log('🔍 Raw data:', employeeData);
+      
+      if (employeeError) {
+        console.error('❌ EmployeesPage: Error fetching employees:', employeeError);
+        throw employeeError;
+      }
+
+      if (!employeeData || employeeData.length === 0) {
+        console.warn('⚠️ NO EMPLOYEES RETURNED FROM QUERY!');
+      }
 
       // Only return regular employees - don't mix admin users with employees
-      return (employeeData || []).map((emp: any) => ({
+      const result = (employeeData || []).map((emp: any) => ({
         ...emp,
         is_admin_user: false
       })) as (Employee & { is_admin_user?: boolean })[];
+      
+      console.log('🔍 Final result to return:', result);
+      return result;
     }
+  });
+
+  // Debug log when employees data changes
+  console.log('🔍 EMPLOYEES STATE:', { 
+    employees, 
+    count: employees?.length, 
+    isLoading, 
+    error: employeesError 
   });
 
   const { data: adminUsers } = useQuery({
@@ -272,9 +315,18 @@ const EmployeesPage: React.FC = () => {
                   <Button
                     variant="ghost"
                     size="sm"
+                    onClick={() => setEmployeeToTerminate(employee)}
+                    className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 h-8 w-8 p-0"
+                    title="Terminate Employee"
+                  >
+                    <UserX className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => handleDelete(employee)}
                     className="text-destructive hover:text-destructive/80 h-8 w-8 p-0"
-                    title="Delete"
+                    title="Delete (Permanent)"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -370,6 +422,13 @@ const EmployeesPage: React.FC = () => {
           onClose={() => setRoleChangeAdmin(null)}
         />
       )}
+
+      {/* Terminate Employee Dialog */}
+      <TerminateEmployeeDialog
+        employee={employeeToTerminate}
+        open={!!employeeToTerminate}
+        onOpenChange={(open) => !open && setEmployeeToTerminate(null)}
+      />
 
       {/* Modern Delete Confirmation Dialog */}
       <AlertDialog open={!!employeeToDelete} onOpenChange={(open) => !open && setEmployeeToDelete(null)}>

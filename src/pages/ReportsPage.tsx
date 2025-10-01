@@ -47,14 +47,15 @@ const ReportsPage: React.FC = () => {
   
   console.log('ReportsPage: User:', user?.username, 'Org:', activeOrganizationId);
   
-  // Query 1: Employees
+  // Query 1: Employees (with wage rates)
   const { data: employees, isLoading: employeesLoading, error: employeesError } = useQuery({
     queryKey: ['employees-final', activeOrganizationId],
     queryFn: async (): Promise<any[]> => {
-      let q = supabase.from('employees').select('id, staff_id, full_name');
+      let q = supabase.from('employees').select('id, staff_id, full_name, morning_wage_rate, night_wage_rate');
       if (activeOrganizationId) q = q.eq('organization_id', activeOrganizationId);
       const { data, error } = await q;
       if (error) throw error;
+      console.log('📊 ReportsPage: Loaded employees with wage rates:', data);
       return data || [];
     }
   });
@@ -160,10 +161,30 @@ const ReportsPage: React.FC = () => {
     if (!rawTimesheetData || !employees || !wageSettings) return [];
     
       const employeeMap = new Map();
+      const employeeWageMap = new Map(); // Map employee name/id to their wage rates
+      
       employees.forEach(emp => {
-        if (emp.staff_id) employeeMap.set(emp.staff_id, emp.full_name);
-        if (emp.full_name) employeeMap.set(emp.full_name, emp.full_name);
-        if (emp.id) employeeMap.set(emp.id, emp.full_name);
+        if (emp.staff_id) {
+          employeeMap.set(emp.staff_id, emp.full_name);
+          employeeWageMap.set(emp.staff_id, {
+            morning: emp.morning_wage_rate || wageSettings?.morning_wage_rate || 17,
+            night: emp.night_wage_rate || wageSettings?.night_wage_rate || 20
+          });
+        }
+        if (emp.full_name) {
+          employeeMap.set(emp.full_name, emp.full_name);
+          employeeWageMap.set(emp.full_name, {
+            morning: emp.morning_wage_rate || wageSettings?.morning_wage_rate || 17,
+            night: emp.night_wage_rate || wageSettings?.night_wage_rate || 20
+          });
+        }
+        if (emp.id) {
+          employeeMap.set(emp.id, emp.full_name);
+          employeeWageMap.set(emp.id, {
+            morning: emp.morning_wage_rate || wageSettings?.morning_wage_rate || 17,
+            night: emp.night_wage_rate || wageSettings?.night_wage_rate || 20
+          });
+        }
       });
 
     return rawTimesheetData.filter(entry => {
@@ -188,16 +209,23 @@ const ReportsPage: React.FC = () => {
                            employeeMap.get(entry.employee_id) || 
                            entry.employee_name || 'Unknown Employee';
 
-      // Calculate amount for individual entries (same logic as payroll summary)
+      // Calculate amount for individual entries using EMPLOYEE-SPECIFIC wage rates
       const storedAmount = entry.total_card_amount_split || entry.total_card_amount_flat || 0;
       let calculatedAmount = 0;
       
       if (storedAmount > 0) {
         calculatedAmount = storedAmount;
       } else {
-        // Calculate from hours and wage rates
-        const morningRate = wageSettings?.morning_wage_rate || 17;
-        const nightRate = wageSettings?.night_wage_rate || 20;
+        // Get employee-specific wage rates (fallback to global rates)
+        const employeeWages = employeeWageMap.get(entry.employee_name) || 
+                             employeeWageMap.get(entry.employee_id) || 
+                             employeeWageMap.get(displayName) || 
+                             { morning: wageSettings?.morning_wage_rate || 17, night: wageSettings?.night_wage_rate || 20 };
+        
+        const morningRate = employeeWages.morning;
+        const nightRate = employeeWages.night;
+        
+        console.log(`💰 Calculating for ${displayName}: morning=${morningRate}, night=${nightRate}`);
         
         if (morningHours > 0 || nightHours > 0) {
           // Use split calculation
@@ -219,7 +247,7 @@ const ReportsPage: React.FC = () => {
       });
   }, [rawTimesheetData, employees, wageSettings]);
 
-  // Calculate payroll summary
+  // Calculate payroll summary - using employee-specific rates from attendanceReport
   const payrollSummary = useMemo(() => {
     if (!attendanceReport.length) return [];
     
@@ -242,29 +270,9 @@ const ReportsPage: React.FC = () => {
         acc[key].night_hours += entry.calculated_night_hours || 0;
         acc[key].shifts += 1;
         
-        // Calculate amount if not stored in database
-        const storedAmount = entry.total_card_amount_split || entry.total_card_amount_flat || 0;
-        let calculatedAmount = 0;
-        
-        if (storedAmount > 0) {
-          calculatedAmount = storedAmount;
-        } else {
-          // Calculate from hours and wage rates
-          const morningHours = entry.calculated_morning_hours || 0;
-          const nightHours = entry.calculated_night_hours || 0;
-          const totalHours = entry.total_hours || 0;
-          
-          const morningRate = wageSettings?.morning_wage_rate || 17;
-          const nightRate = wageSettings?.night_wage_rate || 20;
-          
-          if (morningHours > 0 || nightHours > 0) {
-            // Use split calculation
-            calculatedAmount = (morningHours * morningRate) + (nightHours * nightRate);
-          } else if (totalHours > 0) {
-            // Use flat rate for total hours
-            calculatedAmount = totalHours * morningRate;
-          }
-        }
+        // Use the already-calculated amount from attendanceReport 
+        // (which already uses employee-specific wage rates)
+        const calculatedAmount = entry.calculated_amount || 0;
         
         acc[key].total_flat_amount += calculatedAmount;
         acc[key].total_split_amount += calculatedAmount;

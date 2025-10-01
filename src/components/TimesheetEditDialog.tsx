@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useCompanyTimezone } from '@/hooks/useCompanyTimezone';
 import { calculateMorningNightHours } from '@/utils/wageCalculations';
@@ -59,12 +59,31 @@ const TimesheetEditDialog: React.FC<TimesheetEditDialogProps> = ({
   const { user } = useAuth();
   const { timezone } = useCompanyTimezone();
   const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (entry) {
-      setFormData({ ...entry });
+      // Format times to HH:MM for the time input (remove seconds and timezone)
+      const formatTimeForInput = (time: string) => {
+        if (!time) return '';
+        // Remove seconds and timezone info: "09:00:00+00:00" -> "09:00"
+        return time.split(':').slice(0, 2).join(':');
+      };
+
+      setFormData({ 
+        ...entry,
+        clock_in_time: formatTimeForInput(entry.clock_in_time),
+        clock_out_time: formatTimeForInput(entry.clock_out_time)
+      });
       setIsNewEntry(false);
       setCalculatedHours(null);
+      
+      console.log('📝 Editing entry:', {
+        original_in_time: entry.clock_in_time,
+        formatted_in_time: formatTimeForInput(entry.clock_in_time),
+        original_out_time: entry.clock_out_time,
+        formatted_out_time: formatTimeForInput(entry.clock_out_time)
+      });
     } else {
       // New entry defaults
       const today = new Date().toISOString().split('T')[0];
@@ -97,15 +116,41 @@ const TimesheetEditDialog: React.FC<TimesheetEditDialogProps> = ({
     if (!formData.clock_in_date || !formData.clock_in_time || !formData.clock_out_date || !formData.clock_out_time) return;
 
     try {
-      const entryData = {
-        clock_in_date: formData.clock_in_date,
-        clock_in_time: formData.clock_in_time,
-        clock_out_date: formData.clock_out_date,
-        clock_out_time: formData.clock_out_time,
+      console.log('🕐 Calculating hours with input times:', {
+        clock_in: `${formData.clock_in_date} ${formData.clock_in_time}`,
+        clock_out: `${formData.clock_out_date} ${formData.clock_out_time}`,
+        timezone
+      });
+
+      // Simple local time calculation (no UTC conversion needed for display)
+      const parseTime = (timeStr: string) => {
+        const [h, m] = timeStr.split(':').map(Number);
+        return h * 60 + m; // total minutes
       };
 
-      const { morningHours, nightHours } = await calculateMorningNightHours(entryData, wageSettings, timezone);
-      const totalHours = morningHours + nightHours;
+      const inMinutes = parseTime(formData.clock_in_time);
+      const outMinutes = parseTime(formData.clock_out_time);
+      const totalMinutes = outMinutes >= inMinutes ? outMinutes - inMinutes : (24 * 60 - inMinutes + outMinutes);
+      const totalHours = totalMinutes / 60;
+
+      // Morning window (8 AM - 5 PM = 480 - 1020 minutes)
+      const morningStart = parseTime(wageSettings?.morning_start_time || '08:00:00');
+      const morningEnd = parseTime(wageSettings?.morning_end_time || '17:00:00');
+      
+      // Calculate overlap with morning window
+      const shiftStart = inMinutes;
+      const shiftEnd = outMinutes >= inMinutes ? outMinutes : outMinutes + 24 * 60;
+      
+      const morningOverlap = Math.max(0, Math.min(shiftEnd, morningEnd) - Math.max(shiftStart, morningStart));
+      const morningHours = morningOverlap / 60;
+      const nightHours = Math.max(0, totalHours - morningHours);
+
+      console.log('🕐 Calculation result:', {
+        totalHours,
+        morningHours,
+        nightHours,
+        morningWindow: `${wageSettings?.morning_start_time} - ${wageSettings?.morning_end_time}`
+      });
 
       // Get employee rates
       const employee = employees.find(e => e.id === formData.employee_id);
@@ -156,29 +201,74 @@ const TimesheetEditDialog: React.FC<TimesheetEditDialogProps> = ({
         toast.success('Timesheet entry created successfully');
       } else {
         // Update existing entry
-        const { error } = await supabase
-          .from('timesheet_entries')
-          .update({
-            clock_in_date: formData.clock_in_date,
-            clock_in_time: formData.clock_in_time,
-            clock_out_date: formData.clock_out_date,
-            clock_out_time: formData.clock_out_time,
-            total_hours: formData.total_hours,
-            morning_hours: formData.morning_hours,
-            night_hours: formData.night_hours,
-            total_card_amount_split: formData.total_card_amount_split,
-            total_card_amount_flat: formData.total_card_amount_flat,
-            manager_note: formData.manager_note,
-            employee_note: formData.employee_note,
-          })
-          .eq('id', entry.id);
+        // Store times as simple TIME (no timezone) - just HH:MM:SS
+        const formatTimeForDB = (time: string) => {
+          if (!time) return null;
+          // Ensure format is HH:MM:SS (add :00 if needed)
+          const parts = time.split(':');
+          if (parts.length === 2) return `${time}:00`;
+          if (parts.length === 3) return time;
+          return `${time}:00`;
+        };
 
-        if (error) throw error;
+        const updateData = {
+          clock_in_date: formData.clock_in_date,
+          clock_in_time: formatTimeForDB(formData.clock_in_time),
+          clock_out_date: formData.clock_out_date,
+          clock_out_time: formatTimeForDB(formData.clock_out_time),
+          total_hours: parseFloat(formData.total_hours?.toFixed(2) || '0'),
+          morning_hours: parseFloat(formData.morning_hours?.toFixed(2) || '0'),
+          night_hours: parseFloat(formData.night_hours?.toFixed(2) || '0'),
+          total_card_amount_split: parseFloat(formData.total_card_amount_split?.toFixed(2) || '0'),
+          total_card_amount_flat: parseFloat(formData.total_card_amount_flat?.toFixed(2) || '0'),
+          manager_note: formData.manager_note || null,
+          employee_note: formData.employee_note || null,
+        };
+
+        console.log('💾 Updating timesheet entry:', {
+          id: entry.id,
+          updateData
+        });
+
+        const { data, error } = await supabase
+          .from('timesheet_entries')
+          .update(updateData)
+          .eq('id', entry.id)
+          .select();
+
+        console.log('💾 Update response:', { data, error });
+
+        if (error) {
+          console.error('❌ Update failed:', error);
+          throw error;
+        }
+
+        // Verify the update by fetching the entry again
+        const { data: verifyData } = await supabase
+          .from('timesheet_entries')
+          .select('id, clock_in_time, clock_out_time, total_hours, morning_hours, night_hours')
+          .eq('id', entry.id)
+          .single();
+
+        console.log('✅ Verification after update:', verifyData);
+
         toast.success('Timesheet entry updated successfully');
       }
 
+      // Aggressively invalidate ALL timesheet-related queries
+      queryClient.invalidateQueries({ queryKey: ['timesheets'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheet-entries'] });
+      
+      // Force immediate refetch
+      await queryClient.refetchQueries({ queryKey: ['timesheets'] });
+      
+      // Call parent's onUpdate as well
       onUpdate();
-      onClose();
+      
+      // Small delay to ensure UI updates
+      setTimeout(() => {
+        onClose();
+      }, 200);
     } catch (error: any) {
       toast.error(error.message || 'Failed to update entry');
     } finally {

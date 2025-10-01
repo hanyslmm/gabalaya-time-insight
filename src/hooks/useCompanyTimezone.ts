@@ -50,10 +50,14 @@ export function useCompanyTimezone() {
     (dateStr?: string, timeStr?: string | null) => {
       if (!dateStr || !timeStr) return '—';
       const timeClean = (timeStr || '').split('.')[0] || '00:00:00';
-      const dt = new Date(`${dateStr}T${timeClean}Z`);
+      
+      // IMPORTANT: Remove 'Z' - times are stored WITHOUT timezone, treat them as local time
+      // Old: new Date(`${dateStr}T${timeClean}Z`) - treated as UTC, caused +3h shift
+      // New: new Date(`${dateStr}T${timeClean}`) - treated as local time
+      const dt = new Date(`${dateStr}T${timeClean}`);
+      
       try {
         return new Intl.DateTimeFormat('en-US', {
-          timeZone: timezone,
           hour: '2-digit',
           minute: '2-digit',
           hour12: true,
@@ -69,10 +73,12 @@ export function useCompanyTimezone() {
     (dateStr?: string, timeStr?: string | null) => {
       if (!dateStr) return '';
       const timeClean = (timeStr || '00:00:00').split('.')[0];
-      const dt = new Date(`${dateStr}T${timeClean}Z`);
+      
+      // IMPORTANT: Remove 'Z' - treat times as local, not UTC
+      const dt = new Date(`${dateStr}T${timeClean}`);
+      
       try {
         return new Intl.DateTimeFormat('en-GB', {
-          timeZone: timezone,
           year: 'numeric',
           month: '2-digit',
           day: '2-digit',

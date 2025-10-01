@@ -140,17 +140,7 @@ export const calculateMorningNightHours = async (
 
 export const calculateAllTimesheetHours = async (): Promise<void> => {
   try {
-    // Get organization timezone from company settings
-    const { data: companySettings, error: companyError } = await supabase
-      .from('company_settings')
-      .select('timezone')
-      .maybeSingle();
-    
-    if (companyError) {
-      console.warn('Failed to fetch company settings, using default timezone:', companyError.message);
-    }
-
-    const organizationTimezone = companySettings?.timezone || 'Africa/Cairo';
+    console.log('🔄 Starting auto-calculate for all timesheets...');
 
     // Get wage settings
     const { data: wageSettings, error: wageError } = await supabase
@@ -166,66 +156,102 @@ export const calculateAllTimesheetHours = async (): Promise<void> => {
       throw new Error('No wage settings found. Please configure wage settings first.');
     }
 
-    // Get all timesheet entries that need calculation
+    // Get employees for wage rates (without INNER join to avoid RLS issues)
+    const { data: employees, error: empError } = await supabase
+      .from('employees')
+      .select('id, staff_id, full_name, morning_wage_rate, night_wage_rate');
+    
+    if (empError) {
+      console.warn('Could not fetch employees:', empError);
+    }
+
+    // Create employee wage rate lookup
+    const employeeRates = new Map();
+    (employees || []).forEach(emp => {
+      const rates = {
+        morning: emp.morning_wage_rate || wageSettings.morning_wage_rate,
+        night: emp.night_wage_rate || wageSettings.night_wage_rate
+      };
+      if (emp.id) employeeRates.set(emp.id, rates);
+      if (emp.staff_id) employeeRates.set(emp.staff_id, rates);
+      if (emp.full_name) employeeRates.set(emp.full_name, rates);
+    });
+
+    // Get all timesheet entries  
     const { data: entries, error: entriesError } = await supabase
       .from('timesheet_entries')
-      .select(`
-        *,
-        employees!inner(
-          full_name,
-          morning_wage_rate,
-          night_wage_rate
-        )
-      `)
-      .not('clock_out_time', 'is', null);
+      .select('*')
+      .not('clock_out_time', 'is', null)
+      .gt('total_hours', 0);
     
     if (entriesError) {
       throw new Error('Failed to fetch timesheet entries: ' + entriesError.message);
     }
 
     if (!entries || entries.length === 0) {
-      console.log('No timesheet entries found to calculate');
+      toast.info('No entries found to calculate');
       return;
     }
 
-    console.log(`Calculating hours and wages for ${entries.length} entries...`);
+    console.log(`📊 Processing ${entries.length} entries...`);
 
-    // Calculate and update each entry
-    for (const entry of entries) {
-      const { morningHours, nightHours } = await calculateMorningNightHours(entry, wageSettings, organizationTimezone);
+    // Helper: Parse time to minutes
+    const parseTime = (timeStr: string) => {
+      const [h, m] = (timeStr || '00:00:00').split(':').map(Number);
+      return h * 60 + m;
+    };
+
+    // Process all entries
+    const updates = entries.map((entry: any) => {
+      // Simple local time calculation (no timezone conversion)
+      const inMinutes = parseTime(entry.clock_in_time);
+      const outMinutes = parseTime(entry.clock_out_time);
       
-      // Get employee wage rates or use default
-      const employeeMorningRate = entry.employees?.morning_wage_rate || wageSettings.morning_wage_rate;
-      const employeeNightRate = entry.employees?.night_wage_rate || wageSettings.night_wage_rate;
+      // Morning window: 8 AM (480 min) - 5 PM (1020 min)
+      const morningStart = parseTime(wageSettings.morning_start_time || '08:00:00');
+      const morningEnd = parseTime(wageSettings.morning_end_time || '17:00:00');
       
-      // Calculate split amount (morning hours × morning rate + night hours × night rate)
-      const totalSplitAmount = (morningHours * employeeMorningRate) + (nightHours * employeeNightRate);
+      const shiftStart = inMinutes;
+      const shiftEnd = outMinutes >= inMinutes ? outMinutes : outMinutes + 24 * 60;
       
-      // Calculate flat amount (total hours × flat rate)
-      const totalFlatAmount = (entry.total_hours || 0) * wageSettings.default_flat_wage_rate;
-      
-      // Update the entry with calculated hours and amounts
+      // Calculate morning overlap
+      const morningOverlap = Math.max(0, Math.min(shiftEnd, morningEnd) - Math.max(shiftStart, morningStart));
+      const morningHours = parseFloat((morningOverlap / 60).toFixed(2));
+      const nightHours = parseFloat((entry.total_hours - morningHours).toFixed(2));
+
+      // Get employee-specific rates
+      const rates = employeeRates.get(entry.employee_id) || 
+                   employeeRates.get(entry.employee_name) ||
+                   { morning: wageSettings.morning_wage_rate, night: wageSettings.night_wage_rate };
+
+      const splitAmount = (morningHours * rates.morning) + (nightHours * rates.night);
+
+      return {
+        id: entry.id,
+        morning_hours: Math.max(0, morningHours),
+        night_hours: Math.max(0, nightHours),
+        total_card_amount_split: parseFloat(splitAmount.toFixed(2)),
+        is_split_calculation: true
+      };
+    });
+
+    // Batch update all entries
+    console.log(`💾 Updating ${updates.length} entries...`);
+    
+    for (const update of updates) {
       const { error: updateError } = await supabase
         .from('timesheet_entries')
-        .update({
-          morning_hours: morningHours,
-          night_hours: nightHours,
-          total_card_amount_split: Math.max(0, parseFloat(totalSplitAmount.toFixed(2))),
-          total_card_amount_flat: Math.max(0, parseFloat(totalFlatAmount.toFixed(2))),
-          is_split_calculation: true
-        })
-        .eq('id', entry.id);
+        .update(update)
+        .eq('id', update.id);
       
       if (updateError) {
-        console.error(`Failed to update entry ${entry.id}:`, updateError);
-      } else {
-        console.log(`Updated entry ${entry.id}: M:${morningHours.toFixed(2)}h N:${nightHours.toFixed(2)}h Split:${totalSplitAmount.toFixed(2)} Flat:${totalFlatAmount.toFixed(2)}`);
+        console.error(`Failed to update entry ${update.id}:`, updateError);
       }
     }
     
-    console.log(`Successfully calculated hours and wages for ${entries.length} entries`);
+    console.log(`✅ Successfully calculated ${updates.length} entries!`);
   } catch (error) {
-    console.error('Error calculating timesheet hours:', error);
+    console.error('❌ Error calculating timesheet hours:', error);
     throw error;
   }
 };

@@ -11,7 +11,6 @@ import TimesheetUpload from '@/components/TimesheetUpload';
 import TimesheetTable from '@/components/TimesheetTable';
 import TimesheetDateFilter from '@/components/TimesheetDateFilter';
 import TimesheetExport from '@/components/TimesheetExport';
-import SimpleWageCalculator from '@/components/SimpleWageCalculator';
 import AutoCalculateWages from '@/components/AutoCalculateWages';
 import TimesheetEditDialog from '@/components/TimesheetEditDialog';
 import { Badge } from '@/components/ui/badge';
@@ -560,57 +559,37 @@ const TimesheetsPage: React.FC = () => {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
-        <Card className="lg:col-span-4 xl:col-span-3">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Timesheet Entries</span>
-              {hasActiveFilters && (
-                <Badge variant="outline" className="text-xs">
-                  Filtered View
-                </Badge>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex items-center justify-center h-32">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              </div>
-            ) : (
-              <TimesheetTable 
-                data={timesheets || []} 
-                selectedRows={selectedRows}
-                onSelectionChange={setSelectedRows}
-                onDataChange={refetch}
-                dateRange={dateRange}
-                selectedEmployee={selectedEmployee}
-                wageSettings={wageSettings as any}
-                employees={employees as any}
-              />
+      {/* Timesheet Entries - Full Width */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>Timesheet Entries</span>
+            {hasActiveFilters && (
+              <Badge variant="outline" className="text-xs">
+                Filtered View
+              </Badge>
             )}
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-4 xl:col-span-1">
-          <CardHeader>
-            <CardTitle>Actions</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <SimpleWageCalculator />
-            
-            <Button 
-              variant="destructive" 
-              size="sm" 
-              className="w-full flex items-center space-x-2"
-              disabled={selectedRows.length === 0}
-            >
-              <Trash2 className="h-4 w-4" />
-              <span>{t('deleteSelected')}</span>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex items-center justify-center h-32">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : (
+            <TimesheetTable 
+              data={timesheets || []} 
+              selectedRows={selectedRows}
+              onSelectionChange={setSelectedRows}
+              onDataChange={refetch}
+              dateRange={dateRange}
+              selectedEmployee={selectedEmployee}
+              wageSettings={wageSettings as any}
+              employees={employees as any}
+            />
+          )}
+        </CardContent>
+      </Card>
 
       {showUpload && (
         <TimesheetUpload
