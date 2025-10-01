@@ -33,26 +33,17 @@ export const calculateMorningNightHours = async (
   }
 
   try {
-    // Convert stored UTC times to company timezone for accurate calculation
-    // Ensure we parse as UTC by appending 'Z' and stripping fractional seconds if present
+    // Times in DB are stored as local time (without timezone info)
+    // Parse them directly without treating as UTC
     const cleanTime = (t: string) => (t || '00:00:00').split('.')[0];
-    const clockInUTC = new Date(`${entry.clock_in_date}T${cleanTime(entry.clock_in_time)}Z`);
-    const clockOutUTC = new Date(`${entry.clock_out_date}T${cleanTime(entry.clock_out_time)}Z`);
-
-    // Format times in Egypt timezone (company timezone)
-    const formatter = new Intl.DateTimeFormat('en-CA', {
-      timeZone: organizationTimezone,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
-    });
-
-    const clockInLocal = formatter.format(clockInUTC);
-    const clockOutLocal = formatter.format(clockOutUTC);
-
-    console.log(`Timezone conversion: UTC ${entry.clock_in_time} -> ${organizationTimezone} ${clockInLocal}`);
-    console.log(`Timezone conversion: UTC ${entry.clock_out_time} -> ${organizationTimezone} ${clockOutLocal}`);
+    
+    // Parse date and time as local timezone values (not UTC)
+    // Format: YYYY-MM-DD HH:MM:SS
+    const clockInDateTime = `${entry.clock_in_date} ${cleanTime(entry.clock_in_time)}`;
+    const clockOutDateTime = `${entry.clock_out_date} ${cleanTime(entry.clock_out_time)}`;
+    
+    console.log(`Processing timesheet: Clock In: ${clockInDateTime}, Clock Out: ${clockOutDateTime}`);
+    console.log(`Using timezone: ${organizationTimezone}, Morning window: ${wageSettings.morning_start_time} - ${wageSettings.morning_end_time}`);
 
     // Helper functions for minute-based calculation
     const clean = (t: string) => (t || '00:00:00').split('.')[0];
@@ -66,9 +57,9 @@ export const calculateMorningNightHours = async (
       return Math.max(0, end - start);
     };
 
-    // Shift window in minutes using LOCAL timezone times (allow overnight by extending end past 24h)
-    let shiftStart = toMinutes(clockInLocal);
-    let shiftEnd = toMinutes(clockOutLocal);
+    // Use the times directly as they're already in local timezone
+    let shiftStart = toMinutes(entry.clock_in_time);
+    let shiftEnd = toMinutes(entry.clock_out_time);
     if (shiftEnd < shiftStart) shiftEnd += 24 * 60;
 
   // Morning window
@@ -111,7 +102,7 @@ export const calculateMorningNightHours = async (
       nightHours: Math.max(0, parseFloat((n / 60).toFixed(2)))
     };
 
-    console.log(`Calculation result for ${entry.clock_in_date}: Morning: ${result.morningHours}h, Night: ${result.nightHours}h`);
+    console.log(`✓ Result for ${entry.clock_in_date} ${entry.clock_in_time}-${entry.clock_out_time}: Morning=${result.morningHours}h, Night=${result.nightHours}h (Total shift: ${((shiftEnd-shiftStart)/60).toFixed(2)}h)`);
     return result;
   } catch (error) {
     console.error('Error in calculateMorningNightHours:', error);
@@ -189,7 +180,7 @@ export const calculateAllTimesheetHours = async (): Promise<void> => {
     }
 
     if (!entries || entries.length === 0) {
-      toast.info('No entries found to calculate');
+      console.log('No entries found to calculate');
       return;
     }
 
