@@ -40,7 +40,7 @@ interface TimesheetEditDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onUpdate: () => void;
-  employees?: Array<{ id: string; full_name: string; morning_wage_rate?: number; night_wage_rate?: number }>;
+  employees?: Array<{ id: string; full_name?: string; morning_wage_rate?: number; night_wage_rate?: number }>;
   wageSettings?: any;
 }
 

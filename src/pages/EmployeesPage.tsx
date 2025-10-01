@@ -70,11 +70,13 @@ const EmployeesPage: React.FC = () => {
       console.log('🔍 Active Organization ID:', activeOrganizationId);
 
       // Fetch only active employees
-      let employeeQuery = supabase
+      const query: any = (supabase as any)
         .from('employees')
         .select('*')
         .eq('status', 'active')
         .order('created_at', { ascending: false });
+      
+      let employeeQuery = query;
 
       if (activeOrganizationId) {
         employeeQuery = employeeQuery.eq('organization_id', activeOrganizationId);
@@ -173,6 +175,7 @@ const EmployeesPage: React.FC = () => {
 
   // Unified list: regular employees + admin users in a single view
   const unifiedEmployees: Employee[] = useMemo(() => {
+    const activeOrgId = (user as any)?.current_organization_id || user?.organization_id;
     const regular = (employees || []) as Employee[];
     const adminsProjected: Employee[] = (adminUsers || []).map((admin: any) => ({
       id: admin.id,
@@ -184,10 +187,11 @@ const EmployeesPage: React.FC = () => {
       phone_number: undefined,
       morning_wage_rate: undefined,
       night_wage_rate: undefined,
+      organization_id: admin.organization_id || activeOrgId,
       is_admin_user: true
     }));
     return [...regular, ...adminsProjected];
-  }, [employees, adminUsers]);
+  }, [employees, adminUsers, user]);
 
   const filteredEmployees = unifiedEmployees?.filter(employee =>
     employee.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||

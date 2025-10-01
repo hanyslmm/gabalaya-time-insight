@@ -65,11 +65,12 @@ const ReportsPage: React.FC = () => {
     queryKey: ['wage-settings-final', activeOrganizationId],
     queryFn: async (): Promise<any> => {
       if (activeOrganizationId) {
-        const { data } = await supabase
+        const query: any = (supabase as any)
           .from('wage_settings')
           .select('*')
-          .eq('organization_id', activeOrganizationId)
-          .maybeSingle();
+          .eq('organization_id', activeOrganizationId);
+        
+        const { data } = await query.maybeSingle();
         if (data) return data;
       }
       return {

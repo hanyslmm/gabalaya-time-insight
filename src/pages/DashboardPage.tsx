@@ -366,7 +366,7 @@ const DashboardPage: React.FC = () => {
 
         {/* Unified Analytics - Replace individual chart components */}
         <DashboardCharts
-          timePeriod={selectedPeriod}
+          timePeriod="month"
           dateRange={activePeriod}
         />
 

@@ -96,11 +96,6 @@ export const useDashboardData = (dateRange: DateRange, enabled: boolean = true) 
         if (resOrg.error) throw resOrg.error;
         if (resLegacy.error) throw resLegacy.error;
         const entries = [ ...(resOrg.data || []), ...(resLegacy.data || []) ];
-        
-        if (queryError) {
-          console.error('Error fetching timesheet entries:', queryError);
-          throw new Error('Failed to fetch dashboard statistics.');
-        }
 
         // Calculate stats manually
         const uniqueEmployees = new Set();

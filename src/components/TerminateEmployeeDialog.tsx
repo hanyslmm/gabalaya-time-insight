@@ -94,15 +94,15 @@ const TerminateEmployeeDialog: React.FC<TerminateEmployeeDialogProps> = ({
         .from('employees')
         .select('id, status, organization_id, termination_date')
         .eq('id', employee.id)
-        .single();
+        .maybeSingle() as any;
 
       console.log('🔍 Verification query result:', { verifyData, verifyError });
 
       if (verifyData) {
         console.log('✅ Employee status after update:', {
-          status: verifyData.status,
-          organization_id: verifyData.organization_id,
-          termination_date: verifyData.termination_date
+          status: verifyData?.status,
+          organization_id: verifyData?.organization_id,
+          termination_date: verifyData?.termination_date
         });
       }
     },

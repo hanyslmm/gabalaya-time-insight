@@ -33,11 +33,12 @@ const WageSettings: React.FC = () => {
     queryFn: async () => {
       console.log('Fetching wage settings for organization:', activeOrganizationId);
       
-      const { data, error } = await supabase
+      const query: any = (supabase as any)
         .from('wage_settings')
         .select('*')
-        .eq('organization_id', activeOrganizationId)
-        .maybeSingle();
+        .eq('organization_id', activeOrganizationId);
+      
+      const { data, error } = await query.maybeSingle();
       
       if (error) {
         console.error('Error fetching wage settings:', error);
@@ -123,13 +124,14 @@ const WageSettings: React.FC = () => {
         throw new Error('No wage settings ID found');
       }
       
-      const { data, error } = await supabase
+      const updateQuery: any = (supabase as any)
         .from('wage_settings')
         .update({ ...updatedSettings, organization_id: activeOrganizationId })
         .eq('id', wageSettings.id)
         .eq('organization_id', activeOrganizationId)
-        .select()
-        .single();
+        .select();
+      
+      const { data, error } = await updateQuery.single();
       
       if (error) {
         console.error('Error updating wage settings:', error);
