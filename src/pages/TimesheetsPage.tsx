@@ -13,6 +13,7 @@ import TimesheetDateFilter from '@/components/TimesheetDateFilter';
 import TimesheetExport from '@/components/TimesheetExport';
 import AutoCalculateWages from '@/components/AutoCalculateWages';
 import TimesheetEditDialog from '@/components/TimesheetEditDialog';
+import { TimesheetRequestsManagement } from '@/components/TimesheetRequestsManagement';
 import { Badge } from '@/components/ui/badge';
 import { Button as UIButton } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -579,6 +580,18 @@ const TimesheetsPage: React.FC = () => {
                 <span>Night</span>
               </div>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Change Requests Management - Admin/Owner Only */}
+      {(user?.role === 'admin' || user?.role === 'owner') && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Timesheet Change Requests</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TimesheetRequestsManagement />
           </CardContent>
         </Card>
       )}

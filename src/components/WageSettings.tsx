@@ -304,7 +304,7 @@ const WageSettings: React.FC = () => {
                 id="working-hours-enabled"
                 type="checkbox"
                 checked={settings.working_hours_window_enabled ?? true}
-                onChange={(e) => handleInputChange('working_hours_window_enabled', e.target.checked)}
+                onChange={(e) => handleInputChange('working_hours_window_enabled', e.target.checked ? '1' : '0')}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
               <Label htmlFor="working-hours-enabled" className="text-sm text-gray-700">

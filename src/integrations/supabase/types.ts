@@ -110,6 +110,9 @@ export type Database = {
           organization_id: string | null
           timezone: string | null
           updated_at: string
+          working_hours_end_time: string
+          working_hours_start_time: string
+          working_hours_window_enabled: boolean
         }
         Insert: {
           auto_clockout_enabled?: boolean | null
@@ -122,6 +125,9 @@ export type Database = {
           organization_id?: string | null
           timezone?: string | null
           updated_at?: string
+          working_hours_end_time?: string
+          working_hours_start_time?: string
+          working_hours_window_enabled?: boolean
         }
         Update: {
           auto_clockout_enabled?: boolean | null
@@ -134,6 +140,9 @@ export type Database = {
           organization_id?: string | null
           timezone?: string | null
           updated_at?: string
+          working_hours_end_time?: string
+          working_hours_start_time?: string
+          working_hours_window_enabled?: boolean
         }
         Relationships: [
           {
@@ -184,50 +193,75 @@ export type Database = {
       employees: {
         Row: {
           created_at: string
+          eligible_for_rehire: boolean | null
           email: string | null
           full_name: string
           hiring_date: string
           id: string
+          last_organization_id: string | null
           morning_wage_rate: number | null
           night_wage_rate: number | null
           organization_id: string | null
           phone_number: string | null
           role: string
           staff_id: string
+          status: string | null
+          termination_date: string | null
+          termination_notes: string | null
+          termination_reason: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
+          eligible_for_rehire?: boolean | null
           email?: string | null
           full_name: string
           hiring_date: string
           id?: string
+          last_organization_id?: string | null
           morning_wage_rate?: number | null
           night_wage_rate?: number | null
           organization_id?: string | null
           phone_number?: string | null
           role: string
           staff_id: string
+          status?: string | null
+          termination_date?: string | null
+          termination_notes?: string | null
+          termination_reason?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
+          eligible_for_rehire?: boolean | null
           email?: string | null
           full_name?: string
           hiring_date?: string
           id?: string
+          last_organization_id?: string | null
           morning_wage_rate?: number | null
           night_wage_rate?: number | null
           organization_id?: string | null
           phone_number?: string | null
           role?: string
           staff_id?: string
+          status?: string | null
+          termination_date?: string | null
+          termination_notes?: string | null
+          termination_reason?: string | null
           updated_at?: string
         }
         Relationships: [
           {
             foreignKeyName: "employees_organization_id_fkey"
             columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_employees_last_organization"
+            columns: ["last_organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
@@ -645,6 +679,116 @@ export type Database = {
         }
         Relationships: []
       }
+      timesheet_change_requests: {
+        Row: {
+          created_at: string
+          employee_id: string
+          employee_name: string
+          id: string
+          justification_category: string
+          justification_details: string | null
+          organization_id: string | null
+          original_clock_in_date: string | null
+          original_clock_in_time: string | null
+          original_clock_out_date: string | null
+          original_clock_out_time: string | null
+          original_entry_id: string | null
+          rejection_reason: string | null
+          request_type: Database["public"]["Enums"]["timesheet_request_type"]
+          requested_clock_in_date: string | null
+          requested_clock_in_location: string | null
+          requested_clock_in_time: string | null
+          requested_clock_out_date: string | null
+          requested_clock_out_location: string | null
+          requested_clock_out_time: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["timesheet_request_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          employee_name: string
+          id?: string
+          justification_category: string
+          justification_details?: string | null
+          organization_id?: string | null
+          original_clock_in_date?: string | null
+          original_clock_in_time?: string | null
+          original_clock_out_date?: string | null
+          original_clock_out_time?: string | null
+          original_entry_id?: string | null
+          rejection_reason?: string | null
+          request_type: Database["public"]["Enums"]["timesheet_request_type"]
+          requested_clock_in_date?: string | null
+          requested_clock_in_location?: string | null
+          requested_clock_in_time?: string | null
+          requested_clock_out_date?: string | null
+          requested_clock_out_location?: string | null
+          requested_clock_out_time?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["timesheet_request_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          employee_name?: string
+          id?: string
+          justification_category?: string
+          justification_details?: string | null
+          organization_id?: string | null
+          original_clock_in_date?: string | null
+          original_clock_in_time?: string | null
+          original_clock_out_date?: string | null
+          original_clock_out_time?: string | null
+          original_entry_id?: string | null
+          rejection_reason?: string | null
+          request_type?: Database["public"]["Enums"]["timesheet_request_type"]
+          requested_clock_in_date?: string | null
+          requested_clock_in_location?: string | null
+          requested_clock_in_time?: string | null
+          requested_clock_out_date?: string | null
+          requested_clock_out_location?: string | null
+          requested_clock_out_time?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["timesheet_request_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timesheet_change_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timesheet_change_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timesheet_change_requests_original_entry_id_fkey"
+            columns: ["original_entry_id"]
+            isOneToOne: false
+            referencedRelation: "timesheet_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timesheet_change_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       timesheet_entries: {
         Row: {
           actual_hours: number | null
@@ -931,6 +1075,9 @@ export type Database = {
           night_start_time: string
           night_wage_rate: number
           updated_at: string
+          working_hours_end_time: string
+          working_hours_start_time: string
+          working_hours_window_enabled: boolean
         }
         Insert: {
           created_at?: string
@@ -943,6 +1090,9 @@ export type Database = {
           night_start_time?: string
           night_wage_rate?: number
           updated_at?: string
+          working_hours_end_time?: string
+          working_hours_start_time?: string
+          working_hours_window_enabled?: boolean
         }
         Update: {
           created_at?: string
@@ -955,6 +1105,9 @@ export type Database = {
           night_start_time?: string
           night_wage_rate?: number
           updated_at?: string
+          working_hours_end_time?: string
+          working_hours_start_time?: string
+          working_hours_window_enabled?: boolean
         }
         Relationships: []
       }
@@ -982,6 +1135,13 @@ export type Database = {
           p_user_id: string
         }
         Returns: undefined
+      }
+      calculate_split_hours: {
+        Args: { p_clock_in_time: string; p_clock_out_time: string }
+        Returns: {
+          morning_hours: number
+          night_hours: number
+        }[]
       }
       can_award_daily_points: {
         Args: { p_user_id: string }
@@ -1051,6 +1211,10 @@ export type Database = {
           updated_at: string
         }
       }
+      get_company_timezone: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_current_admin_user_role: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -1103,7 +1267,8 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      timesheet_request_status: "pending" | "approved" | "rejected"
+      timesheet_request_type: "edit" | "add" | "delete"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1230,6 +1395,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      timesheet_request_status: ["pending", "approved", "rejected"],
+      timesheet_request_type: ["edit", "add", "delete"],
+    },
   },
 } as const

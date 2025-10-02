@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Clock, DollarSign, Calendar, TrendingUp, Calculator } from 'lucide-react';
+import { Clock, DollarSign, Calendar, TrendingUp, Calculator, Edit, Trash2, Plus } from 'lucide-react';
 import MobilePageWrapper, { MobileSection, MobileCard, MobileHeader } from '@/components/MobilePageWrapper';
 import { getCompanyTimezone } from '@/utils/timezoneUtils';
 import { toast } from 'sonner';
+import { TimesheetChangeRequestDialog } from '@/components/TimesheetChangeRequestDialog';
 // Simple format function for hours display
 const formatHours = (hours: number) => hours.toFixed(2);
 
@@ -20,6 +21,11 @@ const MyTimesheetPage: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [filterType, setFilterType] = useState<'month' | 'payPeriod'>('month');
   const [payPeriodType, setPayPeriodType] = useState<'current' | 'previous'>('current');
+  
+  // Change request dialog state
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
+  const [requestType, setRequestType] = useState<'edit' | 'add' | 'delete'>('edit');
+  const [selectedEntry, setSelectedEntry] = useState<any>(null);
 
   // Company timezone for consistent display
   const [companyTimezone, setCompanyTimezone] = useState<string>('Africa/Cairo');
@@ -264,7 +270,7 @@ const MyTimesheetPage: React.FC = () => {
       console.log('Morning calc for entry:', entry.id, {
         shiftStart, shiftEnd, morningStart, morningEnd, minutes,
         wageSettings: wageSettings ? 'loaded' : 'missing',
-        workingHoursWindowEnabled: combinedWageSettings.working_hours_window_enabled
+        workingHoursWindowEnabled: (combinedWageSettings as any).working_hours_window_enabled
       });
       return sum + minutes / 60;
     }
@@ -294,7 +300,7 @@ const MyTimesheetPage: React.FC = () => {
       console.log('Night calc for entry:', entry.id, {
         shiftStart, shiftEnd, nightStart, nightEnd, minutes,
         wageSettings: wageSettings ? 'loaded' : 'missing',
-        workingHoursWindowEnabled: combinedWageSettings.working_hours_window_enabled
+        workingHoursWindowEnabled: (combinedWageSettings as any).working_hours_window_enabled
       });
       return sum + minutes / 60;
     }
@@ -606,8 +612,20 @@ const MyTimesheetPage: React.FC = () => {
 
       <MobileSection>
         <MobileCard className="border">
-          <div className="mb-1 sm:mb-2">
+          <div className="mb-1 sm:mb-2 flex items-center justify-between">
             <h3 className="text-sm sm:text-lg font-semibold">Timesheet Entries</h3>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setRequestType('add');
+                setSelectedEntry(null);
+                setRequestDialogOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Request Add
+            </Button>
           </div>
           {timesheetData && timesheetData.length > 0 ? (
             <div className="space-y-0.5 sm:space-y-2">
@@ -652,6 +670,32 @@ const MyTimesheetPage: React.FC = () => {
                         return calculatedAmount.toFixed(2);
                       })()}
                     </span>
+                    <div className="flex gap-0.5">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-5 w-5 p-0"
+                        onClick={() => {
+                          setRequestType('edit');
+                          setSelectedEntry(entry);
+                          setRequestDialogOpen(true);
+                        }}
+                      >
+                        <Edit className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-5 w-5 p-0"
+                        onClick={() => {
+                          setRequestType('delete');
+                          setSelectedEntry(entry);
+                          setRequestDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -664,6 +708,20 @@ const MyTimesheetPage: React.FC = () => {
           )}
         </MobileCard>
       </MobileSection>
+      
+      {/* Change Request Dialog */}
+      <TimesheetChangeRequestDialog
+        isOpen={requestDialogOpen}
+        onClose={() => {
+          setRequestDialogOpen(false);
+          setSelectedEntry(null);
+        }}
+        requestType={requestType}
+        originalEntry={selectedEntry}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['my-timesheet'] });
+        }}
+      />
     </MobilePageWrapper>
   );
 };
