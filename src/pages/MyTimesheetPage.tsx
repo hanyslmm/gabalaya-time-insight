@@ -11,6 +11,7 @@ import MobilePageWrapper, { MobileSection, MobileCard, MobileHeader } from '@/co
 import { getCompanyTimezone } from '@/utils/timezoneUtils';
 import { toast } from 'sonner';
 import { TimesheetChangeRequestDialog } from '@/components/TimesheetChangeRequestDialog';
+import { TimesheetRequestsList } from '@/components/TimesheetRequestsList';
 // Simple format function for hours display
 const formatHours = (hours: number) => hours.toFixed(2);
 
@@ -708,6 +709,15 @@ const MyTimesheetPage: React.FC = () => {
           )}
         </MobileCard>
       </MobileSection>
+
+      {/* Timesheet Requests Section */}
+      <MobileSection>
+        <TimesheetRequestsList 
+          onRefresh={() => {
+            queryClient.invalidateQueries({ queryKey: ['my-timesheet'] });
+          }}
+        />
+      </MobileSection>
       
       {/* Change Request Dialog */}
       <TimesheetChangeRequestDialog
@@ -720,6 +730,7 @@ const MyTimesheetPage: React.FC = () => {
         originalEntry={selectedEntry}
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ['my-timesheet'] });
+          queryClient.invalidateQueries({ queryKey: ['timesheet-change-requests'] });
         }}
       />
     </MobilePageWrapper>

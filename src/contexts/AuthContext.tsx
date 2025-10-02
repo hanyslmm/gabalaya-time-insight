@@ -22,7 +22,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Set up Supabase auth headers when user changes - optimized for speed
+  // Set up Supabase auth session when user changes - optimized for speed
   useEffect(() => {
     if (user && user.role) {
       // Create a lightweight custom JWT for fastest processing
@@ -31,18 +31,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours
         sub: user.id,
         username: user.username,
-        role: user.role
+        role: user.role,
+        organization_id: user.organization_id
       };
       
       const token = btoa(JSON.stringify(customPayload));
       
-      // Set the auth header for all Supabase requests immediately
-      (supabase as any).rest.headers['Authorization'] = `Bearer ${token}`;
-      (supabase as any).realtime.accessToken = token;
+      // Set the auth session properly so auth.jwt() works in RLS policies
+      supabase.auth.setSession({
+        access_token: token,
+        refresh_token: token
+      });
     } else {
-      // Clear auth headers when user is null
-      delete (supabase as any).rest.headers['Authorization'];
-      delete (supabase as any).realtime.accessToken;
+      // Clear auth session when user is null
+      supabase.auth.signOut();
     }
   }, [user]);
 
@@ -110,9 +112,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     localStorage.removeItem('auth_user');
     localStorage.removeItem('auth_token');
-    // Clear Supabase auth headers
-    delete (supabase as any).rest.headers['Authorization'];
-    delete (supabase as any).realtime.accessToken;
+    // Clear Supabase auth session
+    supabase.auth.signOut();
   };
 
   return (
