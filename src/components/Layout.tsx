@@ -73,7 +73,7 @@ const Layout = () => {
       href: '/dashboard',
       icon: LayoutDashboard,
       description: 'Overview & Analytics',
-      roles: ['admin', 'owner']
+      roles: ['owner'] // Removed 'admin' - only owners can see Dashboard
     },
     {
       name: 'Clock In/Out',

@@ -24,6 +24,13 @@ const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   
+  // Redirect admin users to Clock In/Out page (Dashboard is owner-only)
+  React.useEffect(() => {
+    if (user && user.role === 'admin') {
+      navigate('/clock-in-out', { replace: true });
+    }
+  }, [user, navigate]);
+  
   // All hooks must be called before any conditional returns
   const [selectedPeriod, setSelectedPeriod] = useState('current');
   const [selectedMonth, setSelectedMonth] = useState('');

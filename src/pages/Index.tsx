@@ -7,10 +7,12 @@ const Index = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Redirect authenticated users to dashboard
+  // Redirect authenticated users based on role
   useEffect(() => {
     if (user) {
-      navigate('/dashboard');
+      // Only owners go to dashboard, admins and employees go to clock-in-out
+      const target = user.role === 'owner' ? '/dashboard' : '/clock-in-out';
+      navigate(target);
     }
   }, [user, navigate]);
 

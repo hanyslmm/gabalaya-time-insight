@@ -37,12 +37,13 @@ const MobileNavigation: React.FC = () => {
   const isAdmin = user?.role === 'admin' || user?.role === 'owner';
 
   const navigationItems: NavigationItem[] = [
-    {
+    // Dashboard only for owners, not admins
+    ...(user?.role === 'owner' ? [{
       name: 'Dashboard',
       shortName: 'Home',
       href: '/dashboard',
       icon: LayoutDashboard
-    },
+    }] : []),
     {
       name: 'Clock',
       shortName: 'Clock',

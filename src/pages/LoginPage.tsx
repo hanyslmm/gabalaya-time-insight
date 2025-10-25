@@ -29,7 +29,8 @@ const LoginPage: React.FC = () => {
   };
 
   if (user) {
-    const target = ['admin', 'owner'].includes(user.role) ? '/dashboard' : '/clock-in-out';
+    // Only owners go to dashboard, admins and employees go to clock-in-out
+    const target = user.role === 'owner' ? '/dashboard' : '/clock-in-out';
     return <Navigate to={target} replace />;
   }
 
