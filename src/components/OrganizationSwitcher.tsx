@@ -18,6 +18,11 @@ const OrganizationSwitcher: React.FC = () => {
     return null;
   }
 
+  // Debug logging to see what data we have
+  console.log('OrganizationSwitcher - User object:', user);
+  console.log('OrganizationSwitcher - organization_id:', user.organization_id);
+  console.log('OrganizationSwitcher - current_organization_id:', (user as any).current_organization_id);
+
   // Fetch organizations based on user role
   const { data: organizations, isLoading } = useQuery({
     queryKey: ['available-organizations', user.id],
