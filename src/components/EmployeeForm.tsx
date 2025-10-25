@@ -125,16 +125,33 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
 
       const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
 
+      // Check if this is an admin user
+      const isAdminUser = (employee as any)?.is_admin_user;
+
       if (employee?.id) {
-        // Update existing employee
-        const { error } = await supabase
-          .from('employees')
-          .update({ ...cleanData, organization_id: activeOrganizationId })
-          .eq('id', employee.id);
-        
-        if (error) throw error;
+        if (isAdminUser) {
+          // Update admin user in admin_users table
+          const { error } = await supabase
+            .from('admin_users')
+            .update({ 
+              full_name: cleanData.full_name,
+              role: cleanData.role,
+              organization_id: activeOrganizationId
+            })
+            .eq('id', employee.id);
+          
+          if (error) throw error;
+        } else {
+          // Update regular employee in employees table
+          const { error } = await supabase
+            .from('employees')
+            .update({ ...cleanData, organization_id: activeOrganizationId })
+            .eq('id', employee.id);
+          
+          if (error) throw error;
+        }
       } else {
-        // Create new employee
+        // Create new employee (always in employees table)
         const { error } = await supabase
           .from('employees')
           .insert({ ...cleanData, organization_id: activeOrganizationId });
@@ -144,6 +161,7 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       toast.success(employee ? t('employeeUpdated') : t('employeeAdded'));
       onClose();
     },
