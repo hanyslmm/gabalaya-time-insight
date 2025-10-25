@@ -28,10 +28,14 @@ const OrganizationManagement: React.FC = () => {
     organization_id: ''
   });
 
-  // Only owners can access this component
-  if (!user || user.role !== 'owner') {
+  // Only owners and admins can access this component
+  // Admins can manage their own organization (RLS policies enforce org-scoping)
+  if (!user || !['owner', 'admin'].includes(user.role)) {
     return null;
   }
+
+  // Check if user is owner for certain operations
+  const isOwner = user.role === 'owner';
 
   // Fetch organizations
   const { data: organizations, isLoading: orgsLoading } = useQuery({
@@ -224,13 +228,15 @@ const OrganizationManagement: React.FC = () => {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Organization Management</h2>
         <div className="flex gap-2">
-          <Dialog open={isCreateOrgOpen} onOpenChange={setIsCreateOrgOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Building className="h-4 w-4 mr-2" />
-                New Organization
-              </Button>
-            </DialogTrigger>
+          {/* Only owners can create new organizations */}
+          {isOwner && (
+            <Dialog open={isCreateOrgOpen} onOpenChange={setIsCreateOrgOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Building className="h-4 w-4 mr-2" />
+                  New Organization
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Create New Organization</DialogTitle>
@@ -255,6 +261,7 @@ const OrganizationManagement: React.FC = () => {
               </div>
             </DialogContent>
           </Dialog>
+          )}
 
           <Dialog open={isCreateUserOpen} onOpenChange={setIsCreateUserOpen}>
             <DialogTrigger asChild>

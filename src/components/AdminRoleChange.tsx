@@ -69,8 +69,9 @@ const AdminRoleChange: React.FC<AdminRoleChangeProps> = ({ adminUser, onClose })
     updateRoleMutation.mutate();
   };
 
-  // Only allow global owners or owners to change roles
-  const canChangeRoles = (user as any)?.is_global_owner || user?.role === 'owner';
+  // Allow global owners, owners, and admins to change roles
+  // RLS policies ensure admins can only modify users in their organization
+  const canChangeRoles = (user as any)?.is_global_owner || user?.role === 'owner' || user?.role === 'admin';
 
   if (!canChangeRoles) {
     return (
