@@ -7,6 +7,9 @@ interface AuthUser {
   username: string;
   full_name: string | null;
   role: string;
+  organization_id?: string;
+  current_organization_id?: string;
+  is_global_owner?: boolean;
 }
 
 interface AuthContextType {
@@ -32,7 +35,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         sub: user.id,
         username: user.username,
         role: user.role,
-        organization_id: user.organization_id
+        organization_id: user.organization_id || null,
+        current_organization_id: user.current_organization_id || user.organization_id || null,
+        is_global_owner: user.is_global_owner || false
       };
       
       const token = btoa(JSON.stringify(customPayload));
@@ -85,6 +90,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           username: data.user.username,
           full_name: data.user.full_name,
           role: data.user.role,
+          organization_id: data.user.organization_id,
+          current_organization_id: data.user.current_organization_id,
+          is_global_owner: data.user.is_global_owner,
         };
         
         // Set user immediately for fastest UI response
