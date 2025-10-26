@@ -149,10 +149,21 @@ const ClockInOutPage: React.FC = () => {
     if (!user) return;
 
     try {
-      // Fetch all employees to map IDs to names
-      const { data: employeesData, error: employeesError } = await supabase
+      // Get the active organization ID
+      const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
+      console.log('fetchTeamStatus: Active organization ID:', activeOrganizationId);
+      
+      // Fetch employees for the active organization only
+      let employeesQuery = supabase
         .from('employees')
         .select('staff_id, full_name, role');
+      
+      if (activeOrganizationId) {
+        employeesQuery = employeesQuery.eq('organization_id', activeOrganizationId);
+      }
+      
+      const { data: employeesData, error: employeesError } = await employeesQuery;
+      console.log('fetchTeamStatus: Found employees:', employeesData?.length || 0, employeesData);
 
       if (employeesError) {
         console.warn('Could not fetch employees for team status:', employeesError);
@@ -166,13 +177,63 @@ const ClockInOutPage: React.FC = () => {
         employeeMap.set(emp.full_name, emp.full_name);
       });
 
-      // Fetch today's timesheet entries for all employees
+      // Fetch active timesheet entries for employees in the active organization
       const today = await getTodayInCompanyTimezone();
-      const { data: timesheetData, error: timesheetError } = await supabase
+      
+      // First, get employee IDs for the active organization
+      const employeeIds = (employeesData || []).map(emp => emp.staff_id);
+      console.log('fetchTeamStatus: Employee IDs to filter by:', employeeIds);
+      
+      // Build query to get ACTIVE timesheet entries (like Employee Monitor)
+      // Show entries from today OR any active entries (clock_out_time is null)
+      let timesheetQuery = supabase
         .from('timesheet_entries')
         .select('*')
-        .eq('clock_in_date', today)
+        .or(`clock_in_date.eq.${today},clock_out_time.is.null`);
+      
+      // Filter by employee names/staff_ids from the active organization
+      // Also include full_name variations for case-insensitive matching
+      if (employeeIds.length > 0) {
+        const allEmployeeNames = (employeesData || []).map(emp => emp.full_name).filter(Boolean);
+        const allFilters = [
+          ...employeeIds.map(id => `employee_name.eq.${id}`),
+          ...employeeIds.map(id => `employee_name.ilike.${id}`), // Case-insensitive
+          ...allEmployeeNames.map(name => `employee_name.eq.${name}`),
+          ...allEmployeeNames.map(name => `employee_name.ilike.${name}`) // Case-insensitive
+        ];
+        const employeeNameFilters = allFilters.join(',');
+        console.log('fetchTeamStatus: Timesheet filter (case-insensitive):', employeeNameFilters);
+        timesheetQuery = timesheetQuery.or(employeeNameFilters);
+      }
+      
+      const { data: timesheetData, error: timesheetError } = await timesheetQuery
         .order('clock_in_time', { ascending: false });
+      
+      console.log('fetchTeamStatus: Found timesheet entries:', timesheetData?.length || 0, timesheetData);
+      
+      // Debug: Log the actual employee names in the timesheet entries
+      if (timesheetData && timesheetData.length > 0) {
+        console.log('fetchTeamStatus: Timesheet entry employee names:', timesheetData.map(entry => entry.employee_name));
+        console.log('fetchTeamStatus: Timesheet entry details:', timesheetData.map(entry => ({
+          employee_name: entry.employee_name,
+          clock_in_date: entry.clock_in_date,
+          clock_in_time: entry.clock_in_time,
+          clock_out_time: entry.clock_out_time,
+          organization_id: entry.organization_id
+        })));
+      }
+      
+      // Debug: Check if Maryam's timesheet entry exists directly (active entries) - case insensitive
+      const { data: maryamEntries, error: maryamError } = await supabase
+        .from('timesheet_entries')
+        .select('*')
+        .or(`employee_name.ilike.maryam,employee_name.ilike.Maryam`)
+        .or(`clock_in_date.eq.${today},clock_out_time.is.null`);
+      
+      console.log('fetchTeamStatus: Direct Maryam query result (case-insensitive):', maryamEntries?.length || 0, maryamEntries);
+      if (maryamError) {
+        console.log('fetchTeamStatus: Maryam query error:', maryamError);
+      }
 
       if (timesheetError) {
         console.warn('Could not fetch team timesheet data:', timesheetError);
@@ -188,9 +249,17 @@ const ClockInOutPage: React.FC = () => {
         const isActive = entry.clock_out_time === null || 
                          entry.clock_out_time === undefined ||
                          entry.clock_out_time === '';
-        const duration = isActive 
-          ? differenceInMinutes(currentTime, new Date(`${entry.clock_in_date}T${entry.clock_in_time}`))
-          : entry.total_hours ? entry.total_hours * 60 : 0;
+        
+        // Calculate duration using the same method as Employee Monitor
+        let duration = 0;
+        if (isActive) {
+          // Add 'Z' to treat DB time as UTC, then calculate duration correctly (same as Employee Monitor)
+          const clockInTimeStr = entry.clock_in_time.split('.')[0];
+          const clockInUTC = new Date(`${entry.clock_in_date}T${clockInTimeStr}Z`);
+          duration = differenceInMinutes(new Date(), clockInUTC);
+        } else if (entry.total_hours) {
+          duration = entry.total_hours * 60;
+        }
 
         // Map employee ID/name to display name
         let displayName = entry.employee_name;
