@@ -141,20 +141,44 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
 
       if (employee?.id) {
         if (isAdminUser || isTargetingAdminRole) {
-          console.log('🔍 EmployeeForm - Updating admin_users table');
-          // Update admin user in admin_users table
-          const { error } = await supabase
-            .from('admin_users')
-            .update({ 
-              full_name: cleanData.full_name,
-              role: cleanData.role,
-              organization_id: activeOrganizationId
-            })
-            .eq('id', employee.id);
-          
-          if (error) {
-            console.error('🔍 EmployeeForm - Admin update error:', error);
-            throw error;
+          if (isAdminUser) {
+            console.log('🔍 EmployeeForm - Updating existing admin user');
+            // Update existing admin user in admin_users table
+            const { error } = await supabase
+              .from('admin_users')
+              .update({ 
+                full_name: cleanData.full_name,
+                role: cleanData.role,
+                organization_id: activeOrganizationId
+              })
+              .eq('id', employee.id);
+            
+            if (error) {
+              console.error('🔍 EmployeeForm - Admin update error:', error);
+              throw error;
+            }
+          } else {
+            console.log('🔍 EmployeeForm - Promoting employee to admin');
+            // Promote regular employee to admin using the database function
+            const { data: promoteResult, error: promoteError } = await supabase
+              .rpc('promote_employee_to_admin' as any, {
+                p_staff_id: employee.staff_id,
+                p_full_name: cleanData.full_name,
+                p_role: cleanData.role,
+                p_organization_id: activeOrganizationId
+              });
+            
+            if (promoteError) {
+              console.error('🔍 EmployeeForm - Promotion error:', promoteError);
+              throw promoteError;
+            }
+            
+            console.log('🔍 EmployeeForm - Promotion result:', promoteResult);
+            
+            const result = promoteResult as any;
+            if (!result?.success) {
+              throw new Error(result?.error || 'Failed to promote employee to admin');
+            }
           }
         } else {
           console.log('🔍 EmployeeForm - Updating employees table');

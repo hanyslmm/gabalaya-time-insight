@@ -103,10 +103,25 @@ const EmployeesPage: React.FC = () => {
         console.warn('⚠️ NO EMPLOYEES RETURNED FROM QUERY!');
       }
 
-      // Only return regular employees - don't mix admin users with employees
+      // Check which employees are also admin users
+      const employeeIds = (employeeData || []).map((emp: any) => emp.id);
+      let adminUsers: any[] = [];
+      
+      if (employeeIds.length > 0) {
+        const { data: adminData } = await supabase
+          .from('admin_users')
+          .select('id, username, role')
+          .in('id', employeeIds);
+        adminUsers = adminData || [];
+      }
+      
+      // Create a set of admin user IDs for quick lookup
+      const adminUserIds = new Set(adminUsers.map(admin => admin.id));
+      
+      // Mark employees as admin users if they exist in admin_users table
       const result = (employeeData || []).map((emp: any) => ({
         ...emp,
-        is_admin_user: false
+        is_admin_user: adminUserIds.has(emp.id)
       })) as (Employee & { is_admin_user?: boolean })[];
       
       console.log('🔍 Final result to return:', result);
