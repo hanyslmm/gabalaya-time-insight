@@ -33,12 +33,7 @@ const SettingsPage: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <h4 className="font-medium">Version</h4>
-                <p className="text-sm text-gray-600">1.0.0</p>
-              </div>
-              <div>
-                <h4 className="font-medium">Default Admin Credentials</h4>
-                <p className="text-sm text-gray-600">Username: admin</p>
-                <p className="text-sm text-gray-600">Password: admin123</p>
+                <p className="text-sm text-gray-600">2.0.5</p>
               </div>
             </div>
           </CardContent>

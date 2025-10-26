@@ -615,6 +615,21 @@ Start each session by:
 5. Start with minimal version
 ```
 
+### Versioning Methodology (Applied each sprint)
+
+We use semantic versioning MAJOR.MINOR.PATCH and keep the version in `package.json` and the Settings page in sync.
+
+- MAJOR: Backward-incompatible changes or significant system redesigns
+- MINOR: Backward-compatible features added during a sprint
+- PATCH: Bug fixes and hotfixes
+
+Sprint close protocol:
+1. Decide the version bump (major/minor/patch) based on the increment scope
+2. Update `package.json` "version" and visible version on `src/pages/SettingsPage.tsx`
+3. Document key changes in `PR_SUMMARY.md`
+4. Commit with message "Bump version to X.Y.Z" and push
+5. Tag the commit `vX.Y.Z` (optional) and include release notes if applicable
+
 ### Debugging an Issue
 ```
 1. Reproduce the issue
