@@ -19,6 +19,10 @@ const OrganizationManagement: React.FC = () => {
   const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
   const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
   const [newOrgName, setNewOrgName] = useState('');
+  // Filters
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterOrgId, setFilterOrgId] = useState<string>('all');
+  const [filterRole, setFilterRole] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [newUserData, setNewUserData] = useState({
     username: '',
@@ -161,7 +165,7 @@ const OrganizationManagement: React.FC = () => {
 
   // Update employee organization mutation
   const updateUserOrgMutation = useMutation({
-    mutationFn: async ({ userId, organizationId }: { userId: string, organizationId: string }) => {
+    mutationFn: async ({ userId, organizationId }: { userId: string, organizationId: string | null }) => {
       const { error } = await supabase
         .from('employees')
         .update({ organization_id: organizationId })
@@ -195,7 +199,8 @@ const OrganizationManagement: React.FC = () => {
   };
 
   const handleUpdateUserOrg = (userId: string, organizationId: string) => {
-    updateUserOrgMutation.mutate({ userId, organizationId });
+    const value = organizationId === 'none' ? null : organizationId;
+    updateUserOrgMutation.mutate({ userId, organizationId: value });
   };
 
   const handleDeleteOrg = (organizationId: string) => {
@@ -204,11 +209,23 @@ const OrganizationManagement: React.FC = () => {
 
   // Pagination logic
   const ITEMS_PER_PAGE = 15;
-  const totalEmployees = users?.length || 0;
+  // Build filtered list
+  const rolesList = Array.from(new Set((users || []).map((u: any) => u.role))).sort();
+  const filteredEmployees = (users || []).filter((emp: any) => {
+    const matchesSearch = searchTerm.trim().length === 0 ||
+      emp.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      emp.staff_id?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesOrg = filterOrgId === 'all'
+      ? true
+      : (filterOrgId === 'none' ? !emp.organization_id : emp.organization_id === filterOrgId);
+    const matchesRole = filterRole === 'all' ? true : (emp.role === filterRole);
+    return matchesSearch && matchesOrg && matchesRole;
+  });
+  const totalEmployees = filteredEmployees.length || 0;
   const totalPages = Math.ceil(totalEmployees / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
-  const paginatedEmployees = users?.slice(startIndex, endIndex) || [];
+  const paginatedEmployees = filteredEmployees.slice(startIndex, endIndex) || [];
 
   const handlePreviousPage = () => {
     setCurrentPage(prev => Math.max(prev - 1, 1));
@@ -421,6 +438,43 @@ const OrganizationManagement: React.FC = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
+          {/* Filters */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+            <div>
+              <Label htmlFor="searchEmp">Search</Label>
+              <Input id="searchEmp" placeholder="Search by name or ID" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            </div>
+            <div>
+              <Label>Organization</Label>
+              <Select value={filterOrgId} onValueChange={setFilterOrgId}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="none">No Organization</SelectItem>
+                  {organizations?.map((org) => (
+                    <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Role</Label>
+              <Select value={filterRole} onValueChange={setFilterRole}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  {rolesList.map((r) => (
+                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           {usersLoading ? (
             <div className="text-center py-4">Loading employees...</div>
           ) : (
@@ -434,22 +488,21 @@ const OrganizationManagement: React.FC = () => {
                       <Badge variant={employee.role === 'admin' ? 'default' : 'secondary'}>
                         {employee.role}
                       </Badge>
-                      {employee.organizations && (
-                        <Badge variant="outline">
-                          {employee.organizations.name}
-                        </Badge>
-                      )}
+                      <Badge variant="outline">
+                        {employee.organizations?.name || 'No Organization'}
+                      </Badge>
                     </div>
                   </div>
                   <div className="flex flex-col gap-2">
                     <Select
-                      value={employee.organization_id || ''}
+                      value={employee.organization_id ?? 'none'}
                       onValueChange={(value) => handleUpdateUserOrg(employee.id, value)}
                     >
                       <SelectTrigger className="w-48">
                         <SelectValue placeholder="Select organization" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="none">No Organization</SelectItem>
                         {organizations?.map((org) => (
                           <SelectItem key={org.id} value={org.id}>
                             {org.name}
