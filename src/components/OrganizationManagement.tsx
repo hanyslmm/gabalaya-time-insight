@@ -23,6 +23,7 @@ const OrganizationManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterOrgId, setFilterOrgId] = useState<string>('all');
   const [filterRole, setFilterRole] = useState<string>('all');
+  const [onlyUnassigned, setOnlyUnassigned] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [newUserData, setNewUserData] = useState({
     username: '',
@@ -211,13 +212,14 @@ const OrganizationManagement: React.FC = () => {
   const ITEMS_PER_PAGE = 15;
   // Build filtered list
   const rolesList = Array.from(new Set((users || []).map((u: any) => u.role))).sort();
+  const effectiveOrgFilter = onlyUnassigned ? 'none' : filterOrgId;
   const filteredEmployees = (users || []).filter((emp: any) => {
     const matchesSearch = searchTerm.trim().length === 0 ||
       emp.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       emp.staff_id?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesOrg = filterOrgId === 'all'
+    const matchesOrg = effectiveOrgFilter === 'all'
       ? true
-      : (filterOrgId === 'none' ? !emp.organization_id : emp.organization_id === filterOrgId);
+      : (effectiveOrgFilter === 'none' ? !emp.organization_id : emp.organization_id === effectiveOrgFilter);
     const matchesRole = filterRole === 'all' ? true : (emp.role === filterRole);
     return matchesSearch && matchesOrg && matchesRole;
   });
@@ -439,7 +441,7 @@ const OrganizationManagement: React.FC = () => {
         </CardHeader>
         <CardContent>
           {/* Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
             <div>
               <Label htmlFor="searchEmp">Search</Label>
               <Input id="searchEmp" placeholder="Search by name or ID" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
@@ -473,8 +475,17 @@ const OrganizationManagement: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label>Quick Filter</Label>
+              <div className="flex items-center gap-2 mt-2">
+                <input id="onlyUnassigned" type="checkbox" checked={onlyUnassigned} onChange={(e) => setOnlyUnassigned(e.target.checked)} />
+                <Label htmlFor="onlyUnassigned">Only unassigned</Label>
+              </div>
+            </div>
           </div>
-
+          <div className="flex justify-end mb-2">
+            <Button variant="outline" size="sm" onClick={() => { setSearchTerm(''); setFilterOrgId('all'); setFilterRole('all'); setOnlyUnassigned(false); }}>Reset Filters</Button>
+          </div>
           {usersLoading ? (
             <div className="text-center py-4">Loading employees...</div>
           ) : (
