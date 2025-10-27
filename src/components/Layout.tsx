@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -9,15 +8,16 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import NotificationSystem from '@/components/NotificationSystem';
 import OfflineIndicator from '@/components/OfflineIndicator';
 import GlobalSearch from '@/components/GlobalSearch';
-import { 
-  LayoutDashboard, 
-  Clock, 
-  Users, 
-  FileText, 
-  Monitor, 
-  BarChart3, 
-  Settings, 
-  Building, 
+import { useIsMobile, useIsTablet, useDeviceType } from '@/hooks/use-mobile';
+import {
+  LayoutDashboard,
+  Clock,
+  Users,
+  FileText,
+  Monitor,
+  BarChart3,
+  Settings,
+  Building,
   LogOut,
   User,
   Shield,
@@ -35,7 +35,9 @@ const Layout = () => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
+  const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
+  
   const handleLogout = async () => {
     try {
       await logout();
@@ -55,101 +57,108 @@ const Layout = () => {
     if (sidebarOpen) setSidebarOpen(false); // Close mobile sidebar when collapsing
   };
 
+  const closeMobileSidebar = () => {
+    setSidebarOpen(false);
+  };
+
   const isAdmin = user?.role === 'admin';
 
-  // Combined navigation for all users with role-based filtering
   const allNavigation = [
-    { 
-      name: 'Dashboard', 
-      href: '/dashboard', 
+    {
+      name: 'Dashboard',
+      href: '/dashboard',
       icon: LayoutDashboard,
       description: 'Overview & Analytics',
       roles: ['admin', 'employee']
     },
-    { 
-      name: 'Clock In/Out', 
-      href: '/clock-in-out', 
+    {
+      name: 'Clock In/Out',
+      href: '/clock-in-out',
       icon: Clock,
       description: 'Time Tracking',
       roles: ['admin', 'employee']
     },
-    { 
-      name: 'My Timesheet', 
-      href: '/my-timesheet', 
+    {
+      name: 'My Timesheet',
+      href: '/my-timesheet',
       icon: FileText,
       description: 'Your Records',
       roles: ['admin', 'employee']
     },
-    { 
-      name: 'Employees', 
-      href: '/employees', 
+    {
+      name: 'Employees',
+      href: '/employees',
       icon: Users,
       description: 'Staff Management',
       roles: ['admin']
     },
-    { 
-      name: 'Timesheets', 
-      href: '/timesheets', 
+    {
+      name: 'Timesheets',
+      href: '/timesheets',
       icon: FileText,
       description: 'All Time Records',
       roles: ['admin']
     },
-    { 
-      name: 'Employee Monitor', 
-      href: '/employee-monitor', 
+    {
+      name: 'Employee Monitor',
+      href: '/employee-monitor',
       icon: Monitor,
       description: 'Live Tracking',
       roles: ['admin']
     },
-    { 
-      name: 'Reports', 
-      href: '/reports', 
+    {
+      name: 'Reports',
+      href: '/reports',
       icon: BarChart3,
       description: 'Analytics & Insights',
       roles: ['admin']
     },
-    { 
-      name: 'Profile', 
-      href: '/profile', 
+    {
+      name: 'Profile',
+      href: '/profile',
       icon: User,
       description: 'Account Settings',
       roles: ['admin', 'employee']
     },
-    { 
-      name: 'Settings', 
-      href: '/settings', 
+    {
+      name: 'Settings',
+      href: '/settings',
       icon: Settings,
       description: 'System Configuration',
       roles: ['admin']
     },
-    { 
-      name: 'Company Settings', 
-      href: '/company-settings', 
+    {
+      name: 'Company Settings',
+      href: '/company-settings',
       icon: Building,
       description: 'Company Setup',
       roles: ['admin']
     },
   ];
 
-  // Filter navigation based on user role
-  const navigation = allNavigation.filter(item => 
+  const navigation = allNavigation.filter(item =>
     item.roles.includes(user?.role || 'employee')
   );
 
-  const isActivePath = (path: string) => {
-    return location.pathname === path || 
-           (path !== '/dashboard' && location.pathname.startsWith(path));
+  const isActivePath = (path) => {
+    return location.pathname === path ||
+      (path !== '/dashboard' && location.pathname.startsWith(path));
   };
-
-  const closeMobileSidebar = () => {
-    setSidebarOpen(false);
+  
+  const getInitials = (fullName) => {
+    if (!fullName) return 'U';
+    return fullName
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase();
   };
 
   return (
     <div className="min-h-screen bg-background flex">
       {/* Sidebar Overlay for Mobile */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={closeMobileSidebar}
         />
@@ -158,12 +167,9 @@ const Layout = () => {
       {/* Left Sidebar */}
       <div className={cn(
         "fixed inset-y-0 left-0 z-50 flex flex-col bg-card border-r border-border transition-all duration-300 ease-in-out",
-        // Mobile behavior
         "lg:relative lg:translate-x-0",
         sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
-        // Desktop width behavior
         sidebarCollapsed ? "lg:w-16" : "lg:w-64",
-        // Mobile width
         "w-64"
       )}>
         {/* Sidebar Header */}
@@ -172,12 +178,12 @@ const Layout = () => {
             "flex items-center gap-3 transition-opacity duration-200",
             sidebarCollapsed ? "lg:opacity-0 lg:w-0 lg:overflow-hidden" : "opacity-100"
           )}>
-            <div className="mobile-gradient-primary rounded-lg p-2">
-              <Clock className="h-6 w-6 text-primary-foreground" />
+            <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center shadow-lg">
+              <span className="text-primary-foreground font-bold text-sm">G</span>
             </div>
             <div>
-              <h1 className="font-bold text-lg text-primary">TimeInsight</h1>
-              <p className="text-xs text-muted-foreground">HRM System</p>
+              <h1 className="text-lg font-semibold text-foreground tracking-tight">Gabalaya Finance</h1>
+              <p className="text-xs text-muted-foreground font-medium">HRM System</p>
             </div>
           </div>
           
@@ -256,8 +262,8 @@ const Layout = () => {
           )}>
             <div className={cn(
               "px-3 py-2 rounded-lg border text-center",
-              isAdmin 
-                ? "border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950" 
+              isAdmin
+                ? "border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950"
                 : "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950"
             )}>
               <div className="flex items-center justify-center gap-2">
@@ -278,8 +284,8 @@ const Layout = () => {
           {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 className={cn(
                   "w-full justify-start p-2 h-auto hover:bg-accent",
                   sidebarCollapsed && "lg:justify-center"
@@ -287,7 +293,7 @@ const Layout = () => {
               >
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="text-sm font-medium bg-primary text-primary-foreground">
-                    {user?.full_name?.[0]?.toUpperCase() || user?.username?.[0]?.toUpperCase() || 'U'}
+                    {getInitials(user?.full_name || user?.username)}
                   </AvatarFallback>
                 </Avatar>
                 <div className={cn(
@@ -312,7 +318,7 @@ const Layout = () => {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={handleLogout}
                 className="text-destructive focus:text-destructive mobile-touch-target mobile-focus-ring"
               >
@@ -328,37 +334,32 @@ const Layout = () => {
       <div className="flex-1 flex flex-col min-h-screen">
         {/* Top Header */}
         <header className="mobile-header border-b bg-card/80 backdrop-blur-sm sticky top-0 z-30">
-          <div className="flex items-center justify-between w-full px-4">
-            {/* Hamburger Menu Button */}
+          <div className="flex items-center justify-between w-full px-4 py-2 sm:py-3">
+            {/* Hamburger Menu Button (for mobile) */}
             <Button
               variant="ghost"
               size="sm"
               onClick={toggleSidebar}
-              className="mobile-button mobile-press mobile-focus-ring lg:hidden"
+              className="lg:hidden p-1.5"
             >
               <Menu className="h-5 w-5" />
             </Button>
 
-            {/* Page Title - Hidden on mobile when sidebar is collapsed */}
-            <div className={cn(
-              "flex-1 lg:flex-none",
-              !sidebarCollapsed && "lg:hidden"
-            )}>
+            {/* Page Title */}
+            <div className="flex-1 px-4 lg:px-0">
               <h2 className="text-lg font-semibold capitalize truncate">
                 {location.pathname.split('/').pop()?.replace('-', ' ') || 'Dashboard'}
               </h2>
             </div>
-
+            
             {/* Right Section */}
             <div className="flex items-center gap-2">
               {/* Global Search - Desktop Only */}
               <div className="hidden lg:block max-w-md">
                 <GlobalSearch />
               </div>
-
               {/* Notifications */}
               <NotificationSystem />
-
               {/* Theme Toggle */}
               <ThemeToggle />
             </div>
@@ -366,7 +367,7 @@ const Layout = () => {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 mobile-main mobile-safe-bottom overflow-x-hidden">
+        <main className="flex-1 mobile-main mobile-safe-bottom overflow-x-hidden p-4">
           <div className="mobile-fade-in">
             <Outlet />
           </div>

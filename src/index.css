@@ -6,6 +6,62 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Enhanced navigation and touch behavior */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+  
+  body {
+    overscroll-behavior: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  /* Improve touch targets and scrolling */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Enhanced touch manipulation for better mobile/tablet experience */
+  button, [role="button"], [tabindex] {
+    touch-action: manipulation;
+  }
+  
+  /* Prevent text selection on navigation elements */
+  .no-select {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+  
+  /* Safe area support for devices with notches */
+  .h-safe-area-inset-bottom {
+    height: env(safe-area-inset-bottom, 0px);
+  }
+  
+  /* Enhanced scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--border) / 0.8);
+  }
+}
+
 /* Custom animations for enhanced UX */
 @keyframes shimmer {
   0% {
