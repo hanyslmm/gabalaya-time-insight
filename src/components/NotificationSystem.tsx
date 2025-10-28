@@ -20,6 +20,7 @@ interface Notification {
 
 const NotificationSystem: React.FC = () => {
   const { user } = useAuth();
+  const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -37,7 +38,7 @@ const NotificationSystem: React.FC = () => {
       const today = format(new Date(), 'yyyy-MM-dd');
       
       // Fetch timesheet entries with employee information
-      const { data: entries, error: entriesError } = await supabase
+      let query = supabase
         .from('timesheet_entries')
         .select(`
           *,
@@ -48,6 +49,10 @@ const NotificationSystem: React.FC = () => {
           )
         `)
         .eq('clock_in_date', today);
+      if (activeOrganizationId) {
+        query = query.eq('organization_id', activeOrganizationId);
+      }
+      const { data: entries, error: entriesError } = await query;
 
       if (entriesError) throw entriesError;
 

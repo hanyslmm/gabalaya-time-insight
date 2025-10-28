@@ -125,7 +125,6 @@ const TimesheetsPage: React.FC = () => {
         // Build employee matching for legacy rows (organization_id is null)
         const allEmployeeIds = employees?.map(e => e.id) || [];
         const allStaffIds = employees?.map(e => e.staff_id).filter(Boolean) || [];
-        const allNames = employees?.map(e => e.full_name).filter(Boolean) || [];
 
         // Query A: strictly current organization
         let queryOrg = supabase
@@ -173,16 +172,12 @@ const TimesheetsPage: React.FC = () => {
           // All employees in current org
           if (allEmployeeIds.length > 0) {
             queryLegacy = queryLegacy.in('employee_id', allEmployeeIds);
-          } else if (allStaffIds.length > 0 || allNames.length > 0) {
+        } else if (allStaffIds.length > 0) {
             // Fallback matching by names/staff ids
             const orParts: string[] = [];
             if (allStaffIds.length > 0) {
               const staffVals = allStaffIds.map((v: string) => `"${v}"`).join(',');
               orParts.push(`employee_name.in.(${staffVals})`);
-            }
-            if (allNames.length > 0) {
-              const nameVals = allNames.map((v: string) => `"${v}"`).join(',');
-              orParts.push(`employee_name.in.(${nameVals})`);
             }
             if (orParts.length > 0) {
               queryLegacy = queryLegacy.or(orParts.join(','));
