@@ -179,13 +179,29 @@ const TimesheetsPage: React.FC = () => {
           }
         }
 
-        // STRICT FILTERING: Only use organization_id match, skip legacy fallback
+        // Combine current-org rows with safe legacy rows (null org but employee belongs to this org)
         const resOrg = await queryOrg.order('clock_in_date', { ascending: false }).limit(500);
 
         if (resOrg.error) throw resOrg.error;
 
-        // Return ONLY organization-scoped data
-        return resOrg.data || [];
+        let legacyData: any[] = [];
+        if (allEmployeeIds.length > 0) {
+          let legacyQuery = supabase
+            .from('timesheet_entries')
+            .select('*')
+            .is('organization_id', null)
+            .in('employee_id', allEmployeeIds);
+          legacyQuery = applyDateFilter(legacyQuery);
+          const resLegacy = await legacyQuery.order('clock_in_date', { ascending: false }).limit(500);
+          if (resLegacy.error) {
+            console.warn('TimesheetsPage: legacy query error (ignored):', resLegacy.error);
+          } else {
+            legacyData = resLegacy.data || [];
+          }
+        }
+
+        const combined = [...(resOrg.data || []), ...legacyData];
+        return combined;
       } catch (error) {
         throw error;
       }

@@ -160,13 +160,21 @@ const ReportsPage: React.FC = () => {
         }
       }
 
-      // STRICT FILTERING: Only use organization_id match
+      // Combine current-org rows with safe legacy rows (null org but employee belongs to this org)
       const resOrg = await queryOrg;
-      
       if (resOrg.error) throw resOrg.error;
 
-      // Return ONLY organization-scoped data
-      return resOrg.data || [];
+      let legacyData: any[] = [];
+      if (employeeIds.length > 0) {
+        const resLegacy = await queryLegacy;
+        if (resLegacy.error) {
+          console.warn('ReportsPage: legacy query error (ignored):', resLegacy.error);
+        } else {
+          legacyData = resLegacy.data || [];
+        }
+      }
+
+      return [ ...(resOrg.data || []), ...legacyData ];
     },
     enabled: !!(dateRange?.from && dateRange?.to && employees !== undefined)
   });
