@@ -46,6 +46,7 @@ const PayPeriodSettings: React.FC = () => {
   // Save mutation
   const saveMutation = useMutation({
     mutationFn: async () => {
+      console.log('Saving pay period settings for organization:', activeOrganizationId);
       const { error } = await supabase
         .from('company_settings')
         .update({
@@ -68,9 +69,15 @@ const PayPeriodSettings: React.FC = () => {
   });
 
   const handleSave = () => {
-    if (payPeriodMode === 'fixed_day' && (payPeriodEndDay < 1 || payPeriodEndDay > 31)) {
-      toast.error('Pay period end day must be between 1 and 31');
-      return;
+    if (payPeriodMode === 'fixed_day') {
+      if (payPeriodEndDay < 1 || payPeriodEndDay > 31) {
+        toast.error('Pay period end day must be between 1 and 31');
+        return;
+      }
+      if (isNaN(payPeriodEndDay)) {
+        toast.error('Please enter a valid day number');
+        return;
+      }
     }
     saveMutation.mutate();
   };
@@ -91,7 +98,7 @@ const PayPeriodSettings: React.FC = () => {
           Pay Period Configuration
         </CardTitle>
         <CardDescription>
-          Configure how pay periods are calculated across Reports and Timesheets
+          Configure how pay periods are calculated across Reports and Timesheets for the current organization
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -135,8 +142,24 @@ const PayPeriodSettings: React.FC = () => {
               min="1"
               max="31"
               value={payPeriodEndDay}
-              onChange={(e) => setPayPeriodEndDay(parseInt(e.target.value) || 28)}
+              onChange={(e) => {
+                const value = parseInt(e.target.value);
+                if (value >= 1 && value <= 31) {
+                  setPayPeriodEndDay(value);
+                } else if (e.target.value === '') {
+                  setPayPeriodEndDay(1); // Default to 1 if empty
+                }
+              }}
+              onBlur={(e) => {
+                const value = parseInt(e.target.value);
+                if (!value || value < 1) {
+                  setPayPeriodEndDay(1);
+                } else if (value > 31) {
+                  setPayPeriodEndDay(31);
+                }
+              }}
               className="w-32"
+              placeholder="1-31"
             />
             <p className="text-xs text-muted-foreground">
               The day of the month when the pay period ends (1-31)
