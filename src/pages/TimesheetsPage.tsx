@@ -40,6 +40,12 @@ const TimesheetsPage: React.FC = () => {
   // Default to current pay period from settings
   const [dateRange, setDateRange] = useState<DateRange>(() => calculatePayPeriod(0));
 
+  // Recalculate date range when pay period settings change (mode/endDay)
+  React.useEffect(() => {
+    const newRange = calculatePayPeriod(0);
+    setDateRange(newRange);
+  }, [mode, endDay, calculatePayPeriod]);
+
   // Load wage settings for accurate split calculations
   const { data: wageSettings } = useQuery({
     queryKey: ['wage-settings'],

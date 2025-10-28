@@ -40,6 +40,12 @@ const ReportsPage: React.FC = () => {
   // Date range state - default to current pay period from settings
   const [dateRange, setDateRange] = useState<DateRange>(() => calculatePayPeriod(0));
   
+  // Recalculate on settings change (mode/endDay)
+  React.useEffect(() => {
+    const newRange = calculatePayPeriod(0);
+    setDateRange(newRange);
+  }, [mode, endDay, calculatePayPeriod]);
+  
   const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
   
   console.log('ReportsPage: User:', user?.username, 'Org:', activeOrganizationId);
