@@ -55,24 +55,44 @@ const PayPeriodSettings: React.FC = () => {
       console.log('Saving pay period settings for organization:', activeOrganizationId);
       console.log('Settings to save:', { payPeriodMode, payPeriodEndDay });
       
-      // Use upsert to handle both insert and update cases
-      const { data, error } = await supabase
+      // First try to update existing record
+      const { data: updateData, error: updateError } = await supabase
         .from('company_settings')
-        .upsert({
-          organization_id: activeOrganizationId,
+        .update({
           pay_period_mode: payPeriodMode,
           pay_period_end_day: payPeriodEndDay,
           updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'organization_id'
-        });
+        })
+        .eq('organization_id', activeOrganizationId)
+        .select();
 
-      if (error) {
-        console.error('Database error:', error);
-        throw error;
+      if (updateError) {
+        console.error('Update error:', updateError);
+        throw updateError;
       }
-      
-      console.log('Settings saved successfully:', data);
+
+      // If no rows were updated, insert a new record
+      if (!updateData || updateData.length === 0) {
+        console.log('No existing record found, inserting new one...');
+        const { data: insertData, error: insertError } = await supabase
+          .from('company_settings')
+          .insert({
+            organization_id: activeOrganizationId,
+            pay_period_mode: payPeriodMode,
+            pay_period_end_day: payPeriodEndDay,
+            updated_at: new Date().toISOString()
+          })
+          .select();
+
+        if (insertError) {
+          console.error('Insert error:', insertError);
+          throw insertError;
+        }
+        
+        console.log('Settings inserted successfully:', insertData);
+      } else {
+        console.log('Settings updated successfully:', updateData);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pay-period-settings'] });

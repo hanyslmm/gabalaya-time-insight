@@ -39,10 +39,27 @@ const RoleManagement: React.FC = () => {
   const addRoleMutation = useMutation({
     mutationFn: async (name: string) => {
       const trimmed = name.trim();
-      const { error } = await (supabase as any)
-        .from('employee_roles')
-        .insert({ name: trimmed, is_default: false, organization_id: activeOrganizationId });
-      if (error) throw error;
+      
+      try {
+        // Try to insert the new role directly
+        const { error } = await (supabase as any)
+          .from('employee_roles')
+          .insert({ name: trimmed, is_default: false, organization_id: activeOrganizationId });
+        
+        if (error) {
+          // Check if it's a unique constraint violation
+          if (error.code === '23505' || error.message?.includes('duplicate key') || error.message?.includes('unique constraint')) {
+            throw new Error('Role already exists');
+          }
+          throw error;
+        }
+      } catch (err: any) {
+        // Handle any other errors
+        if (err.message === 'Role already exists') {
+          throw err;
+        }
+        throw new Error(err?.message || 'Failed to add role');
+      }
     },
     onSuccess: () => {
       setNewRoleName('');
@@ -55,11 +72,6 @@ const RoleManagement: React.FC = () => {
   const handleAddRole = () => {
     if (!newRoleName.trim()) {
       toast.error('Please enter a role name');
-      return;
-    }
-
-    if (roles.some(role => role.name.toLowerCase() === newRoleName.toLowerCase())) {
-      toast.error('Role already exists');
       return;
     }
 
