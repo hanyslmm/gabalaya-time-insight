@@ -19,25 +19,23 @@ const PayPeriodSettings: React.FC = () => {
   const [payPeriodMode, setPayPeriodMode] = useState<'fixed_day' | 'month_dynamic'>('fixed_day');
   const [payPeriodEndDay, setPayPeriodEndDay] = useState(28);
 
-  // Fetch current settings
+  // Fetch current settings via RPC (bypass RLS)
   const { data: currentSettings, isLoading } = useQuery({
     queryKey: ['pay-period-settings', activeOrganizationId],
     enabled: !!activeOrganizationId,
     queryFn: async () => {
-      console.log('Fetching pay period settings for organization:', activeOrganizationId);
-      const { data, error } = await supabase
-        .from('company_settings')
-        .select('pay_period_mode, pay_period_end_day')
-        .eq('organization_id', activeOrganizationId)
-        .maybeSingle();
+      console.log('Fetching pay period settings for organization via RPC:', activeOrganizationId);
+      const { data, error } = await supabase.rpc('get_company_pay_period_settings' as any, {
+        p_organization_id: activeOrganizationId
+      } as any);
 
       if (error) {
-        console.error('Error fetching settings:', error);
+        console.error('Error fetching settings via RPC:', error);
         throw error;
       }
-      
+
       console.log('Fetched settings:', data);
-      return data;
+      return data as any;
     }
   });
 

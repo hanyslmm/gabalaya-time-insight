@@ -21,23 +21,22 @@ export const usePayPeriodSettings = () => {
     queryKey: ['pay-period-settings', activeOrganizationId],
     enabled: !!activeOrganizationId,
     queryFn: async () => {
-      console.log('usePayPeriodSettings: Fetching for org:', activeOrganizationId);
-      const { data, error } = await supabase
-        .from('company_settings')
-        .select('pay_period_mode, pay_period_end_day')
-        .eq('organization_id', activeOrganizationId)
-        .maybeSingle();
+      console.log('usePayPeriodSettings: Fetching via RPC for org:', activeOrganizationId);
+      const { data, error } = await supabase.rpc('get_company_pay_period_settings' as any, {
+        p_organization_id: activeOrganizationId
+      } as any);
 
       if (error) {
-        console.error('usePayPeriodSettings: Error fetching:', error);
+        console.error('usePayPeriodSettings: Error fetching via RPC:', error);
         throw error;
       }
-      
+
+      const d: any = data as any;
       const result = {
-        mode: (data?.pay_period_mode as 'fixed_day' | 'month_dynamic') || 'fixed_day',
-        endDay: data?.pay_period_end_day || 28
+        mode: (d?.pay_period_mode as 'fixed_day' | 'month_dynamic') || 'fixed_day',
+        endDay: d?.pay_period_end_day || 28
       } as PayPeriodSettings;
-      
+
       console.log('usePayPeriodSettings: Result:', result);
       return result;
     }
