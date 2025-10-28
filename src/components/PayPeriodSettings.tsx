@@ -44,54 +44,33 @@ const PayPeriodSettings: React.FC = () => {
   // Update local state when settings are fetched
   useEffect(() => {
     if (currentSettings) {
-      setPayPeriodMode(currentSettings.pay_period_mode || 'fixed_day');
-      setPayPeriodEndDay(currentSettings.pay_period_end_day || 28);
+      const cs: any = currentSettings as any;
+      setPayPeriodMode(cs?.pay_period_mode || 'fixed_day');
+      setPayPeriodEndDay(cs?.pay_period_end_day || 28);
     }
   }, [currentSettings]);
 
-  // Save mutation
+  // Save mutation via SECURITY DEFINER RPC to bypass RLS safely
   const saveMutation = useMutation({
     mutationFn: async () => {
       console.log('Saving pay period settings for organization:', activeOrganizationId);
       console.log('Settings to save:', { payPeriodMode, payPeriodEndDay });
-      
-      // First try to update existing record
-      const { data: updateData, error: updateError } = await supabase
-        .from('company_settings')
-        .update({
-          pay_period_mode: payPeriodMode,
-          pay_period_end_day: payPeriodEndDay,
-          updated_at: new Date().toISOString()
-        })
-        .eq('organization_id', activeOrganizationId)
-        .select();
 
-      if (updateError) {
-        console.error('Update error:', updateError);
-        throw updateError;
+      const { data, error } = await supabase
+        .rpc('upsert_company_pay_period_settings' as any, {
+          p_organization_id: activeOrganizationId,
+          p_pay_period_mode: payPeriodMode,
+          p_pay_period_end_day: payPeriodEndDay
+        } as any);
+
+      if (error) {
+        console.error('RPC error:', error);
+        throw error;
       }
 
-      // If no rows were updated, insert a new record
-      if (!updateData || updateData.length === 0) {
-        console.log('No existing record found, inserting new one...');
-        const { data: insertData, error: insertError } = await supabase
-          .from('company_settings')
-          .insert({
-            organization_id: activeOrganizationId,
-            pay_period_mode: payPeriodMode,
-            pay_period_end_day: payPeriodEndDay,
-            updated_at: new Date().toISOString()
-          })
-          .select();
-
-        if (insertError) {
-          console.error('Insert error:', insertError);
-          throw insertError;
-        }
-        
-        console.log('Settings inserted successfully:', insertData);
-      } else {
-        console.log('Settings updated successfully:', updateData);
+      const result = (data as any) || { success: true };
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to save settings');
       }
     },
     onSuccess: () => {
