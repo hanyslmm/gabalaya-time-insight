@@ -24,13 +24,19 @@ const PayPeriodSettings: React.FC = () => {
     queryKey: ['pay-period-settings', activeOrganizationId],
     enabled: !!activeOrganizationId,
     queryFn: async () => {
+      console.log('Fetching pay period settings for organization:', activeOrganizationId);
       const { data, error } = await supabase
         .from('company_settings')
         .select('pay_period_mode, pay_period_end_day')
         .eq('organization_id', activeOrganizationId)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error) {
+        console.error('Error fetching settings:', error);
+        throw error;
+      }
+      
+      console.log('Fetched settings:', data);
       return data;
     }
   });
@@ -47,16 +53,26 @@ const PayPeriodSettings: React.FC = () => {
   const saveMutation = useMutation({
     mutationFn: async () => {
       console.log('Saving pay period settings for organization:', activeOrganizationId);
-      const { error } = await supabase
+      console.log('Settings to save:', { payPeriodMode, payPeriodEndDay });
+      
+      // Use upsert to handle both insert and update cases
+      const { data, error } = await supabase
         .from('company_settings')
-        .update({
+        .upsert({
+          organization_id: activeOrganizationId,
           pay_period_mode: payPeriodMode,
           pay_period_end_day: payPeriodEndDay,
           updated_at: new Date().toISOString()
-        })
-        .eq('organization_id', activeOrganizationId);
+        }, {
+          onConflict: 'organization_id'
+        });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
+      
+      console.log('Settings saved successfully:', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pay-period-settings'] });

@@ -21,18 +21,25 @@ export const usePayPeriodSettings = () => {
     queryKey: ['pay-period-settings', activeOrganizationId],
     enabled: !!activeOrganizationId,
     queryFn: async () => {
+      console.log('usePayPeriodSettings: Fetching for org:', activeOrganizationId);
       const { data, error } = await supabase
         .from('company_settings')
         .select('pay_period_mode, pay_period_end_day')
         .eq('organization_id', activeOrganizationId)
         .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error) {
+        console.error('usePayPeriodSettings: Error fetching:', error);
+        throw error;
+      }
       
-      return {
+      const result = {
         mode: (data?.pay_period_mode as 'fixed_day' | 'month_dynamic') || 'fixed_day',
         endDay: data?.pay_period_end_day || 28
       } as PayPeriodSettings;
+      
+      console.log('usePayPeriodSettings: Result:', result);
+      return result;
     }
   });
 
