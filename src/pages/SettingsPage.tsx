@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import WageSettings from '@/components/WageSettings';
 import RoleManagement from '@/components/RoleManagement';
+import PayPeriodSettings from '@/components/PayPeriodSettings';
 
 const SettingsPage: React.FC = () => {
   const { t } = useTranslation();
@@ -33,11 +34,15 @@ const SettingsPage: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <h4 className="font-medium">Version</h4>
-                <p className="text-sm text-gray-600">2.1.1</p>
+                <p className="text-sm text-gray-600">2.2.0</p>
               </div>
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="mt-6">
+        <PayPeriodSettings />
       </div>
 
       <div className="mt-6">

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { usePayPeriodSettings } from '@/hooks/usePayPeriodSettings';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -30,27 +31,14 @@ const TimesheetsPage: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { timezone } = useCompanyTimezone();
+  const { calculatePayPeriod, mode, endDay } = usePayPeriodSettings();
   const [showUpload, setShowUpload] = useState(false);
   const [showNewEntryDialog, setShowNewEntryDialog] = useState(false);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
-  // Helper: compute current pay period based on end-day (default 28)
-  const computeCurrentPayPeriod = (endDay: number): DateRange => {
-    const today = new Date();
-    // Previous pay period end
-    let prevEnd = new Date(today.getFullYear(), today.getMonth(), endDay);
-    if (today.getDate() <= endDay) {
-      prevEnd = new Date(today.getFullYear(), today.getMonth() - 1, endDay);
-    }
-    const nextEnd = new Date(prevEnd.getFullYear(), prevEnd.getMonth() + 1, endDay);
-    const startDate = new Date(prevEnd);
-    startDate.setDate(prevEnd.getDate() + 1); // day after previous end
-    return { from: startDate, to: nextEnd };
-  };
-
-  // Default to current pay period
-  const [dateRange, setDateRange] = useState<DateRange>(() => computeCurrentPayPeriod(28));
-  const [payPeriodEndDay, setPayPeriodEndDay] = useState(28);
+  
+  // Default to current pay period from settings
+  const [dateRange, setDateRange] = useState<DateRange>(() => calculatePayPeriod(0));
 
   // Load wage settings for accurate split calculations
   const { data: wageSettings } = useQuery({
@@ -212,10 +200,10 @@ const TimesheetsPage: React.FC = () => {
 
   const clearAllFilters = useCallback(() => {
     setSelectedEmployee('all');
-    setDateRange(computeCurrentPayPeriod(payPeriodEndDay));
+    setDateRange(calculatePayPeriod(0));
     setSelectedRows([]);
     toast.success('All filters cleared');
-  }, [payPeriodEndDay]);
+  }, [calculatePayPeriod]);
 
   const handleRefresh = useCallback(() => {
     refetch();
@@ -318,8 +306,9 @@ const TimesheetsPage: React.FC = () => {
         <TimesheetDateFilter
           dateRange={dateRange}
           onDateRangeChange={handleDateRangeChange}
-          payPeriodEndDay={payPeriodEndDay}
-          onPayPeriodEndDayChange={setPayPeriodEndDay}
+          payPeriodEndDay={endDay}
+          onPayPeriodEndDayChange={() => {}} // Read-only, configured in Settings
+          payPeriodMode={mode}
         />
         
         {/* Employee Filter - Only show for admins */}

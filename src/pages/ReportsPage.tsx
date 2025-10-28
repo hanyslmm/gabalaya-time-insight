@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
+import { usePayPeriodSettings } from '@/hooks/usePayPeriodSettings';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,31 +35,10 @@ const ReportsPage: React.FC = () => {
   // Hooks at top level
   const { user } = useAuth();
   const [currentView, setCurrentView] = useState<ViewType>('overview');
-  const [payPeriodEndDay, setPayPeriodEndDay] = useState(28);
+  const { calculatePayPeriod, mode, endDay, isLoading: settingsLoading } = usePayPeriodSettings();
   
-  // Date range state - default to current pay period
-  const [dateRange, setDateRange] = useState<DateRange>(() => {
-    const today = new Date();
-    const endDay = 28; // Default pay period end day
-    const currentDay = today.getDate();
-    
-    // Calculate current pay period
-    let endDate: Date;
-    if (currentDay <= endDay) {
-      // We're still in the current month's pay period
-      endDate = new Date(today.getFullYear(), today.getMonth(), endDay);
-    } else {
-      // We've passed the end day, so we're in next month's pay period
-      endDate = new Date(today.getFullYear(), today.getMonth() + 1, endDay);
-    }
-    
-    // Start date is the day after the previous period's end
-    const startDate = new Date(endDate);
-    startDate.setMonth(startDate.getMonth() - 1);
-    startDate.setDate(endDay + 1);
-    
-    return { from: startDate, to: endDate };
-  });
+  // Date range state - default to current pay period from settings
+  const [dateRange, setDateRange] = useState<DateRange>(() => calculatePayPeriod(0));
   
   const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
   
@@ -474,8 +454,9 @@ const ReportsPage: React.FC = () => {
         <TimesheetDateFilter
           dateRange={dateRange}
           onDateRangeChange={setDateRange}
-          payPeriodEndDay={payPeriodEndDay}
-          onPayPeriodEndDayChange={setPayPeriodEndDay}
+          payPeriodEndDay={endDay}
+          onPayPeriodEndDayChange={() => {}} // Read-only, configured in Settings
+          payPeriodMode={mode}
         />
       </MobileSection>
 

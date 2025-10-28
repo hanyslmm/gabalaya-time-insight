@@ -20,48 +20,52 @@ interface TimesheetDateFilterProps {
   onDateRangeChange: (dateRange: DateRange) => void;
   payPeriodEndDay: number;
   onPayPeriodEndDayChange: (day: number) => void;
+  payPeriodMode?: 'fixed_day' | 'month_dynamic';
 }
 
 const TimesheetDateFilter: React.FC<TimesheetDateFilterProps> = ({
   dateRange,
   onDateRangeChange,
   payPeriodEndDay,
-  onPayPeriodEndDayChange
+  onPayPeriodEndDayChange,
+  payPeriodMode = 'fixed_day'
 }) => {
   const calculatePayPeriod = (baseDate: Date, endDay: number, offsetMonths: number = 0) => {
-    const today = new Date(baseDate);
-    const currentDay = today.getDate();
-    
-    // Determine which pay period we're in
-    let endDate: Date;
-    
-    if (offsetMonths === 0) {
-      // Current period logic
-      if (currentDay <= endDay) {
-        // We're still in the current month's pay period
-        endDate = new Date(today.getFullYear(), today.getMonth(), endDay);
-      } else {
-        // We've passed the end day, so we're in next month's pay period
-        endDate = new Date(today.getFullYear(), today.getMonth() + 1, endDay);
-      }
+    if (payPeriodMode === 'month_dynamic') {
+      // Full calendar month mode
+      const targetMonth = new Date(baseDate.getFullYear(), baseDate.getMonth() + offsetMonths, 1);
+      return {
+        from: startOfMonth(targetMonth),
+        to: endOfMonth(targetMonth)
+      };
     } else {
-      // For previous periods
-      const targetMonth = today.getMonth() + offsetMonths;
-      if (currentDay <= endDay) {
-        // Current period hasn't ended, so previous period is last month
-        endDate = new Date(today.getFullYear(), targetMonth, endDay);
+      // Fixed day mode (original logic)
+      const today = new Date(baseDate);
+      const currentDay = today.getDate();
+      
+      let endDate: Date;
+      
+      if (offsetMonths === 0) {
+        if (currentDay <= endDay) {
+          endDate = new Date(today.getFullYear(), today.getMonth(), endDay);
+        } else {
+          endDate = new Date(today.getFullYear(), today.getMonth() + 1, endDay);
+        }
       } else {
-        // Current period has ended, so previous period is this month - 1
-        endDate = new Date(today.getFullYear(), targetMonth + 1, endDay);
+        const targetMonth = today.getMonth() + offsetMonths;
+        if (currentDay <= endDay) {
+          endDate = new Date(today.getFullYear(), targetMonth, endDay);
+        } else {
+          endDate = new Date(today.getFullYear(), targetMonth + 1, endDay);
+        }
       }
+      
+      const startDate = new Date(endDate);
+      startDate.setMonth(startDate.getMonth() - 1);
+      startDate.setDate(endDay + 1);
+      
+      return { from: startDate, to: endDate };
     }
-    
-    // Start date is the day after the previous period's end
-    const startDate = new Date(endDate);
-    startDate.setMonth(startDate.getMonth() - 1);
-    startDate.setDate(endDay + 1);
-    
-    return { from: startDate, to: endDate };
   };
 
   const handlePeriodChange = (value: string) => {
@@ -106,32 +110,7 @@ const TimesheetDateFilter: React.FC<TimesheetDateFilterProps> = ({
           Pay Period Filter
         </h3>
         
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm">
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-80">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="payPeriodEndDay">Pay Period End Day</Label>
-                <Input
-                  id="payPeriodEndDay"
-                  type="number"
-                  min="1"
-                  max="31"
-                  value={payPeriodEndDay}
-                  onChange={(e) => onPayPeriodEndDayChange(parseInt(e.target.value) || 28)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  The day of the month when the pay period ends (default: 28)
-                </p>
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
+        {/* Removed inline settings - now configured in Settings page */}
       </div>
 
       <div className="space-y-2">
