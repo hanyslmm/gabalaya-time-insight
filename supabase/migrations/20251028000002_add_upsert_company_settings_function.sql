@@ -13,6 +13,7 @@ SET search_path = public
 AS $$
 DECLARE
   v_exists BOOLEAN;
+  v_new_id INTEGER;
 BEGIN
   -- Validate inputs
   IF p_pay_period_mode NOT IN ('fixed_day', 'month_dynamic') THEN
@@ -34,8 +35,10 @@ BEGIN
         updated_at = NOW()
     WHERE organization_id = p_organization_id;
   ELSE
-    INSERT INTO company_settings (organization_id, pay_period_mode, pay_period_end_day, updated_at)
-    VALUES (p_organization_id, p_pay_period_mode, p_pay_period_end_day, NOW());
+    -- Generate a new integer id since legacy schema uses id INTEGER PRIMARY KEY DEFAULT 1
+    SELECT COALESCE(MAX(id) + 1, 1) INTO v_new_id FROM company_settings;
+    INSERT INTO company_settings (id, organization_id, pay_period_mode, pay_period_end_day, updated_at)
+    VALUES (v_new_id, p_organization_id, p_pay_period_mode, p_pay_period_end_day, NOW());
   END IF;
 
   RETURN json_build_object('success', true);
