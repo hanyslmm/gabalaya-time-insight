@@ -44,7 +44,7 @@ const TimesheetsPage: React.FC = () => {
   React.useEffect(() => {
     const newRange = calculatePayPeriod(0);
     setDateRange(newRange);
-  }, [mode, endDay, calculatePayPeriod]);
+  }, [mode, endDay]);
 
   // Load wage settings for accurate split calculations
   const { data: wageSettings } = useQuery({

@@ -44,7 +44,7 @@ const ReportsPage: React.FC = () => {
   React.useEffect(() => {
     const newRange = calculatePayPeriod(0);
     setDateRange(newRange);
-  }, [mode, endDay, calculatePayPeriod]);
+  }, [mode, endDay]);
   
   const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
   
