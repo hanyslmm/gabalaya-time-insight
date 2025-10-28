@@ -92,10 +92,10 @@ export const useDashboardData = (dateRange: DateRange, enabled: boolean = true) 
           }
         }
 
-        const [resOrg, resLegacy] = await Promise.all([queryOrg, queryLegacy]);
+        // STRICT FILTERING: Only use organization_id match
+        const resOrg = await queryOrg;
         if (resOrg.error) throw resOrg.error;
-        if (resLegacy.error) throw resLegacy.error;
-        const entries = [ ...(resOrg.data || []), ...(resLegacy.data || []) ];
+        const entries = resOrg.data || [];
 
         // Calculate stats manually
         const uniqueEmployees = new Set();

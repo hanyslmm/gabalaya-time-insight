@@ -152,15 +152,13 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
         }
       }
 
-      const [resOrg, resLegacy] = await Promise.all([
-        queryOrg,
-        queryLegacy
-      ]);
+      // STRICT FILTERING: Only use organization_id match
+      const resOrg = await queryOrg;
 
       if (resOrg.error) throw resOrg.error;
-      if (resLegacy.error) throw resLegacy.error;
 
-      const timesheetData = [ ...(resOrg.data || []), ...(resLegacy.data || []) ];
+      // Use ONLY organization-scoped data
+      const timesheetData = resOrg.data || [];
 
       // Debug logging
       console.log('Dashboard Charts - Loaded', timesheetData.length, 'entries for period', fromDate, 'to', toDate);

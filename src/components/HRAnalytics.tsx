@@ -134,14 +134,14 @@ export const HRAnalytics: React.FC<HRAnalyticsProps> = ({ dateRange }) => {
           }
         }
 
-        const [resOrg, resLegacy] = await Promise.all([queryOrg, queryLegacy]);
+        // STRICT FILTERING: Only use organization_id match
+        const resOrg = await queryOrg;
         
         if (resOrg.error) throw resOrg.error;
-        if (resLegacy.error) throw resLegacy.error;
 
-        // Combine results
-        timesheetData = [...(resOrg.data || []), ...(resLegacy.data || [])];
-        console.log('HRAnalytics: Combined timesheet data:', timesheetData.length, 'entries');
+        // Use ONLY organization-scoped data
+        timesheetData = resOrg.data || [];
+        console.log('HRAnalytics: Organization timesheet data:', timesheetData.length, 'entries');
       }
 
       const tz = await getCompanyTimezone();

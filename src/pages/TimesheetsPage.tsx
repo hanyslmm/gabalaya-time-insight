@@ -185,18 +185,13 @@ const TimesheetsPage: React.FC = () => {
           }
         }
 
-        const [resOrg, resLegacy] = await Promise.all([
-          queryOrg.order('clock_in_date', { ascending: false }).limit(500),
-          queryLegacy.order('clock_in_date', { ascending: false }).limit(500)
-        ]);
+        // STRICT FILTERING: Only use organization_id match, skip legacy fallback
+        const resOrg = await queryOrg.order('clock_in_date', { ascending: false }).limit(500);
 
         if (resOrg.error) throw resOrg.error;
-        if (resLegacy.error) throw resLegacy.error;
 
-        const combined = [...(resOrg.data || []), ...(resLegacy.data || [])];
-        // Sort and cap to 500 combined
-        combined.sort((a, b) => (a.clock_in_date < b.clock_in_date ? 1 : -1));
-        return combined.slice(0, 500);
+        // Return ONLY organization-scoped data
+        return resOrg.data || [];
       } catch (error) {
         throw error;
       }

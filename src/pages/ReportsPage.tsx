@@ -174,15 +174,13 @@ const ReportsPage: React.FC = () => {
         }
       }
 
-      const [resOrg, resLegacy] = await Promise.all([queryOrg, queryLegacy]);
+      // STRICT FILTERING: Only use organization_id match
+      const resOrg = await queryOrg;
       
       if (resOrg.error) throw resOrg.error;
-      if (resLegacy.error) throw resLegacy.error;
 
-      // Combine and sort
-      const combined = [...(resOrg.data || []), ...(resLegacy.data || [])];
-      combined.sort((a, b) => (a.clock_in_date < b.clock_in_date ? 1 : -1));
-      return combined.slice(0, 500); // Cap to 500 entries for performance
+      // Return ONLY organization-scoped data
+      return resOrg.data || [];
     },
     enabled: !!(dateRange?.from && dateRange?.to && employees !== undefined)
   });
