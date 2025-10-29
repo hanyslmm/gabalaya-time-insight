@@ -4,18 +4,24 @@ import { Button } from '@/components/ui/button';
 import { Calculator, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 const SimpleWageCalculator: React.FC = () => {
   const queryClient = useQueryClient();
 
-  // Fetch wage settings
+  const { user } = useAuth();
+  const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
+
+  // Fetch wage settings (scoped by organization)
   const { data: wageSettings } = useQuery({
-    queryKey: ['wage-settings'],
+    queryKey: ['wage-settings', activeOrganizationId],
+    enabled: !!activeOrganizationId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q: any = (supabase as any)
         .from('wage_settings')
-        .select('*')
-        .single();
+        .select('*');
+      if (activeOrganizationId) q = q.eq('organization_id', activeOrganizationId);
+      const { data, error } = await q.maybeSingle();
       if (error) throw error;
       return data;
     }

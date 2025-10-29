@@ -61,17 +61,16 @@ const MyTimesheetPage: React.FC = () => {
     }
   };
 
+  // DB stores Cairo local time, format directly to 12-hour AM/PM
   const formatCompanyTimeAMPM = (dateStr?: string, timeStr?: string | null) => {
     if (!dateStr || !timeStr) return '—';
     const timeClean = (timeStr || '').split('.')[0] || '00:00:00';
-    const date = new Date(`${dateStr}T${timeClean}Z`);
     try {
-      return new Intl.DateTimeFormat('en-US', {
-        timeZone: companyTimezone,
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true,
-      }).format(date);
+      const [hh, mm] = timeClean.split(':').map(v => parseInt(v, 10) || 0);
+      const h12 = ((hh % 12) || 12);
+      const period = hh < 12 ? 'AM' : 'PM';
+      const mmStr = String(mm).padStart(2, '0');
+      return `${h12}:${mmStr} ${period}`;
     } catch {
       return timeClean;
     }
@@ -199,14 +198,17 @@ const MyTimesheetPage: React.FC = () => {
     enabled: !!user?.username
   });
 
+  const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
+
   const { data: wageSettings } = useQuery({
-    queryKey: ['wage-settings'],
+    queryKey: ['wage-settings', activeOrganizationId],
+    enabled: !!activeOrganizationId,
     queryFn: async () => {
-      const { data } = await supabase
+      let q: any = (supabase as any)
         .from('wage_settings')
-        .select('morning_start_time, morning_end_time, night_start_time, night_end_time')
-        .limit(1)
-        .maybeSingle();
+        .select('morning_start_time, morning_end_time, night_start_time, night_end_time');
+      if (activeOrganizationId) q = q.eq('organization_id', activeOrganizationId);
+      const { data } = await q.maybeSingle();
       return data;
     }
   });

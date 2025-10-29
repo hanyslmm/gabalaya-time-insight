@@ -253,11 +253,17 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
       
       // No working hours window filter - use all time
       
-      // Simple calculation: 6 AM - 5 PM = morning, 5 PM - 6 AM = night
-      const morningStart = 360; // 6 AM
-      const morningEnd = 1020; // 5 PM
-      const nightStart = 1020; // 5 PM
-      let nightEnd = 1440 + 360; // 6 AM next day
+      // Use organization-specific wage settings for boundaries
+      const toMinutesLocal = (timeStr?: string) => {
+        const clean = (timeStr || '00:00:00').split('.')[0];
+        const [h, m] = clean.split(':').map((v) => parseInt(v, 10) || 0);
+        return (h % 24) * 60 + (m % 60);
+      };
+
+      const morningStart = toMinutesLocal(wageSettings?.morning_start_time || '06:00:00');
+      const morningEnd = toMinutesLocal(wageSettings?.morning_end_time || '17:00:00');
+      const nightStart = toMinutesLocal(wageSettings?.night_start_time || '17:00:00');
+      let nightEnd = toMinutesLocal(wageSettings?.night_end_time || '06:00:00');
       if (nightEnd < nightStart) nightEnd += 24 * 60;
       const morningMinutes = overlapMinutes(inMins, outMins, morningStart, morningEnd);
       const nightMinutes = overlapMinutes(inMins, outMins, nightStart, nightEnd);
@@ -564,7 +570,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
                                   </div>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  Calculated in {timezone}. Morning window 08:00–17:00.
+                                  Calculated in {timezone}. Morning window {(wageSettings?.morning_start_time || '06:00').slice(0,5)}–{(wageSettings?.morning_end_time || '17:00').slice(0,5)}.
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
@@ -585,7 +591,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
                                   </div>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  Calculated in {timezone}. Night window 17:00–01:00.
+                                  Calculated in {timezone}. Night window {(wageSettings?.night_start_time || '17:00').slice(0,5)}–{(wageSettings?.night_end_time || '06:00').slice(0,5)}.
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>

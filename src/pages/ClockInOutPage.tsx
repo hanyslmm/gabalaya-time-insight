@@ -126,23 +126,21 @@ const ClockInOutPage: React.FC = () => {
   };
 
   // Helper to format DB times in company's timezone (AM/PM)
+  // DB stores Cairo local time, so just format it directly without timezone conversion
   const formatCompanyTimeAMPM = useCallback((dateStr: string, timeStr: string) => {
     try {
       const baseTime = (timeStr || '').split('.')[0];
       if (!dateStr || !baseTime) return '';
-      // Treat DB time as UTC and format in company timezone
-      const utcDate = new Date(`${dateStr}T${baseTime}Z`);
-      const formatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: companyTimezone,
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      });
-      return formatter.format(utcDate);
+      // DB stores local Cairo time, format directly to 12-hour AM/PM
+      const [hh, mm] = baseTime.split(':').map(v => parseInt(v, 10) || 0);
+      const h12 = ((hh % 12) || 12);
+      const period = hh < 12 ? 'AM' : 'PM';
+      const mmStr = String(mm).padStart(2, '0');
+      return `${h12}:${mmStr} ${period}`;
     } catch {
       return formatTimeToAMPM((timeStr || '').split('.')[0]);
     }
-  }, [companyTimezone]);
+  }, []);
 
   // Fetch team status (other employees' clock-in status)
   const fetchTeamStatus = useCallback(async () => {
@@ -250,13 +248,14 @@ const ClockInOutPage: React.FC = () => {
                          entry.clock_out_time === undefined ||
                          entry.clock_out_time === '';
         
-        // Calculate duration using the same method as Employee Monitor
+        // Calculate duration - DB stores Cairo local time
         let duration = 0;
         if (isActive) {
-          // Add 'Z' to treat DB time as UTC, then calculate duration correctly (same as Employee Monitor)
+          // DB stores Cairo local time, calculate duration directly
           const clockInTimeStr = entry.clock_in_time.split('.')[0];
-          const clockInUTC = new Date(`${entry.clock_in_date}T${clockInTimeStr}Z`);
-          duration = differenceInMinutes(new Date(), clockInUTC);
+          const clockInLocal = new Date(`${entry.clock_in_date}T${clockInTimeStr}`);
+          const now = new Date();
+          duration = differenceInMinutes(now, clockInLocal);
         } else if (entry.total_hours) {
           duration = entry.total_hours * 60;
         }

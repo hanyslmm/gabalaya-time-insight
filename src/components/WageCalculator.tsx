@@ -3,6 +3,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Calculator } from 'lucide-react';
 import { toast } from 'sonner';
@@ -17,17 +18,19 @@ const WageCalculator: React.FC<WageCalculatorProps> = ({ selectedRows, onCalcula
   const { t } = useTranslation();
   const queryClient = useQueryClient();
 
+  const { user } = useAuth();
+  const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
+
   const { data: wageSettings } = useQuery({
-    queryKey: ['wage-settings'],
+    queryKey: ['wage-settings', activeOrganizationId],
+    enabled: !!activeOrganizationId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q: any = (supabase as any)
         .from('wage_settings')
-        .select('*')
-        .single();
-      
-      if (error) {
-        throw error;
-      }
+        .select('*');
+      if (activeOrganizationId) q = q.eq('organization_id', activeOrganizationId);
+      const { data, error } = await q.maybeSingle();
+      if (error) throw error;
       return data;
     }
   });

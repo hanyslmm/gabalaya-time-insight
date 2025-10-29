@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { Switch } from '@/components/ui/switch';
 
 interface WageSettings {
   id: string;
@@ -29,12 +30,47 @@ const WageSettings: React.FC = () => {
   const { user } = useAuth();
   const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
   const [settings, setSettings] = useState<Partial<WageSettings>>({});
+  const [hasChanges, setHasChanges] = useState(false);
+
+  // Normalize database time values (HH:mm:ss) to input-friendly HH:mm
+  const toHHMM = (value?: string): string | undefined => {
+    if (!value) return value;
+    if (value.length === 5) return value;
+    const parts = value.split(':');
+    if (parts.length >= 2) {
+      return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+    }
+    return value;
+  };
+
+  // Keyboard shortcut: Cmd/Ctrl + S to save
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().includes('MAC');
+      const isSave = (isMac && e.metaKey && e.key.toLowerCase() === 's') || (!isMac && e.ctrlKey && e.key.toLowerCase() === 's');
+      if (isSave) {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [settings]);
 
   const { data: wageSettings, isLoading } = useQuery({
     queryKey: ['wage-settings', activeOrganizationId],
     enabled: !!activeOrganizationId,
     queryFn: async () => {
+      console.log('=== WAGE SETTINGS FETCH DEBUG ===');
       console.log('Fetching wage settings for organization:', activeOrganizationId);
+      console.log('User context:', {
+        userId: user?.id,
+        username: user?.username,
+        role: user?.role,
+        organizationId: user?.organization_id,
+        currentOrganizationId: user?.current_organization_id,
+        isGlobalOwner: user?.is_global_owner
+      });
       
       const query: any = (supabase as any)
         .from('wage_settings')
@@ -117,37 +153,127 @@ const WageSettings: React.FC = () => {
       }
       
       console.log('Found existing wage settings:', data);
+      console.log('=== END WAGE SETTINGS FETCH DEBUG ===');
       return data;
     }
   });
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (updatedSettings: Partial<WageSettings>) => {
-      console.log('Updating wage settings:', {
-        wageSettingsId: wageSettings?.id,
-        activeOrganizationId,
-        updatedSettings
+      console.log('=== WAGE SETTINGS UPDATE DEBUG ===');
+      console.log('User info:', {
+        userId: user?.id,
+        username: user?.username,
+        role: user?.role,
+        organizationId: user?.organization_id,
+        currentOrganizationId: user?.current_organization_id,
+        isGlobalOwner: user?.is_global_owner
       });
+      console.log('Active organization ID:', activeOrganizationId);
+      console.log('Wage settings ID:', wageSettings?.id);
+      console.log('Updated settings:', updatedSettings);
       
       if (!wageSettings?.id) {
+        console.error('ERROR: No wage settings ID found');
         throw new Error('No wage settings ID found');
+      }
+      
+      if (!activeOrganizationId) {
+        console.error('ERROR: No active organization ID found');
+        throw new Error('No active organization ID found');
+      }
+      
+      // Convert time values back to HH:mm:ss format for database
+      const dbSettings = { ...updatedSettings };
+      if (dbSettings.morning_start_time && dbSettings.morning_start_time.length === 5) {
+        dbSettings.morning_start_time = dbSettings.morning_start_time + ':00';
+      }
+      if (dbSettings.morning_end_time && dbSettings.morning_end_time.length === 5) {
+        dbSettings.morning_end_time = dbSettings.morning_end_time + ':00';
+      }
+      if (dbSettings.night_start_time && dbSettings.night_start_time.length === 5) {
+        dbSettings.night_start_time = dbSettings.night_start_time + ':00';
+      }
+      if (dbSettings.night_end_time && dbSettings.night_end_time.length === 5) {
+        dbSettings.night_end_time = dbSettings.night_end_time + ':00';
+      }
+      if (dbSettings.working_hours_start_time && dbSettings.working_hours_start_time.length === 5) {
+        dbSettings.working_hours_start_time = dbSettings.working_hours_start_time + ':00';
+      }
+      if (dbSettings.working_hours_end_time && dbSettings.working_hours_end_time.length === 5) {
+        dbSettings.working_hours_end_time = dbSettings.working_hours_end_time + ':00';
+      }
+      
+      console.log('Database settings (with time format):', dbSettings);
+      
+      // Attempt privileged update via edge function (recommended)
+      try {
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+          const { data: fnData, error: fnError } = await supabase.functions.invoke('update-wage-settings', {
+            body: {
+              token,
+              organizationId: activeOrganizationId,
+              settings: dbSettings,
+              createIfMissing: true
+            }
+          });
+          console.log('Edge function update response:', { fnData, fnError });
+          if (!fnError && (fnData as any)?.success) {
+            console.log('Edge function update succeeded');
+            return (fnData as any).data || null;
+          }
+        } else {
+          console.warn('No auth_token found for edge function call; falling back to direct update');
+        }
+      } catch (fnErr) {
+        console.error('Edge function update failed, will fallback to direct update', fnErr);
       }
       
       const updateQuery: any = (supabase as any)
         .from('wage_settings')
-        .update({ ...updatedSettings, organization_id: activeOrganizationId })
+        .update({ ...dbSettings, organization_id: activeOrganizationId })
         .eq('id', wageSettings.id)
         .eq('organization_id', activeOrganizationId)
         .select();
       
+      console.log('Executing direct update query...');
+      
+      // First, let's test if we can read the current wage settings
+      console.log('Testing read access to wage_settings...');
+      const { data: testRead, error: readError } = await supabase
+        .from('wage_settings')
+        .select('*')
+        .eq('id', wageSettings.id)
+        .eq('organization_id', activeOrganizationId);
+      
+      console.log('Read test result:', { testRead, readError });
+      
+      // Test RLS functions
+      console.log('Testing RLS functions...');
+      const { data: rlsTest, error: rlsError } = await supabase
+        .rpc('is_admin');
+      console.log('is_admin() result:', { rlsTest, rlsError });
+      
+      const { data: orgTest, error: orgError } = await supabase
+        .rpc('current_user_organization_id');
+      console.log('current_user_organization_id() result:', { orgTest, orgError });
+      
       const { data, error } = await updateQuery.single();
       
       if (error) {
-        console.error('Error updating wage settings:', error);
+        console.error('ERROR updating wage settings:', {
+          error,
+          errorMessage: error.message,
+          errorDetails: error.details,
+          errorHint: error.hint,
+          errorCode: error.code
+        });
         throw error;
       }
       
       console.log('Successfully updated wage settings:', data);
+      console.log('=== END WAGE SETTINGS UPDATE DEBUG ===');
       return data;
     },
     onSuccess: () => {
@@ -162,7 +288,16 @@ const WageSettings: React.FC = () => {
 
   useEffect(() => {
     if (wageSettings) {
-      setSettings(wageSettings);
+      setSettings({
+        ...wageSettings,
+        morning_start_time: toHHMM(wageSettings.morning_start_time) as string,
+        morning_end_time: toHHMM(wageSettings.morning_end_time) as string,
+        night_start_time: toHHMM(wageSettings.night_start_time) as string,
+        night_end_time: toHHMM(wageSettings.night_end_time) as string,
+        working_hours_start_time: toHHMM(wageSettings.working_hours_start_time) as string,
+        working_hours_end_time: toHHMM(wageSettings.working_hours_end_time) as string,
+      });
+      setHasChanges(false);
     }
   }, [wageSettings]);
 
@@ -172,11 +307,12 @@ const WageSettings: React.FC = () => {
     }
   };
 
-  const handleInputChange = (field: keyof WageSettings, value: string | number) => {
+  const handleInputChange = (field: keyof WageSettings, value: string | number | boolean) => {
     setSettings(prev => ({
       ...prev,
       [field]: value
     }));
+    setHasChanges(true);
   };
 
   if (isLoading) {
@@ -299,13 +435,11 @@ const WageSettings: React.FC = () => {
             <Label htmlFor="working-hours-enabled" className="text-sm font-medium text-gray-700">
               {t('enableWorkingHoursWindow') || 'Enable Working Hours Window'}
             </Label>
-            <div className="flex items-center space-x-2">
-              <input
+            <div className="flex items-center space-x-3">
+              <Switch
                 id="working-hours-enabled"
-                type="checkbox"
-                checked={settings.working_hours_window_enabled ?? true}
-                onChange={(e) => handleInputChange('working_hours_window_enabled', e.target.checked ? '1' : '0')}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                checked={Boolean(settings.working_hours_window_enabled)}
+                onCheckedChange={(checked) => handleInputChange('working_hours_window_enabled', checked)}
               />
               <Label htmlFor="working-hours-enabled" className="text-sm text-gray-700">
                 {settings.working_hours_window_enabled ? 'Enabled' : 'Disabled'}
@@ -316,41 +450,41 @@ const WageSettings: React.FC = () => {
             </p>
           </div>
           
-          {settings.working_hours_window_enabled && (
-            <>
-              <div className="space-y-3">
-                <Label htmlFor="working-hours-start" className="text-sm font-medium text-gray-700">
-                  {t('workingHoursStartTime') || 'Working Hours Start Time'}
-                </Label>
-                <Input
-                  id="working-hours-start"
-                  type="time"
-                  value={settings.working_hours_start_time || '08:00'}
-                  onChange={(e) => handleInputChange('working_hours_start_time', e.target.value)}
-                  className="w-full"
-                />
-                <p className="text-xs text-gray-500">
-                  {t('workingHoursStartHelp') || 'Earliest time for payable hours (e.g., 08:00 for 8 AM)'}
-                </p>
-              </div>
-              
-              <div className="space-y-3">
-                <Label htmlFor="working-hours-end" className="text-sm font-medium text-gray-700">
-                  {t('workingHoursEndTime') || 'Working Hours End Time'}
-                </Label>
-                <Input
-                  id="working-hours-end"
-                  type="time"
-                  value={settings.working_hours_end_time || '01:00'}
-                  onChange={(e) => handleInputChange('working_hours_end_time', e.target.value)}
-                  className="w-full"
-                />
-                <p className="text-xs text-gray-500">
-                  {t('workingHoursEndHelp') || 'Latest time for payable hours (e.g., 01:00 for 1 AM next day)'}
-                </p>
-              </div>
-            </>
-          )}
+          <>
+            <div className="space-y-3">
+              <Label htmlFor="working-hours-start" className="text-sm font-medium text-gray-700">
+                {t('workingHoursStartTime') || 'Working Hours Start Time'}
+              </Label>
+              <Input
+                id="working-hours-start"
+                type="time"
+                value={settings.working_hours_start_time || '08:00'}
+                onChange={(e) => handleInputChange('working_hours_start_time', e.target.value)}
+                className="w-full"
+                disabled={!settings.working_hours_window_enabled}
+              />
+              <p className="text-xs text-gray-500">
+                {t('workingHoursStartHelp') || 'Earliest time for payable hours (e.g., 08:00 for 8 AM)'}
+              </p>
+            </div>
+            
+            <div className="space-y-3">
+              <Label htmlFor="working-hours-end" className="text-sm font-medium text-gray-700">
+                {t('workingHoursEndTime') || 'Working Hours End Time'}
+              </Label>
+              <Input
+                id="working-hours-end"
+                type="time"
+                value={settings.working_hours_end_time || '01:00'}
+                onChange={(e) => handleInputChange('working_hours_end_time', e.target.value)}
+                className="w-full"
+                disabled={!settings.working_hours_window_enabled}
+              />
+              <p className="text-xs text-gray-500">
+                {t('workingHoursEndHelp') || 'Latest time for payable hours (e.g., 01:00 for 1 AM next day)'}
+              </p>
+            </div>
+          </>
         </div>
         
         {settings.working_hours_window_enabled && (
@@ -368,13 +502,21 @@ const WageSettings: React.FC = () => {
         )}
       </div>
       
-      <Button 
-        onClick={handleSave} 
-        disabled={updateSettingsMutation.isPending}
-        className="w-full"
-      >
-        {updateSettingsMutation.isPending ? t('saving') || 'Saving...' : t('saveSettings') || 'Save Settings'}
-      </Button>
+      <div className="fixed bottom-4 right-4 z-10 flex items-center space-x-2">
+        <Button 
+          onClick={() => setSettings(wageSettings as any)}
+          variant="secondary"
+          disabled={!hasChanges || updateSettingsMutation.isPending}
+        >
+          {t('reset') || 'Reset'}
+        </Button>
+        <Button 
+          onClick={handleSave} 
+          disabled={!hasChanges || updateSettingsMutation.isPending}
+        >
+          {updateSettingsMutation.isPending ? t('saving') || 'Saving...' : t('saveSettings') || 'Save Settings'}
+        </Button>
+      </div>
     </div>
   );
 };

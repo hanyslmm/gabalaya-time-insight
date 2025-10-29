@@ -50,18 +50,15 @@ export function useCompanyTimezone() {
     (dateStr?: string, timeStr?: string | null) => {
       if (!dateStr || !timeStr) return '—';
       const timeClean = (timeStr || '').split('.')[0] || '00:00:00';
-      
+
+      // IMPORTANT: DB stores local company time (no timezone). Do NOT add 'Z' or
+      // convert as UTC. Just render the string in 12-hour format.
       try {
-        // CRITICAL: Add 'Z' to treat DB time as UTC, then format in company timezone
-        // This matches the working logic in ClockInOutPage.tsx
-        const utcDate = new Date(`${dateStr}T${timeClean}Z`);
-        
-        return new Intl.DateTimeFormat('en-US', {
-          timeZone: timezone,
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true,
-        }).format(utcDate);
+        const [hh, mm] = timeClean.split(':').map((v) => parseInt(v, 10) || 0);
+        const h12 = ((hh % 12) || 12);
+        const period = hh < 12 ? 'AM' : 'PM';
+        const mmStr = String(mm).padStart(2, '0');
+        return `${h12}:${mmStr} ${period}`;
       } catch {
         return timeClean;
       }
