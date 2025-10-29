@@ -99,11 +99,24 @@ export const calculateMorningNightHours = async (
   if (nightEnd <= nightStart) nightEnd += 24 * 60;
 
   // Compute overlaps, accounting for windows repeating every 24h
-  const morningMinutes = overlap(payableShiftStart, payableShiftEnd, morningStart, morningEnd)
-    + overlap(payableShiftStart, payableShiftEnd, morningStart + 24 * 60, morningEnd + 24 * 60);
+  // For morning window (doesn't cross midnight), only check current day
+  const morningMinutes = overlap(payableShiftStart, payableShiftEnd, morningStart, morningEnd);
 
-  const nightMinutes = overlap(payableShiftStart, payableShiftEnd, nightStart, nightEnd)
-    + overlap(payableShiftStart, payableShiftEnd, nightStart + 24 * 60, nightEnd + 24 * 60);
+  // For night window (crosses midnight), check both current day and next day
+  let nightMinutes = 0;
+  
+  // Check current day night window (e.g., 17:00 to 24:00)
+  const currentDayNightEnd = 24 * 60; // 24:00 = 1440 minutes
+  nightMinutes += overlap(payableShiftStart, payableShiftEnd, nightStart, currentDayNightEnd);
+  
+  // Check next day night window (e.g., 00:00 to 06:00)
+  const nextDayNightStart = 0; // 00:00
+  const nextDayNightEnd = nightEnd % (24 * 60); // 06:00 = 360 minutes
+  nightMinutes += overlap(payableShiftStart, payableShiftEnd, nextDayNightStart, nextDayNightEnd);
+
+  console.log(`Window calculations: Morning window ${morningStart/60}:${(morningStart%60).toString().padStart(2,'0')} - ${morningEnd/60}:${(morningEnd%60).toString().padStart(2,'0')} (${morningMinutes} min)`);
+  console.log(`Night window ${nightStart/60}:${(nightStart%60).toString().padStart(2,'0')} - ${(nightEnd%1440)/60}:${((nightEnd%1440)%60).toString().padStart(2,'0')} (${nightMinutes} min)`);
+  console.log(`Shift: ${payableShiftStart/60}:${(payableShiftStart%60).toString().padStart(2,'0')} - ${(payableShiftEnd%1440)/60}:${((payableShiftEnd%1440)%60).toString().padStart(2,'0')}`);
 
   const totalWorkedMinutes = payableShiftEnd - payableShiftStart;
   let m = morningMinutes;

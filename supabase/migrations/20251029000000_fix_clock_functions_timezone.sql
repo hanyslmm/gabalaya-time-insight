@@ -176,12 +176,20 @@ BEGIN
       v_night_end_minutes := v_night_end_minutes + (24 * 60);
     END IF;
     
-    -- Calculate morning overlap
+    -- Calculate morning overlap (doesn't cross midnight)
     v_morning_overlap_minutes := GREATEST(0, LEAST(v_shift_end_minutes, v_morning_end_minutes) - GREATEST(v_shift_start_minutes, v_morning_start_minutes));
     v_morning_hours := v_morning_overlap_minutes / 60.0;
     
-    -- Calculate night overlap
-    v_night_overlap_minutes := GREATEST(0, LEAST(v_shift_end_minutes, v_night_end_minutes) - GREATEST(v_shift_start_minutes, v_night_start_minutes));
+    -- Calculate night overlap (may cross midnight)
+    -- Check current day night window (e.g., 17:00 to 24:00)
+    v_night_overlap_minutes := GREATEST(0, LEAST(v_shift_end_minutes, 1440) - GREATEST(v_shift_start_minutes, v_night_start_minutes));
+    
+    -- Check next day night window (e.g., 00:00 to 06:00)
+    IF v_night_end_minutes > 1440 THEN  -- Night window crosses midnight
+      v_night_overlap_minutes := v_night_overlap_minutes + 
+        GREATEST(0, LEAST(v_shift_end_minutes, v_night_end_minutes - 1440) - GREATEST(v_shift_start_minutes, 0));
+    END IF;
+    
     v_night_hours := v_night_overlap_minutes / 60.0;
   END IF;
 
