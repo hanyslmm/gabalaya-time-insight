@@ -84,72 +84,26 @@ const WageSettings: React.FC = () => {
         throw error;
       }
       
-      // If no organization-specific settings exist, try to create them from global defaults
+      // If no organization-specific settings exist, return default values for display
+      // The edge function will create them on first save
       if (!data) {
-        console.log('No wage settings found for organization, creating from defaults...');
+        console.log('No wage settings found for organization, will create on save');
         
-        // First get global default settings
-        const { data: globalSettings } = await supabase
-          .from('wage_settings')
-          .select('*')
-          .is('organization_id', null)
-          .single();
-        
-        if (globalSettings) {
-          // Create organization-specific settings
-          const { data: newSettings, error: createError } = await supabase
-            .from('wage_settings')
-            .insert({
-              morning_start_time: globalSettings.morning_start_time,
-              morning_end_time: globalSettings.morning_end_time,
-              night_start_time: globalSettings.night_start_time,
-              night_end_time: globalSettings.night_end_time,
-              morning_wage_rate: globalSettings.morning_wage_rate,
-              night_wage_rate: globalSettings.night_wage_rate,
-              default_flat_wage_rate: globalSettings.default_flat_wage_rate,
-              working_hours_window_enabled: globalSettings.working_hours_window_enabled ?? true,
-              working_hours_start_time: globalSettings.working_hours_start_time ?? '08:00:00',
-              working_hours_end_time: globalSettings.working_hours_end_time ?? '01:00:00',
-              organization_id: activeOrganizationId
-            })
-            .select()
-            .single();
-          
-          if (createError) {
-            console.error('Error creating wage settings:', createError);
-            throw createError;
-          }
-          
-          console.log('Created new wage settings:', newSettings);
-          return newSettings;
-        } else {
-          // Create with default values if no global settings exist
-          const { data: defaultSettings, error: defaultError } = await supabase
-            .from('wage_settings')
-            .insert({
-              morning_start_time: '06:00:00',
-              morning_end_time: '17:00:00',
-              night_start_time: '17:00:00',
-              night_end_time: '06:00:00',
-              morning_wage_rate: 17.00,
-              night_wage_rate: 20.00,
-              default_flat_wage_rate: 20.00,
-              working_hours_window_enabled: true,
-              working_hours_start_time: '08:00:00',
-              working_hours_end_time: '01:00:00',
-              organization_id: activeOrganizationId
-            })
-            .select()
-            .single();
-          
-          if (defaultError) {
-            console.error('Error creating default wage settings:', defaultError);
-            throw defaultError;
-          }
-          
-          console.log('Created default wage settings:', defaultSettings);
-          return defaultSettings;
-        }
+        // Return default values for the form
+        return {
+          id: null, // Will be created on save
+          morning_start_time: '06:00:00',
+          morning_end_time: '17:00:00',
+          night_start_time: '17:00:00',
+          night_end_time: '06:00:00',
+          morning_wage_rate: 17.00,
+          night_wage_rate: 20.00,
+          default_flat_wage_rate: 20.00,
+          working_hours_window_enabled: true,
+          working_hours_start_time: '08:00:00',
+          working_hours_end_time: '01:00:00',
+          organization_id: activeOrganizationId
+        };
       }
       
       console.log('Found existing wage settings:', data);
@@ -173,15 +127,14 @@ const WageSettings: React.FC = () => {
       console.log('Wage settings ID:', wageSettings?.id);
       console.log('Updated settings:', updatedSettings);
       
-      if (!wageSettings?.id) {
-        console.error('ERROR: No wage settings ID found');
-        throw new Error('No wage settings ID found');
-      }
-      
       if (!activeOrganizationId) {
         console.error('ERROR: No active organization ID found');
         throw new Error('No active organization ID found');
       }
+      
+      // Note: wageSettings?.id might be null if creating for the first time
+      // The edge function will handle creation with createIfMissing: true
+      console.log('Will create settings if missing:', !wageSettings?.id);
       
       // Convert time values back to HH:mm:ss format for database
       const dbSettings = { ...updatedSettings };
@@ -209,7 +162,33 @@ const WageSettings: React.FC = () => {
       // Attempt privileged update via edge function (recommended)
       try {
         const token = localStorage.getItem('auth_token');
+        console.log('Auth token exists?', !!token);
+        console.log('Token preview:', token ? token.substring(0, 50) + '...' : 'NO TOKEN');
+        
+        // Decode and log token payload for debugging
         if (token) {
+          try {
+            const tokenPayload = JSON.parse(atob(token));
+            console.log('Token payload:', {
+              role: tokenPayload.role,
+              organization_id: tokenPayload.organization_id,
+              current_organization_id: tokenPayload.current_organization_id,
+              is_global_owner: tokenPayload.is_global_owner,
+              exp: tokenPayload.exp,
+              isExpired: tokenPayload.exp && tokenPayload.exp < Date.now()
+            });
+          } catch (e) {
+            console.error('Failed to decode token:', e);
+          }
+        }
+        
+        if (token) {
+          console.log('Invoking edge function with:', {
+            organizationId: activeOrganizationId,
+            settingsKeys: Object.keys(dbSettings),
+            createIfMissing: true
+          });
+          
           const { data: fnData, error: fnError } = await supabase.functions.invoke('update-wage-settings', {
             body: {
               token,
@@ -219,62 +198,29 @@ const WageSettings: React.FC = () => {
             }
           });
           console.log('Edge function update response:', { fnData, fnError });
-          if (!fnError && (fnData as any)?.success) {
+          console.log('Response data details:', JSON.stringify(fnData, null, 2));
+          console.log('Response error details:', JSON.stringify(fnError, null, 2));
+          
+          if (fnError) {
+            console.error('Edge function returned error:', fnError);
+            const errorDetail = (fnData as any)?.error || fnError.message || JSON.stringify(fnError);
+            throw new Error(`Edge function error: ${errorDetail}`);
+          }
+          if ((fnData as any)?.success) {
             console.log('Edge function update succeeded');
             return (fnData as any).data || null;
+          } else {
+            console.error('Edge function returned failure:', fnData);
+            throw new Error(`Edge function failed: ${(fnData as any)?.error || 'Unknown error'}`);
           }
         } else {
-          console.warn('No auth_token found for edge function call; falling back to direct update');
+          console.error('No auth_token found in localStorage');
+          throw new Error('No authentication token found. Please log in again.');
         }
       } catch (fnErr) {
-        console.error('Edge function update failed, will fallback to direct update', fnErr);
+        console.error('Edge function call exception:', fnErr);
+        throw fnErr;
       }
-      
-      const updateQuery: any = (supabase as any)
-        .from('wage_settings')
-        .update({ ...dbSettings, organization_id: activeOrganizationId })
-        .eq('id', wageSettings.id)
-        .eq('organization_id', activeOrganizationId)
-        .select();
-      
-      console.log('Executing direct update query...');
-      
-      // First, let's test if we can read the current wage settings
-      console.log('Testing read access to wage_settings...');
-      const { data: testRead, error: readError } = await supabase
-        .from('wage_settings')
-        .select('*')
-        .eq('id', wageSettings.id)
-        .eq('organization_id', activeOrganizationId);
-      
-      console.log('Read test result:', { testRead, readError });
-      
-      // Test RLS functions
-      console.log('Testing RLS functions...');
-      const { data: rlsTest, error: rlsError } = await supabase
-        .rpc('is_admin');
-      console.log('is_admin() result:', { rlsTest, rlsError });
-      
-      const { data: orgTest, error: orgError } = await supabase
-        .rpc('current_user_organization_id');
-      console.log('current_user_organization_id() result:', { orgTest, orgError });
-      
-      const { data, error } = await updateQuery.single();
-      
-      if (error) {
-        console.error('ERROR updating wage settings:', {
-          error,
-          errorMessage: error.message,
-          errorDetails: error.details,
-          errorHint: error.hint,
-          errorCode: error.code
-        });
-        throw error;
-      }
-      
-      console.log('Successfully updated wage settings:', data);
-      console.log('=== END WAGE SETTINGS UPDATE DEBUG ===');
-      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['wage-settings', activeOrganizationId] });
@@ -282,7 +228,8 @@ const WageSettings: React.FC = () => {
     },
     onError: (error: any) => {
       console.error('Update mutation failed:', error);
-      toast.error(t('errorUpdatingSettings') || `Error updating settings: ${error.message}`);
+      const errorMsg = error.message || JSON.stringify(error);
+      toast.error(`Error updating settings: ${errorMsg}`);
     }
   });
 
