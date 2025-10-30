@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,7 +12,6 @@ import TimesheetUpload from '@/components/TimesheetUpload';
 import TimesheetTable from '@/components/TimesheetTable';
 import TimesheetDateFilter from '@/components/TimesheetDateFilter';
 import TimesheetExport from '@/components/TimesheetExport';
-import AutoCalculateWages from '@/components/AutoCalculateWages';
 import TimesheetEditDialog from '@/components/TimesheetEditDialog';
 import { TimesheetRequestsManagement } from '@/components/TimesheetRequestsManagement';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +21,7 @@ import { useCompanyTimezone } from '@/hooks/useCompanyTimezone';
 import { toast } from 'sonner';
 import MobilePageWrapper, { MobileSection, MobileHeader } from '@/components/MobilePageWrapper';
 import { getCompanyTimezone } from '@/utils/timezoneUtils';
+import { isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-fns';
 interface DateRange {
   from: Date;
   to: Date;
@@ -37,13 +37,23 @@ const TimesheetsPage: React.FC = () => {
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
   
-  // Default to current pay period from settings
-  const [dateRange, setDateRange] = useState<DateRange>(() => calculatePayPeriod(0));
+  // Default to today's date range
+  const [dateRange, setDateRange] = useState<DateRange>(() => {
+    const today = new Date();
+    const startOfToday = new Date(today);
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date(today);
+    endOfToday.setHours(23, 59, 59, 999);
+    return {
+      from: startOfToday,
+      to: endOfToday
+    };
+  });
 
   // Recalculate date range when pay period settings change (mode/endDay)
   React.useEffect(() => {
-    const newRange = calculatePayPeriod(0);
-    setDateRange(newRange);
+    // We don't auto-update the date range when settings change anymore
+    // as we want to keep the "Today" filter as default
   }, [mode, endDay]);
 
   // Load wage settings for accurate split calculations
@@ -210,6 +220,52 @@ const TimesheetsPage: React.FC = () => {
     staleTime: 30 * 1000, // 30 seconds
   });
 
+  // Filter timesheets data to match the same filtering logic as TimesheetTable
+  const filteredTimesheets = useMemo(() => {
+    if (!timesheets || timesheets.length === 0) return [];
+    
+    return timesheets.filter(entry => {
+      try {
+        // Employee filter - enhanced to work with both employee_id and employee_name
+        if (selectedEmployee && selectedEmployee !== 'all') {
+          const entryEmployeeId = entry.employee_id;
+          const entryEmployeeName = entry.employee_name;
+          
+          // Check both employee_id and employee_name for match
+          const matchesEmployeeId = entryEmployeeId === selectedEmployee;
+          const matchesEmployeeName = entryEmployeeName === selectedEmployee;
+          
+          if (!matchesEmployeeId && !matchesEmployeeName) {
+            return false;
+          }
+        }
+        
+        // Date range filter with proper inclusive boundaries
+        if (dateRange && dateRange.from && dateRange.to) {
+          try {
+            const entryDate = parseISO(entry.clock_in_date);
+            const fromDate = startOfDay(dateRange.from);
+            const toDate = endOfDay(dateRange.to);
+            
+            const isWithinRange = isWithinInterval(entryDate, { start: fromDate, end: toDate });
+            
+            if (!isWithinRange) {
+              return false;
+            }
+          } catch (dateError) {
+            console.warn('Date parsing error for entry:', entry.id, dateError);
+            return false;
+          }
+        }
+
+        return true;
+      } catch (error) {
+        console.warn('Error filtering entry:', entry.id, error);
+        return false;
+      }
+    });
+  }, [timesheets, selectedEmployee, dateRange]);
+
   const handleEmployeeChange = useCallback((value: string) => {
     setSelectedEmployee(value);
     setSelectedRows([]); // Clear selected rows when changing employee filter
@@ -222,10 +278,18 @@ const TimesheetsPage: React.FC = () => {
 
   const clearAllFilters = useCallback(() => {
     setSelectedEmployee('all');
-    setDateRange(calculatePayPeriod(0));
+    const today = new Date();
+    const startOfToday = new Date(today);
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date(today);
+    endOfToday.setHours(23, 59, 59, 999);
+    setDateRange({
+      from: startOfToday,
+      to: endOfToday
+    });
     setSelectedRows([]);
     toast.success('All filters cleared');
-  }, [calculatePayPeriod]);
+  }, []);
 
   const handleRefresh = useCallback(() => {
     refetch();
@@ -233,7 +297,7 @@ const TimesheetsPage: React.FC = () => {
   }, [refetch]);
 
   // Calculate filter stats
-  const totalEntries = timesheets?.length || 0;
+  const totalEntries = filteredTimesheets?.length || 0;
   const selectedEmployeeName = selectedEmployee === 'all' ? 'All Employees' : 
     employees?.find(emp => emp.id === selectedEmployee)?.full_name || 'Unknown Employee';
 
@@ -263,7 +327,6 @@ const TimesheetsPage: React.FC = () => {
         subtitle={`${totalEntries} total entries`}
          actions={
            <div className="flex items-center gap-1 sm:gap-2">
-             <AutoCalculateWages />
              <Button onClick={handleRefresh} size="sm" variant="outline" className="h-7 sm:h-9">
                <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
              </Button>
@@ -375,7 +438,7 @@ const TimesheetsPage: React.FC = () => {
       </MobileSection>
 
       {/* Summary Section - Morning vs Night Hours Analysis */}
-      {timesheets && timesheets.length > 0 && (
+      {filteredTimesheets && filteredTimesheets.length > 0 && (
         <Card className="mb-4 sm:mb-6">
           <CardHeader className="pb-3">
             <CardTitle className="text-base sm:text-lg">Timesheet Summary</CardTitle>
@@ -383,8 +446,8 @@ const TimesheetsPage: React.FC = () => {
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
               {(() => {
-                // Calculate totals
-                const totalHours = timesheets.reduce((sum, entry) => sum + (entry.total_hours || 0), 0);
+                // Calculate totals using filtered data
+                const totalHours = filteredTimesheets.reduce((sum, entry) => sum + (entry.total_hours || 0), 0);
                 // Helpers using minute math like MyTimesheet
                 const timeToMinutes = (timeStr: string): number => {
                   const clean = (timeStr || '00:00:00').split('.')[0];
@@ -398,7 +461,7 @@ const TimesheetsPage: React.FC = () => {
                 };
                 
                 // Simple calculation: 6 AM - 5 PM = morning, 5 PM - 6 AM = night
-                const totalMorningHours = timesheets.reduce((sum, entry) => {
+                const totalMorningHours = filteredTimesheets.reduce((sum, entry) => {
                   if (entry.morning_hours && entry.morning_hours > 0) {
                     return sum + entry.morning_hours;
                   }
@@ -416,7 +479,7 @@ const TimesheetsPage: React.FC = () => {
                   return sum;
                 }, 0);
 
-                const totalNightHours = timesheets.reduce((sum, entry) => {
+                const totalNightHours = filteredTimesheets.reduce((sum, entry) => {
                   if (entry.night_hours && entry.night_hours > 0) {
                     return sum + entry.night_hours;
                   }
@@ -439,7 +502,7 @@ const TimesheetsPage: React.FC = () => {
                 // Calculate percentages
                 const morningPercentage = totalHours > 0 ? (totalMorningHours / totalHours) * 100 : 0;
                 const nightPercentage = totalHours > 0 ? (totalNightHours / totalHours) * 100 : 0;
-                const totalEntries = timesheets.length;
+                const totalEntries = filteredTimesheets.length;
                 
                 return (
                   <>
@@ -493,8 +556,8 @@ const TimesheetsPage: React.FC = () => {
               <div className="text-xs text-muted-foreground mb-2">Hours Distribution</div>
               <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
                 {(() => {
-                  // Recalculate morning hours for visual bar
-                  const calculatedMorningHours = timesheets.reduce((sum, entry) => {
+                  // Recalculate morning hours for visual bar using filtered data
+                  const calculatedMorningHours = filteredTimesheets.reduce((sum, entry) => {
                     if (entry.morning_hours && entry.morning_hours > 0) {
                       return sum + entry.morning_hours;
                     }
@@ -524,8 +587,8 @@ const TimesheetsPage: React.FC = () => {
                     return sum;
                   }, 0);
 
-                  // Recalculate night hours for visual bar
-                  const calculatedNightHours = timesheets.reduce((sum, entry) => {
+                  // Recalculate night hours for visual bar using filtered data
+                  const calculatedNightHours = filteredTimesheets.reduce((sum, entry) => {
                     if (entry.night_hours && entry.night_hours > 0) {
                       return sum + entry.night_hours;
                     }
@@ -556,7 +619,7 @@ const TimesheetsPage: React.FC = () => {
                     return sum;
                   }, 0);
                   
-                  const calculatedTotalHours = timesheets.reduce((sum, entry) => sum + (entry.total_hours || 0), 0);
+                  const calculatedTotalHours = filteredTimesheets.reduce((sum, entry) => sum + (entry.total_hours || 0), 0);
                   const barMorningPercentage = calculatedTotalHours > 0 ? (calculatedMorningHours / calculatedTotalHours) * 100 : 0;
                   const barNightPercentage = calculatedTotalHours > 0 ? (calculatedNightHours / calculatedTotalHours) * 100 : 0;
                   

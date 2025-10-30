@@ -5,7 +5,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CalendarIcon, Settings } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths, startOfDay, endOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -75,6 +75,12 @@ const TimesheetDateFilter: React.FC<TimesheetDateFilterProps> = ({
     } else if (value === 'current') {
       const currentPeriod = calculatePayPeriod(new Date(), payPeriodEndDay, 0);
       onDateRangeChange(currentPeriod);
+    } else if (value === 'today') {
+      const today = new Date();
+      onDateRangeChange({
+        from: startOfDay(today),
+        to: endOfDay(today)
+      });
     }
   };
 
@@ -97,6 +103,16 @@ const TimesheetDateFilter: React.FC<TimesheetDateFilterProps> = ({
     const isPrevious = dateRange.from.getTime() === previousPeriod.from.getTime() && 
                       dateRange.to.getTime() === previousPeriod.to.getTime();
     
+    // Check if today is selected
+    const today = new Date();
+    const isToday = dateRange.from.getDate() === today.getDate() &&
+                   dateRange.from.getMonth() === today.getMonth() &&
+                   dateRange.from.getFullYear() === today.getFullYear() &&
+                   dateRange.to.getDate() === today.getDate() &&
+                   dateRange.to.getMonth() === today.getMonth() &&
+                   dateRange.to.getFullYear() === today.getFullYear();
+    
+    if (isToday) return 'today';
     if (isCurrent) return 'current';
     if (isPrevious) return 'previous';
     return 'custom';
@@ -120,6 +136,7 @@ const TimesheetDateFilter: React.FC<TimesheetDateFilterProps> = ({
             <SelectValue placeholder="Select period" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="today">Today</SelectItem>
             <SelectItem value="current">Current Period</SelectItem>
             <SelectItem value="previous">Previous Period</SelectItem>
             <SelectItem value="custom">Custom Range</SelectItem>

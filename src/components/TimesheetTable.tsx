@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -63,7 +64,7 @@ interface TimesheetTableProps {
   employees?: Array<{ id: string; full_name?: string; morning_wage_rate?: number; night_wage_rate?: number }>; 
 }
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 10; // Changed from 20 to 10 for better pagination
 
 const TimesheetTable: React.FC<TimesheetTableProps> = ({ 
   data, 
@@ -173,10 +174,15 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
     deleteMutation
   } = useTimesheetTable(processedData, selectedRows, onSelectionChange, onDataChange, dateRange, selectedEmployee);
 
+  const [itemsPerPage, setItemsPerPage] = useState<number>(() => {
+    const stored = localStorage.getItem('timesheetItemsPerPage');
+    return stored ? parseInt(stored, 10) : 10;
+  });
+
   // Pagination logic
-  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedData = filteredData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedData = filteredData.slice(startIndex, startIndex + itemsPerPage);
 
   // Reset to first page when data changes
   React.useEffect(() => {
@@ -185,6 +191,12 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
+  };
+
+  const handleItemsPerPageChange = (value: number) => {
+    setItemsPerPage(value);
+    setCurrentPage(1); // Reset to first page when changing items per page
+    localStorage.setItem('timesheetItemsPerPage', value.toString());
   };
 
   const handleSelectAllPage = (checked: boolean) => {
@@ -630,58 +642,75 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
         </>
       )}
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
+      {/* Pagination - Always show pagination for consistency */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t mt-4">
+        <div className="flex items-center gap-2">
           <div className="text-sm text-gray-500">
-            {t('showing') || 'Showing'} {startIndex + 1} to {Math.min(startIndex + ITEMS_PER_PAGE, filteredData.length)} of {filteredData.length} {t('entries') || 'entries'}
+            {t('showing') || 'Showing'} {filteredData.length > 0 ? startIndex + 1 : 0} to {Math.min(startIndex + itemsPerPage, filteredData.length)} of {filteredData.length} {t('entries') || 'entries'}
             {selectedRows.length > 0 && ` (${selectedRows.length} ${t('selected') || 'selected'})`}
           </div>
           
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious 
-                  onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-                  className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer hover:bg-gray-100'}
-                />
-              </PaginationItem>
-              
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNumber;
-                if (totalPages <= 5) {
-                  pageNumber = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNumber = i + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  pageNumber = totalPages - 4 + i;
-                } else {
-                  pageNumber = currentPage - 2 + i;
-                }
-                
-                return (
-                  <PaginationItem key={pageNumber}>
-                    <PaginationLink
-                      onClick={() => handlePageChange(pageNumber)}
-                      isActive={currentPage === pageNumber}
-                      className="cursor-pointer"
-                    >
-                      {pageNumber}
-                    </PaginationLink>
-                  </PaginationItem>
-                );
-              })}
-              
-              <PaginationItem>
-                <PaginationNext 
-                  onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
-                  className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer hover:bg-gray-100'}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
+          <div className="flex items-center gap-2 ml-4">
+            <span className="text-sm text-gray-500">Show</span>
+            <Select value={itemsPerPage.toString()} onValueChange={(value) => handleItemsPerPageChange(parseInt(value, 10))}>
+              <SelectTrigger className="w-[70px] h-8">
+                <SelectValue placeholder="10" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5</SelectItem>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="text-sm text-gray-500">per page</span>
+          </div>
         </div>
-      )}
+        
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious 
+                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer hover:bg-gray-100'}
+              />
+            </PaginationItem>
+            
+            {Array.from({ length: Math.min(5, Math.max(1, totalPages)) }, (_, i) => {
+              let pageNumber;
+              if (totalPages <= 5) {
+                pageNumber = i + 1;
+              } else if (currentPage <= 3) {
+                pageNumber = i + 1;
+              } else if (currentPage >= totalPages - 2) {
+                pageNumber = totalPages - 4 + i;
+              } else {
+                pageNumber = currentPage - 2 + i;
+              }
+              
+              return (
+                <PaginationItem key={pageNumber}>
+                  <PaginationLink
+                    onClick={() => handlePageChange(pageNumber)}
+                    isActive={currentPage === pageNumber}
+                    className="cursor-pointer"
+                  >
+                    {pageNumber}
+                  </PaginationLink>
+                </PaginationItem>
+              );
+            })}
+            
+            <PaginationItem>
+              <PaginationNext 
+                onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                className={currentPage === totalPages || totalPages === 0 ? 'pointer-events-none opacity-50' : 'cursor-pointer hover:bg-gray-100'}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      </div>
 
       <TimesheetEditDialog
         entry={editingEntry}
