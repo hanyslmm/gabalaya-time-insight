@@ -7,7 +7,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
-import { Clock, LogIn, LogOut, MapPin, AlertCircle, RefreshCw, Users, Eye, EyeOff, Coffee, Target, Zap, Calendar, Timer } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Clock, LogIn, LogOut, MapPin, AlertCircle, RefreshCw, Users, Eye, EyeOff, Coffee, Target, Zap, Calendar, Timer, UserPlus, Shield } from 'lucide-react';
 import { format, differenceInMinutes, startOfDay, addHours } from 'date-fns';
 import { toast } from 'sonner';
 import ProfileAvatar from '@/components/ProfileAvatar';
@@ -54,6 +55,12 @@ const ClockInOutPage: React.FC = () => {
   const [timezoneAbbr, setTimezoneAbbr] = useState('Local');
   const [initializationError, setInitializationError] = useState<string | null>(null);
   const [companyTimezone, setCompanyTimezone] = useState<string>('Africa/Cairo');
+  
+  // Manual clock-in state for admin/owner
+  const [employees, setEmployees] = useState<Array<{id: string, full_name: string, staff_id: string}>>([]);
+  const [selectedEmployee, setSelectedEmployee] = useState<string>('');
+  const [manualClockInLoading, setManualClockInLoading] = useState(false);
+  const [employeeSearchTerm, setEmployeeSearchTerm] = useState('');
 
   // Simplified loading timeout - just one timeout to prevent infinite loading
   useEffect(() => {
@@ -566,6 +573,99 @@ const ClockInOutPage: React.FC = () => {
     }
   };
 
+  // Fetch employees for manual clock-in (admin/owner only)
+  const fetchEmployees = useCallback(async () => {
+    if (!user || !['admin', 'owner'].includes(user.role)) return;
+
+    try {
+      const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
+      
+      let employeesQuery = supabase
+        .from('employees')
+        .select('id, staff_id, full_name')
+        .order('full_name');
+      
+      if (activeOrganizationId) {
+        employeesQuery = employeesQuery.eq('organization_id', activeOrganizationId);
+      }
+      
+      const { data: employeesData, error } = await employeesQuery;
+      
+      if (error) {
+        console.warn('Could not fetch employees for manual clock-in:', error);
+        return;
+      }
+      
+      setEmployees(employeesData || []);
+    } catch (error) {
+      console.warn('Error fetching employees:', error);
+    }
+  }, [user]);
+
+  // Manual clock-in function for admin/owner
+  const handleManualClockIn = async () => {
+    if (!user || !['admin', 'owner'].includes(user.role)) {
+      toast.error('Unauthorized: Only admin and owner can manually clock in employees');
+      return;
+    }
+
+    if (!selectedEmployee) {
+      toast.error('Please select an employee to clock in');
+      return;
+    }
+
+    const employee = employees.find(emp => emp.id === selectedEmployee);
+    if (!employee) {
+      toast.error('Selected employee not found');
+      return;
+    }
+
+    setManualClockInLoading(true);
+    try {
+      // Check if employee is already clocked in
+      const today = await getTodayInCompanyTimezone();
+      const { data: existingEntry } = await supabase
+        .from('timesheet_entries')
+        .select('*')
+        .or(`employee_name.eq.${employee.staff_id},employee_name.eq.${employee.full_name}`)
+        .is('clock_out_time', null)
+        .single();
+
+      if (existingEntry) {
+        toast.info(`${employee.full_name} is already clocked in`);
+        return;
+      }
+
+      // Manual clock-in without location requirement
+      const { data, error } = await supabase.rpc('clock_in', {
+        p_staff_id: employee.staff_id,
+        p_clock_in_location: 'Manual Clock-In by Admin', // No location required
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+      
+      // Refresh data
+      await fetchTodayEntries();
+      await fetchTeamStatus();
+      
+      toast.success(`✅ Successfully clocked in ${employee.full_name}`);
+      setSelectedEmployee(''); // Reset selection
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to manually clock in employee');
+    } finally {
+      setManualClockInLoading(false);
+    }
+  };
+
+  // Fetch employees when component mounts (for admin/owner)
+  useEffect(() => {
+    if (user && ['admin', 'owner'].includes(user.role)) {
+      fetchEmployees();
+    }
+  }, [user, fetchEmployees]);
+
   const handleClockOut = async () => {
     if (!currentEntry) {
       toast.error('No active clock-in found');
@@ -964,6 +1064,107 @@ const ClockInOutPage: React.FC = () => {
             </CardContent>
           )}
         </Card>
+
+        {/* Manual Clock-In Section - Admin/Owner Only */}
+        {user && ['admin', 'owner'].includes(user.role) && (
+          <Card className="shadow-xl border-border/20 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 rounded-3xl overflow-hidden animate-scale-in">
+            <CardHeader className="px-6 py-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-orange-500/20 to-amber-500/20 rounded-xl flex items-center justify-center">
+                  <Shield className="h-5 w-5 text-orange-600" />
+                </div>
+                <div>
+                   <CardTitle className="text-lg font-bold text-orange-800 dark:text-orange-200">
+                     Manual Employee Clock-In
+                   </CardTitle>
+                   <p className="text-sm text-orange-600 dark:text-orange-300">
+                     Start employee shifts manually
+                   </p>
+                 </div>
+              </div>
+            </CardHeader>
+            
+            <CardContent className="px-6 pb-6">
+              <div className="space-y-4">
+                <div className="bg-gradient-to-r from-orange-100/50 to-amber-100/50 dark:from-orange-900/20 dark:to-amber-900/20 rounded-2xl p-4 border border-orange-200/50 dark:border-orange-800/50">
+                  <div className="flex items-center space-x-2 mb-3">
+                     <UserPlus className="h-4 w-4 text-orange-600" />
+                     <span className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                       Select Employee
+                     </span>
+                   </div>
+                  
+                  <div className="space-y-3">
+                     <Select 
+                        value={selectedEmployee} 
+                        onValueChange={(value) => {
+                          setSelectedEmployee(value);
+                          setEmployeeSearchTerm(''); // Clear search when employee is selected
+                        }}
+                      >
+                        <SelectTrigger className="w-full bg-white/80 dark:bg-gray-800/80 border-orange-200 dark:border-orange-800">
+                          <SelectValue placeholder="Search and select employee..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <div className="p-2 border-b">
+                            <input
+                              type="text"
+                              placeholder="Search employees..."
+                              value={employeeSearchTerm}
+                              onChange={(e) => setEmployeeSearchTerm(e.target.value)}
+                              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                            />
+                          </div>
+                          {employees
+                            .filter((employee) => 
+                              employee.full_name.toLowerCase().includes(employeeSearchTerm.toLowerCase()) ||
+                              employee.staff_id.toLowerCase().includes(employeeSearchTerm.toLowerCase())
+                            )
+                            .map((employee) => (
+                              <SelectItem key={employee.id} value={employee.id}>
+                                <div className="flex items-center space-x-2">
+                                  <ProfileAvatar employeeName={employee.full_name} size="sm" />
+                                  <span>{employee.full_name}</span>
+                                  <Badge variant="outline" className="text-xs">
+                                    {employee.staff_id}
+                                  </Badge>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          {employees.filter((employee) => 
+                            employee.full_name.toLowerCase().includes(employeeSearchTerm.toLowerCase()) ||
+                            employee.staff_id.toLowerCase().includes(employeeSearchTerm.toLowerCase())
+                          ).length === 0 && employeeSearchTerm && (
+                            <div className="p-3 text-center text-sm text-gray-500">
+                              No employees found matching "{employeeSearchTerm}"
+                            </div>
+                          )}
+                        </SelectContent>
+                      </Select>
+                     
+                     <Button
+                       onClick={handleManualClockIn}
+                       disabled={!selectedEmployee || manualClockInLoading}
+                       className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                     >
+                       {manualClockInLoading ? (
+                         <>
+                           <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                           Clocking In...
+                         </>
+                       ) : (
+                         <>
+                           <UserPlus className="mr-2 h-4 w-4" />
+                           Start Employee Shift
+                         </>
+                       )}
+                     </Button>
+                   </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Enhanced Today's Activity */}
         <Card className="shadow-xl border-border/20 bg-gradient-to-br from-card to-card/90 rounded-3xl overflow-hidden animate-scale-in">

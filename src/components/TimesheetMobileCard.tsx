@@ -106,7 +106,9 @@ const TimesheetMobileCard: React.FC<TimesheetMobileCardProps> = ({
               <Clock className="h-3 w-3 text-success flex-shrink-0" />
               <div className="min-w-0 flex-1">
                 <p className="text-xs text-success font-medium">Total Hours</p>
-                <p className="text-sm font-bold text-success line-clamp-1">{entry.total_hours.toFixed(2)}</p>
+                <p className="text-sm font-bold text-success line-clamp-1">
+                  {((entry as any).virtual_total_hours !== undefined ? (entry as any).virtual_total_hours : entry.total_hours).toFixed(2)}
+                </p>
               </div>
             </div>
             

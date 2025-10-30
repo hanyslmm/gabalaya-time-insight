@@ -254,6 +254,30 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
   };
 
   const computeDisplay = (entry: TimesheetEntry) => {
+    // Check for virtual hours first (for active employees)
+    const hasVirtualHours = (entry as any).virtual_morning_hours !== undefined || (entry as any).virtual_night_hours !== undefined;
+    
+    if (hasVirtualHours) {
+      // Use virtual hours for active employees
+      const morning = (entry as any).virtual_morning_hours ?? 0;
+      const night = (entry as any).virtual_night_hours ?? 0;
+      const rates = getEmployeeRates((entry as any).employee_id as string | undefined);
+      const actualHours = (entry as any).virtual_total_hours ?? entry.total_hours ?? 0;
+      
+      const computedSplitAmount = morning * rates.morning + night * rates.night;
+      const computedFlatAmount = actualHours * rates.flat;
+      const isSplit = (morning + night > 0) && computedSplitAmount > 0;
+      const amount = isSplit ? computedSplitAmount : computedFlatAmount;
+      
+      return {
+        morningHours: morning,
+        nightHours: night,
+        amount,
+        isSplit,
+      };
+    }
+    
+    // Original logic for completed entries
     // If DB already has values, use them; otherwise compute
     let inMins = timeToMinutes(entry.clock_in_time);
     let outMins = timeToMinutes(entry.clock_out_time);
@@ -564,7 +588,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
                           </TableCell>
                           <TableCell>
                             <span className="font-mono font-bold text-primary">
-                              {formatTotalHours(entry.total_hours)}h
+                              {formatTotalHours((entry as any).virtual_total_hours !== undefined ? (entry as any).virtual_total_hours : entry.total_hours)}h
                             </span>
                           </TableCell>
                           {visibleColumns.morning_hours && (

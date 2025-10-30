@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import MobilePageWrapper, { MobileSection, MobileHeader } from '@/components/MobilePageWrapper';
 import { getCompanyTimezone } from '@/utils/timezoneUtils';
 import { isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-fns';
+import { processTimesheetsWithVirtualHours, isActiveEmployee } from '@/utils/virtualClockoutCalculations';
 interface DateRange {
   from: Date;
   to: Date;
@@ -62,7 +63,7 @@ const TimesheetsPage: React.FC = () => {
     queryFn: async () => {
       const { data } = await supabase
         .from('wage_settings')
-        .select('morning_start_time, morning_end_time, night_start_time, night_end_time')
+        .select('morning_start_time, morning_end_time, night_start_time, night_end_time, morning_wage_rate, night_wage_rate')
         .limit(1)
         .maybeSingle();
       return data;
@@ -266,6 +267,41 @@ const TimesheetsPage: React.FC = () => {
     });
   }, [timesheets, selectedEmployee, dateRange]);
 
+  // Process filtered timesheets with virtual hours for active employees (admin/owner only)
+  const [processedTimesheets, setProcessedTimesheets] = useState([]);
+  
+  useEffect(() => {
+    const processVirtualHours = async () => {
+      if (!filteredTimesheets || filteredTimesheets.length === 0) {
+        setProcessedTimesheets([]);
+        return;
+      }
+
+      // Only calculate virtual hours for admin/owner users
+      const isAdminOrOwner = user?.role === 'admin' || user?.role === 'owner';
+      
+      if (!isAdminOrOwner || !combinedWageSettings || !combinedWageSettings.morning_wage_rate) {
+        setProcessedTimesheets(filteredTimesheets);
+        return;
+      }
+
+      try {
+        const timezone = await getCompanyTimezone();
+        const processedEntries = await processTimesheetsWithVirtualHours(
+          filteredTimesheets,
+          combinedWageSettings as any, // Type assertion for compatibility
+          timezone
+        );
+        setProcessedTimesheets(processedEntries);
+      } catch (error) {
+        console.error('Error processing virtual hours:', error);
+        setProcessedTimesheets(filteredTimesheets);
+      }
+    };
+
+    processVirtualHours();
+  }, [filteredTimesheets, combinedWageSettings, user?.role]);
+
   const handleEmployeeChange = useCallback((value: string) => {
     setSelectedEmployee(value);
     setSelectedRows([]); // Clear selected rows when changing employee filter
@@ -446,8 +482,12 @@ const TimesheetsPage: React.FC = () => {
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
               {(() => {
-                // Calculate totals using filtered data
-                const totalHours = filteredTimesheets.reduce((sum, entry) => sum + (entry.total_hours || 0), 0);
+                // Calculate totals using processed data (includes virtual hours for active employees)
+                const totalHours = processedTimesheets.reduce((sum, entry) => {
+                  // Use virtual hours if available (for active employees), otherwise use actual hours
+                  const hours = entry.virtual_total_hours !== undefined ? entry.virtual_total_hours : (entry.total_hours || 0);
+                  return sum + hours;
+                }, 0);
                 // Helpers using minute math like MyTimesheet
                 const timeToMinutes = (timeStr: string): number => {
                   const clean = (timeStr || '00:00:00').split('.')[0];
@@ -461,7 +501,11 @@ const TimesheetsPage: React.FC = () => {
                 };
                 
                 // Simple calculation: 6 AM - 5 PM = morning, 5 PM - 6 AM = night
-                const totalMorningHours = filteredTimesheets.reduce((sum, entry) => {
+                const totalMorningHours = processedTimesheets.reduce((sum, entry) => {
+                  // Use virtual morning hours if available (for active employees)
+                  if (entry.virtual_morning_hours !== undefined) {
+                    return sum + entry.virtual_morning_hours;
+                  }
                   if (entry.morning_hours && entry.morning_hours > 0) {
                     return sum + entry.morning_hours;
                   }
@@ -479,7 +523,11 @@ const TimesheetsPage: React.FC = () => {
                   return sum;
                 }, 0);
 
-                const totalNightHours = filteredTimesheets.reduce((sum, entry) => {
+                const totalNightHours = processedTimesheets.reduce((sum, entry) => {
+                  // Use virtual night hours if available (for active employees)
+                  if (entry.virtual_night_hours !== undefined) {
+                    return sum + entry.virtual_night_hours;
+                  }
                   if (entry.night_hours && entry.night_hours > 0) {
                     return sum + entry.night_hours;
                   }
@@ -502,7 +550,7 @@ const TimesheetsPage: React.FC = () => {
                 // Calculate percentages
                 const morningPercentage = totalHours > 0 ? (totalMorningHours / totalHours) * 100 : 0;
                 const nightPercentage = totalHours > 0 ? (totalNightHours / totalHours) * 100 : 0;
-                const totalEntries = filteredTimesheets.length;
+                const totalEntries = processedTimesheets.length;
                 
                 return (
                   <>
@@ -556,8 +604,12 @@ const TimesheetsPage: React.FC = () => {
               <div className="text-xs text-muted-foreground mb-2">Hours Distribution</div>
               <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
                 {(() => {
-                  // Recalculate morning hours for visual bar using filtered data
-                  const calculatedMorningHours = filteredTimesheets.reduce((sum, entry) => {
+                  // Recalculate morning hours for visual bar using processed data (includes virtual hours)
+                  const calculatedMorningHours = processedTimesheets.reduce((sum, entry) => {
+                    // Use virtual morning hours if available (for active employees)
+                    if (entry.virtual_morning_hours !== undefined) {
+                      return sum + entry.virtual_morning_hours;
+                    }
                     if (entry.morning_hours && entry.morning_hours > 0) {
                       return sum + entry.morning_hours;
                     }
@@ -587,8 +639,12 @@ const TimesheetsPage: React.FC = () => {
                     return sum;
                   }, 0);
 
-                  // Recalculate night hours for visual bar using filtered data
-                  const calculatedNightHours = filteredTimesheets.reduce((sum, entry) => {
+                  // Recalculate night hours for visual bar using processed data (includes virtual hours)
+                  const calculatedNightHours = processedTimesheets.reduce((sum, entry) => {
+                    // Use virtual night hours if available (for active employees)
+                    if (entry.virtual_night_hours !== undefined) {
+                      return sum + entry.virtual_night_hours;
+                    }
                     if (entry.night_hours && entry.night_hours > 0) {
                       return sum + entry.night_hours;
                     }
@@ -619,7 +675,11 @@ const TimesheetsPage: React.FC = () => {
                     return sum;
                   }, 0);
                   
-                  const calculatedTotalHours = filteredTimesheets.reduce((sum, entry) => sum + (entry.total_hours || 0), 0);
+                  const calculatedTotalHours = processedTimesheets.reduce((sum, entry) => {
+                    // Use virtual total hours if available (for active employees), otherwise use actual hours
+                    const hours = entry.virtual_total_hours !== undefined ? entry.virtual_total_hours : (entry.total_hours || 0);
+                    return sum + hours;
+                  }, 0);
                   const barMorningPercentage = calculatedTotalHours > 0 ? (calculatedMorningHours / calculatedTotalHours) * 100 : 0;
                   const barNightPercentage = calculatedTotalHours > 0 ? (calculatedNightHours / calculatedTotalHours) * 100 : 0;
                   
@@ -679,7 +739,7 @@ const TimesheetsPage: React.FC = () => {
             </div>
           ) : (
             <TimesheetTable 
-              data={timesheets || []} 
+              data={processedTimesheets || []} 
               selectedRows={selectedRows}
               onSelectionChange={setSelectedRows}
               onDataChange={refetch}
