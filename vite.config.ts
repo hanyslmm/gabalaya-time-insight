@@ -94,6 +94,8 @@ export default defineConfig(({ mode }) => ({
           'chart-vendor': ['recharts'],
           'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
           'utils-vendor': ['date-fns', 'clsx', 'tailwind-merge'],
+          // Include timezone helpers alongside date-fns to avoid resolution issues in production builds
+          'tz-vendor': ['date-fns-tz'],
           'supabase-vendor': ['@supabase/supabase-js'],
         }
       }
