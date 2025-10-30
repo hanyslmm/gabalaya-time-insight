@@ -653,6 +653,63 @@ Sprint close protocol:
 
 ---
 
+## LESSONS LEARNED FROM RECENT SPRINTS
+
+### Sprint: Timesheet Enhancements & Filtering (v2.3.0)
+
+**Key Insights:**
+
+#### 1. **Missing Import Detection Pattern**
+- **Issue**: Blank page caused by missing `Select` component import
+- **Lesson**: Always verify imports when adding new UI components
+- **Prevention**: Add import verification to debugging checklist
+- **Pattern**: `Component used but not imported → Blank page/crash`
+
+#### 2. **Date Object Mutation Bugs**
+- **Issue**: Date range initialization mutating same object reference
+- **Lesson**: Always create separate Date objects for start/end ranges
+- **Pattern**: `const endDate = new Date(startDate)` instead of direct assignment
+- **Best Practice**: Use `date-fns` utilities for safe date operations
+
+#### 3. **Filtered Data Consistency**
+- **Issue**: Summary calculations using raw data while table used filtered data
+- **Lesson**: Ensure all related components use the same data source
+- **Pattern**: Create shared filtered data with `useMemo` and consistent filtering logic
+- **Validation**: Always verify data consistency across related UI sections
+
+#### 4. **Incremental Feature Development**
+- **Success**: Pagination enhancement delivered in small, testable steps
+- **Pattern**: Basic → Enhanced → Configurable → Persistent
+- **Lesson**: Each increment should be fully functional before adding complexity
+
+#### 5. **User Experience Continuity**
+- **Success**: Default "Today" filter improved immediate user value
+- **Lesson**: Consider user workflow and set sensible defaults
+- **Pattern**: Most common use case should require zero configuration
+
+**Updated Debugging Checklist:**
+```
+□ Check browser console for errors
+□ Verify all imports are present
+□ Check for React Hook Rules violations
+□ Validate date object mutations
+□ Ensure data consistency across components
+□ Test with realistic data volumes
+□ Verify mobile responsiveness
+```
+
+**Updated Component Development Pattern:**
+```
+1. Plan data flow and dependencies
+2. Verify all imports before implementation
+3. Create shared data sources (useMemo/custom hooks)
+4. Implement with incremental complexity
+5. Test each increment thoroughly
+6. Validate cross-component consistency
+```
+
+---
+
 **Last Updated**: January 2025  
-**Project**: Arabic Hall Booking System  
+**Project**: Gabalaya Time Insight System  
 **Developed through**: Systematic debugging and incremental development methodology
