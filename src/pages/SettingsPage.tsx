@@ -34,7 +34,7 @@ const SettingsPage: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <h4 className="font-medium">Version</h4>
-                <p className="text-sm text-gray-600">2.2.0</p>
+                <p className="text-sm text-gray-600">2.3.0</p>
               </div>
             </div>
           </CardContent>
