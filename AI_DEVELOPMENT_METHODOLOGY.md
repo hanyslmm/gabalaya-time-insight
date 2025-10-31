@@ -710,6 +710,76 @@ Sprint close protocol:
 
 ---
 
-**Last Updated**: January 2025  
+## SPRINT STRATEGY FOR FUTURE UPDATES
+
+### VERSION MANAGEMENT APPROACH
+
+**Version Numbering Convention:**
+- **Major (X.0.0)**: Breaking changes, major feature additions
+- **Minor (X.Y.0)**: New features, enhancements, significant improvements
+- **Patch (X.Y.Z)**: Bug fixes, small improvements, timezone fixes
+
+**Sprint Planning Framework:**
+
+### 1. ISSUE IDENTIFICATION & PRIORITIZATION
+- **Critical Issues**: Timezone inconsistencies, calculation errors, data integrity
+- **Enhancement Requests**: UX improvements, new features, performance optimizations
+- **Technical Debt**: Code refactoring, documentation updates, test coverage
+
+### 2. SPRINT EXECUTION STRATEGY
+
+**Pre-Sprint Checklist:**
+- [ ] Identify all affected components and dependencies
+- [ ] Create comprehensive todo list with clear priorities
+- [ ] Verify current system state and baseline functionality
+- [ ] Plan incremental implementation steps
+- [ ] Prepare rollback strategy if needed
+
+**During Sprint:**
+- [ ] Follow incremental development approach
+- [ ] Test each change immediately after implementation
+- [ ] Update version numbers consistently across all components
+- [ ] Document changes and benefits for user communication
+- [ ] Maintain clear commit messages with technical details
+
+**Post-Sprint Validation:**
+- [ ] Verify all UI sections show consistent information
+- [ ] Test timezone calculations across different scenarios
+- [ ] Update Settings page with version and key benefits
+- [ ] Push changes to production with proper versioning
+- [ ] Update documentation and methodology as needed
+
+### 3. COMMUNICATION & DOCUMENTATION
+
+**Version Update Requirements:**
+1. **package.json**: Update version number
+2. **Layout.tsx**: Update sidebar version display
+3. **SettingsPage.tsx**: Update version and add key benefits
+4. **Commit Messages**: Include version, technical details, and impact
+5. **Documentation**: Update methodology with lessons learned
+
+**Key Benefits Documentation Format:**
+- Use bullet points with visual indicators (green dots)
+- Focus on user-facing improvements
+- Include technical accuracy improvements
+- Highlight consistency and reliability enhancements
+
+### 4. QUALITY ASSURANCE APPROACH
+
+**Testing Strategy:**
+- **Functional Testing**: Verify all features work as expected
+- **Cross-Component Testing**: Ensure consistency across UI sections
+- **Timezone Testing**: Validate calculations in different scenarios
+- **User Experience Testing**: Confirm improvements are visible to users
+
+**Rollback Preparedness:**
+- Maintain clear git history with descriptive commits
+- Test changes in development environment first
+- Have database backup strategy for data-related changes
+- Document any manual steps required for deployment
+
+---
+
+**Last Updated**: January 2025 - v2.5.1 Sprint  
 **Project**: Gabalaya Time Insight System  
 **Developed through**: Systematic debugging and incremental development methodology

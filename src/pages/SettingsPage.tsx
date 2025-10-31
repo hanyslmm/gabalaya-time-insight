@@ -34,7 +34,28 @@ const SettingsPage: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <h4 className="font-medium">Version</h4>
-                <p className="text-sm text-gray-600">2.4.0</p>
+                <p className="text-sm text-gray-600">2.5.1</p>
+              </div>
+              <div>
+                <h4 className="font-medium">Recent Updates</h4>
+                <div className="text-sm text-gray-600 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                    <span>Fixed timezone inconsistency in working duration calculations</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                    <span>Added real-time virtual hours for active employees</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                    <span>Consistent working time display across all UI sections</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                    <span>Enhanced hour calculation accuracy and reliability</span>
+                  </div>
+                </div>
               </div>
             </div>
           </CardContent>
