@@ -408,10 +408,11 @@ const ClockInOutPage: React.FC = () => {
         
         // Calculate worked hours if clocked in
         if (currentEntry) {
-          // Clock-in time in DB is stored as UTC, so parse it directly as UTC
-          const clockInDateTimeStr = `${currentEntry.clock_in_date}T${currentEntry.clock_in_time.split('.')[0]}Z`;
-          const clockInDateTime = new Date(clockInDateTimeStr);
-          const minutesWorked = differenceInMinutes(utcNow, clockInDateTime);
+          // DB stores Cairo local time, calculate duration directly (same as team activity)
+          const clockInTimeStr = currentEntry.clock_in_time.split('.')[0];
+          const clockInLocal = new Date(`${currentEntry.clock_in_date}T${clockInTimeStr}`);
+          const now = new Date();
+          const minutesWorked = differenceInMinutes(now, clockInLocal);
           setWorkedHours(Math.max(0, minutesWorked / 60)); // Ensure non-negative
         }
       } catch (error) {
