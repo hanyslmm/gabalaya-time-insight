@@ -223,10 +223,11 @@ const ReportsPage: React.FC = () => {
     }).map(entry => {
         let morningHours = entry.morning_hours || 0;
         let nightHours = entry.night_hours || 0;
+        // Use the original total_hours from database (same as MyTimesheetPage)
         let totalHours = entry.total_hours || 0;
 
-        // Simple calculation: 6 AM - 5 PM = morning, 5 PM - 6 AM = night
-        if (entry.clock_in_time && entry.clock_out_time) {
+        // Only recalculate morning/night split if not already stored, but preserve original total_hours
+        if (entry.clock_in_time && entry.clock_out_time && (morningHours === 0 && nightHours === 0)) {
           const clean = (t: string) => (t || '00:00:00').split('.')[0];
           const toMinutes = (t: string) => {
             const [h, m, s] = clean(t).split(':').map((v) => parseInt(v, 10) || 0);
@@ -254,7 +255,7 @@ const ReportsPage: React.FC = () => {
 
           morningHours = Math.max(0, parseFloat((morningMinutes / 60).toFixed(2)));
           nightHours = Math.max(0, parseFloat((nightMinutes / 60).toFixed(2)));
-          totalHours = morningHours + nightHours;
+          // DO NOT overwrite totalHours - keep the original database value
         } else if (morningHours === 0 && nightHours === 0 && totalHours > 0) {
           morningHours = totalHours;
         }
