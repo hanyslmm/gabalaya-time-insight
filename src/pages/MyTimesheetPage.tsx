@@ -10,6 +10,7 @@ import { Clock, DollarSign, Calendar, TrendingUp, Calculator, Edit, Trash2, Plus
 import MobilePageWrapper, { MobileSection, MobileCard, MobileHeader } from '@/components/MobilePageWrapper';
 import { getCompanyTimezone } from '@/utils/timezoneUtils';
 import { toast } from 'sonner';
+import { usePayPeriodSettings } from '@/hooks/usePayPeriodSettings';
 import { TimesheetChangeRequestDialog } from '@/components/TimesheetChangeRequestDialog';
 import { TimesheetRequestsList } from '@/components/TimesheetRequestsList';
 // Simple format function for hours display
@@ -20,8 +21,12 @@ const MyTimesheetPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [filterType, setFilterType] = useState<'month' | 'payPeriod'>('month');
+  // Default to pay period view and current period per organization settings
+  const [filterType, setFilterType] = useState<'month' | 'payPeriod'>('payPeriod');
   const [payPeriodType, setPayPeriodType] = useState<'current' | 'previous'>('current');
+
+  // Pay Period Settings (organization-scoped)
+  const { calculatePayPeriod, mode, endDay } = usePayPeriodSettings();
   
   // Change request dialog state
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
@@ -75,27 +80,15 @@ const MyTimesheetPage: React.FC = () => {
       return timeClean;
     }
   };
-  // Calculate pay period dates (assuming pay period ends on 28th of each month)
+  // Calculate pay period dates using organization configuration
   const getPayPeriodDates = (type: 'current' | 'previous') => {
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    
-    if (type === 'current') {
-      // Current pay period: previous month 29th to current month 28th
-      const startDate = new Date(currentYear, currentMonth - 1, 29);
-      const endDate = new Date(currentYear, currentMonth, 28);
-      return { startDate, endDate };
-    } else {
-      // Previous pay period: 2 months ago 29th to previous month 28th
-      const startDate = new Date(currentYear, currentMonth - 2, 29);
-      const endDate = new Date(currentYear, currentMonth - 1, 28);
-      return { startDate, endDate };
-    }
+    const offset = type === 'current' ? 0 : -1;
+    const range = calculatePayPeriod(offset);
+    return { startDate: range.from, endDate: range.to };
   };
 
     const { data: timesheetData, isLoading } = useQuery({
-    queryKey: ['my-timesheet', user?.username, selectedMonth, selectedYear, filterType, payPeriodType],
+    queryKey: ['my-timesheet', user?.username, selectedMonth, selectedYear, filterType, payPeriodType, mode, endDay],
     queryFn: async () => {
       if (!user?.username) return null;
       
