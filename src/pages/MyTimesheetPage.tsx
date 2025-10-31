@@ -227,7 +227,12 @@ const MyTimesheetPage: React.FC = () => {
     working_hours_end_time: workingHoursSettings.working_hours_end_time ?? '01:00:00'
   } : wageSettings;
 
-  const totalHours = timesheetData?.reduce((sum, entry) => sum + (entry.total_hours || 0), 0) || 0;
+  // Calculate total hours as sum of morning + night hours (consistent with wage calculations)
+  const totalHours = timesheetData?.reduce((sum, entry) => {
+    const morningHours = entry.morning_hours || 0;
+    const nightHours = entry.night_hours || 0;
+    return sum + morningHours + nightHours;
+  }, 0) || 0;
   
   // Helpers for split-hours calculation using minute math (timezone-agnostic)
   const timeToMinutes = (timeStr: string): number => {

@@ -294,7 +294,7 @@ const ReportsPage: React.FC = () => {
         return {
           ...entry,
           display_name: displayName,
-          total_hours: totalHours, // Use recalculated total hours
+          total_hours: morningHours + nightHours, // Use calculated total (morning + night) for consistency
           calculated_morning_hours: Math.max(0, morningHours),
           calculated_night_hours: Math.max(0, nightHours),
         total_card_amount_flat: Math.round(calculatedAmount),
