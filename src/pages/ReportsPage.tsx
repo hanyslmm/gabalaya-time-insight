@@ -103,7 +103,7 @@ const ReportsPage: React.FC = () => {
 
   // Query 3: Timesheet Data (with legacy support like TimesheetsPage)
   const { data: rawTimesheetData, isLoading: timesheetLoading, error: timesheetError } = useQuery({
-    queryKey: ['timesheet-final', dateRange, activeOrganizationId, employees?.length],
+    queryKey: ['timesheet-final', dateRange, activeOrganizationId, employees?.length, mode, endDay],
     queryFn: async (): Promise<any[]> => {
         const fromDate = format(dateRange.from, 'yyyy-MM-dd');
         const toDate = format(dateRange.to, 'yyyy-MM-dd');
