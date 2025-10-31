@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { usePayPeriodSettings } from '@/hooks/usePayPeriodSettings';
 import { TimesheetChangeRequestDialog } from '@/components/TimesheetChangeRequestDialog';
 import { TimesheetRequestsList } from '@/components/TimesheetRequestsList';
+import { processTimesheetsWithVirtualHours, isActiveEmployee } from '@/utils/virtualClockoutCalculations';
 // Simple format function for hours display
 const formatHours = (hours: number) => hours.toFixed(2);
 
@@ -155,7 +156,38 @@ const MyTimesheetPage: React.FC = () => {
       });
 
       if (error) throw error;
-      return data || [];
+      
+      // Process virtual hours for active employees
+      const rawData = data || [];
+      if (rawData.length === 0) return [];
+      
+      // Get wage settings for virtual hours calculation
+      const { data: wageSettingsData } = await supabase
+        .from('wage_settings')
+        .select('*')
+        .limit(1)
+        .maybeSingle();
+      
+      const { data: workingHoursData } = await supabase
+        .from('company_settings')
+        .select('working_hours_window_enabled, working_hours_start_time, working_hours_end_time')
+        .limit(1)
+        .maybeSingle();
+      
+      if (wageSettingsData) {
+        const wageSettings = {
+          ...wageSettingsData,
+          working_hours_window_enabled: workingHoursData?.working_hours_window_enabled ?? false,
+          working_hours_start_time: workingHoursData?.working_hours_start_time ?? '08:00:00',
+          working_hours_end_time: workingHoursData?.working_hours_end_time ?? '01:00:00'
+        };
+        
+        // Process with virtual hours for active employees
+        const processedData = await processTimesheetsWithVirtualHours(rawData, wageSettings, companyTimezone);
+        return processedData;
+      }
+      
+      return rawData;
     },
     enabled: !!user?.username
   });
@@ -229,8 +261,9 @@ const MyTimesheetPage: React.FC = () => {
 
   // Calculate total hours as sum of morning + night hours (consistent with wage calculations)
   const totalHours = timesheetData?.reduce((sum, entry) => {
-    const morningHours = entry.morning_hours || 0;
-    const nightHours = entry.night_hours || 0;
+    // Handle both regular and virtual entries
+    const morningHours = (entry as any).virtual_morning_hours || entry.morning_hours || 0;
+    const nightHours = (entry as any).virtual_night_hours || entry.night_hours || 0;
     return sum + morningHours + nightHours;
   }, 0) || 0;
   
@@ -313,17 +346,22 @@ const MyTimesheetPage: React.FC = () => {
   
   // Calculate earnings: use stored amounts if available, otherwise calculate from hours
   const totalEarnings = timesheetData?.reduce((sum, entry) => {
-    const storedAmount = entry.total_card_amount_split || entry.total_card_amount_flat;
+    const storedAmount = (entry as any).total_card_amount_split || (entry as any).total_card_amount_flat;
     if (storedAmount && storedAmount > 0) {
       return sum + storedAmount;
     }
     // Fallback: calculate from hours and wage rates if no stored amount
-    const morningEarnings = (entry.morning_hours || 0) * morningWageRate;
-    const nightEarnings = (entry.night_hours || 0) * nightWageRate;
-    const totalHourlyEarnings = (entry.total_hours || 0) * morningWageRate; // Default rate for unspecified hours
+    // Handle both regular and virtual entries
+    const morningHours = (entry as any).virtual_morning_hours || entry.morning_hours || 0;
+    const nightHours = (entry as any).virtual_night_hours || entry.night_hours || 0;
+    const totalHours = (entry as any).virtual_total_hours || entry.total_hours || 0;
+    
+    const morningEarnings = morningHours * morningWageRate;
+    const nightEarnings = nightHours * nightWageRate;
+    const totalHourlyEarnings = totalHours * morningWageRate; // Default rate for unspecified hours
     
     // Use split calculation if morning/night hours are specified, otherwise use total hours
-    const calculatedAmount = (entry.morning_hours > 0 || entry.night_hours > 0) 
+    const calculatedAmount = (morningHours > 0 || nightHours > 0) 
       ? morningEarnings + nightEarnings 
       : totalHourlyEarnings;
     
@@ -655,18 +693,20 @@ const MyTimesheetPage: React.FC = () => {
                     )}
                     <span className="text-xs font-medium text-green-600">
                       LE{(() => {
-                        const storedAmount = entry.total_card_amount_split || entry.total_card_amount_flat;
+                        const storedAmount = (entry as any).total_card_amount_split || (entry as any).total_card_amount_flat;
                         if (storedAmount && storedAmount > 0) {
                           return storedAmount.toFixed(2);
                         }
-                        // Fallback calculation
-                        const morningEarnings = (entry.morning_hours || 0) * morningWageRate;
-                        const nightEarnings = (entry.night_hours || 0) * nightWageRate;
-                        const totalHourlyEarnings = (entry.total_hours || 0) * morningWageRate;
+                        // Fallback calculation using virtual or regular hours
+                        const morningHours = (entry as any).virtual_morning_hours || entry.morning_hours || 0;
+                        const nightHours = (entry as any).virtual_night_hours || entry.night_hours || 0;
+                        const totalHours = (entry as any).virtual_total_hours || entry.total_hours || 0;
                         
-                        const calculatedAmount = (entry.morning_hours > 0 || entry.night_hours > 0) 
+                        const morningEarnings = morningHours * morningWageRate;
+                        const nightEarnings = nightHours * nightWageRate;
+                        const calculatedAmount = (morningHours > 0 || nightHours > 0) 
                           ? morningEarnings + nightEarnings 
-                          : totalHourlyEarnings;
+                          : totalHours * morningWageRate;
                         
                         return calculatedAmount.toFixed(2);
                       })()}

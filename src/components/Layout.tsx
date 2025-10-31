@@ -348,6 +348,16 @@ const Layout = () => {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          
+          {/* Version Display */}
+          <div className={cn(
+            "mt-4 pt-4 border-t border-border/50",
+            sidebarCollapsed && "lg:hidden"
+          )}>
+            <div className="text-xs text-muted-foreground text-center">
+              v2.5.0
+            </div>
+          </div>
         </div>
       </div>
 
