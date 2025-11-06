@@ -37,8 +37,8 @@ BEGIN
   ELSE
     -- Generate a new integer id since legacy schema uses id INTEGER PRIMARY KEY DEFAULT 1
     SELECT COALESCE(MAX(id) + 1, 1) INTO v_new_id FROM company_settings;
-    INSERT INTO company_settings (id, organization_id, pay_period_mode, pay_period_end_day, updated_at)
-    VALUES (v_new_id, p_organization_id, p_pay_period_mode, p_pay_period_end_day, NOW());
+    INSERT INTO company_settings (id, organization_id, pay_period_mode, pay_period_end_day, created_at, updated_at)
+    VALUES (v_new_id, p_organization_id, p_pay_period_mode, p_pay_period_end_day, NOW(), NOW());
   END IF;
 
   RETURN json_build_object('success', true);

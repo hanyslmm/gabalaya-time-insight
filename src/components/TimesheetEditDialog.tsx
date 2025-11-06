@@ -197,7 +197,15 @@ const TimesheetEditDialog: React.FC<TimesheetEditDialogProps> = ({
             employee_note: formData.employee_note,
           });
 
-        if (error) throw error;
+        if (error) {
+          // Friendly message for overlap constraint violation
+          if ((error as any).code === '23P01' || (error as any).message?.includes('timesheet_no_overlap_excl')) {
+            toast.error('Overlapping timesheet detected for this employee. Please adjust times to avoid overlap.');
+            setLoading(false);
+            return;
+          }
+          throw error;
+        }
         toast.success('Timesheet entry created successfully');
       } else {
         // Update existing entry
@@ -240,6 +248,11 @@ const TimesheetEditDialog: React.FC<TimesheetEditDialogProps> = ({
 
         if (error) {
           console.error('❌ Update failed:', error);
+          if ((error as any).code === '23P01' || (error as any).message?.includes('timesheet_no_overlap_excl')) {
+            toast.error('Overlapping timesheet detected for this employee. Please adjust times to avoid overlap.');
+            setLoading(false);
+            return;
+          }
           throw error;
         }
 

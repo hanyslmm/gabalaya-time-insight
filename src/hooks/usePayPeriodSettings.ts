@@ -37,7 +37,18 @@ export const usePayPeriodSettings = () => {
         endDay: d?.pay_period_end_day || 28
       } as PayPeriodSettings;
 
-      console.log('usePayPeriodSettings: Result:', result);
+      console.log('usePayPeriodSettings: Raw data from RPC:', data);
+      console.log('usePayPeriodSettings: Parsed result:', result);
+      
+      // Warn if using defaults (indicates missing database columns or settings)
+      if (!d?.pay_period_mode || !d?.pay_period_end_day) {
+        console.warn(
+          '⚠️ usePayPeriodSettings: Using default pay period settings. ' +
+          'This may indicate database migrations are not applied. ' +
+          'Check supabase/migrations for pay_period_settings migrations.'
+        );
+      }
+      
       return result;
     }
   });
