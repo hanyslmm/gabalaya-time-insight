@@ -349,7 +349,7 @@ const Layout = () => {
             sidebarCollapsed && "lg:hidden"
           )}>
             <div className="text-xs text-muted-foreground text-center">
-              v2.5.1
+              v2.6.0
             </div>
           </div>
         </div>

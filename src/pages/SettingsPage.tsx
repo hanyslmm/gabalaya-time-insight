@@ -313,14 +313,17 @@ const SettingsPage: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <h4 className="font-medium">Version</h4>
-                  <p className="text-sm text-gray-600">2.5.2</p>
+                  <p className="text-sm text-gray-600">2.6.0</p>
                 </div>
                 <div>
                   <h4 className="font-medium">Recent Updates</h4>
                   <ul className="text-sm text-gray-600 space-y-1 list-disc pl-5">
-                    <li>DB exclusion constraint prevents overlapping shifts</li>
-                    <li>Admin Actions in Clock-In page (edit start, clock out, bulk)</li>
-                    <li>Unified Settings with company and payroll controls</li>
+                    <li>Unified Settings: merged Company + Settings into a modern tabbed page</li>
+                    <li>Clock-In page: integrated Team Activity with admin actions (edit start, clock out, clock out all)</li>
+                    <li>Reports: added role filter (supports custom roles like Housekeeping)</li>
+                    <li>Date pickers: week now starts on Saturday in pay period filter</li>
+                    <li>Roles: dynamic from database; manage in Settings → Roles & Permissions</li>
+                    <li>Timesheets: database exclusion constraint to prevent overlapping entries</li>
                   </ul>
                 </div>
               </div>
