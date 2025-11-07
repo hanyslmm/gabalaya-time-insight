@@ -7,6 +7,8 @@ import { usePayPeriodSettings } from '@/hooks/usePayPeriodSettings';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Download, Users, FileSpreadsheet, ChevronRight, AlertCircle, Calendar, Clock, TrendingUp, DollarSign } from 'lucide-react';
 import TimesheetDateFilter from '@/components/TimesheetDateFilter';
 import { HRAnalytics } from '@/components/HRAnalytics';
@@ -36,6 +38,7 @@ const ReportsPage: React.FC = () => {
   const { user } = useAuth();
   const [currentView, setCurrentView] = useState<ViewType>('overview');
   const { calculatePayPeriod, mode, endDay, isLoading: settingsLoading } = usePayPeriodSettings();
+  const [selectedRole, setSelectedRole] = useState<string>('all');
   
   // Date range state - default to current pay period from settings
   const [dateRange, setDateRange] = useState<DateRange>(() => calculatePayPeriod(0));
@@ -50,16 +53,42 @@ const ReportsPage: React.FC = () => {
   
   console.log('ReportsPage: User:', user?.username, 'Org:', activeOrganizationId);
   
-  // Query 1: Employees (with wage rates)
+  // Query 1: Employees (with wage rates and roles)
   const { data: employees, isLoading: employeesLoading, error: employeesError } = useQuery({
     queryKey: ['employees-final', activeOrganizationId],
     queryFn: async (): Promise<any[]> => {
-      let q = supabase.from('employees').select('id, staff_id, full_name, morning_wage_rate, night_wage_rate');
+      let q = supabase.from('employees').select('id, staff_id, full_name, role, morning_wage_rate, night_wage_rate');
       if (activeOrganizationId) q = q.eq('organization_id', activeOrganizationId);
       const { data, error } = await q;
       if (error) throw error;
-      console.log('📊 ReportsPage: Loaded employees with wage rates:', data);
+      console.log('📊 ReportsPage: Loaded employees with wage rates and roles:', data);
       return data || [];
+    }
+  });
+  
+  // Query for available roles
+  const { data: availableRoles = [] } = useQuery({
+    queryKey: ['employee-roles', activeOrganizationId],
+    enabled: !!activeOrganizationId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('employee_roles')
+        .select('name')
+        .eq('organization_id', activeOrganizationId)
+        .order('name');
+      
+      if (error) {
+        console.error('Failed to fetch roles:', error);
+        return [];
+      }
+      
+      // Add system roles
+      const allRoles = [
+        ...(data || []).map((r: any) => r.name),
+        'Employee', 'admin', 'owner'
+      ].filter((role, index, self) => self.indexOf(role) === index);
+      
+      return allRoles;
     }
   });
 
@@ -179,16 +208,18 @@ const ReportsPage: React.FC = () => {
     enabled: !!(dateRange?.from && dateRange?.to && employees !== undefined)
   });
 
-  // Process attendance report
+  // Process attendance report with role filtering
   const attendanceReport = useMemo(() => {
     if (!rawTimesheetData || !employees || !wageSettings) return [];
     
       const employeeMap = new Map();
+      const employeeRoleMap = new Map(); // Map employee name/id to their role
       const employeeWageMap = new Map(); // Map employee name/id to their wage rates
       
       employees.forEach(emp => {
         if (emp.staff_id) {
           employeeMap.set(emp.staff_id, emp.full_name);
+          employeeRoleMap.set(emp.staff_id, emp.role);
           employeeWageMap.set(emp.staff_id, {
             morning: emp.morning_wage_rate || wageSettings?.morning_wage_rate || 17,
             night: emp.night_wage_rate || wageSettings?.night_wage_rate || 20
@@ -196,6 +227,7 @@ const ReportsPage: React.FC = () => {
         }
         if (emp.full_name) {
           employeeMap.set(emp.full_name, emp.full_name);
+          employeeRoleMap.set(emp.full_name, emp.role);
           employeeWageMap.set(emp.full_name, {
             morning: emp.morning_wage_rate || wageSettings?.morning_wage_rate || 17,
             night: emp.night_wage_rate || wageSettings?.night_wage_rate || 20
@@ -203,6 +235,7 @@ const ReportsPage: React.FC = () => {
         }
         if (emp.id) {
           employeeMap.set(emp.id, emp.full_name);
+          employeeRoleMap.set(emp.id, emp.role);
           employeeWageMap.set(emp.id, {
             morning: emp.morning_wage_rate || wageSettings?.morning_wage_rate || 17,
             night: emp.night_wage_rate || wageSettings?.night_wage_rate || 20
@@ -219,6 +252,22 @@ const ReportsPage: React.FC = () => {
                                  emp.staff_id === entry.employee_name ||
                                  emp.id === entry.employee_id
                                );
+      
+      // Apply role filter
+      if (selectedRole !== 'all' && hasValidEmployee) {
+        const employeeRole = employeeRoleMap.get(entry.employee_name) || 
+                            employeeRoleMap.get(entry.employee_id) ||
+                            employees.find(emp => 
+                              emp.full_name === entry.employee_name ||
+                              emp.staff_id === entry.employee_name ||
+                              emp.id === entry.employee_id
+                            )?.role;
+        
+        if (employeeRole !== selectedRole) {
+          return false;
+        }
+      }
+      
       return hasValidEmployee;
     }).map(entry => {
         let morningHours = entry.morning_hours || 0;
@@ -301,7 +350,7 @@ const ReportsPage: React.FC = () => {
         calculated_amount: Math.round(calculatedAmount)
         };
       });
-  }, [rawTimesheetData, employees, wageSettings, workingHoursSettings]);
+  }, [rawTimesheetData, employees, wageSettings, workingHoursSettings, selectedRole]);
 
   // Calculate payroll summary - using employee-specific rates from attendanceReport
   const payrollSummary = useMemo(() => {
@@ -473,6 +522,24 @@ const ReportsPage: React.FC = () => {
           onPayPeriodEndDayChange={() => {}} // Read-only, configured in Settings
           payPeriodMode={mode}
         />
+        
+        {/* Role Filter */}
+        <div className="mt-4 bg-card rounded-lg border p-4">
+          <div className="space-y-2">
+            <Label>Filter by Role</Label>
+            <Select value={selectedRole} onValueChange={setSelectedRole}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="All Roles" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Roles</SelectItem>
+                {availableRoles.map((role: string) => (
+                  <SelectItem key={role} value={role}>{role}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </MobileSection>
 
       <MobileSection>

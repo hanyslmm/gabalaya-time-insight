@@ -161,12 +161,13 @@ const TimesheetDateFilter: React.FC<TimesheetDateFilterProps> = ({
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0">
-              <Calendar
-                mode="single"
-                selected={dateRange.from}
-                onSelect={(date) => handleCustomDateChange('from', date)}
-                initialFocus
-              />
+            <Calendar
+              mode="single"
+              selected={dateRange.from}
+              onSelect={(date) => handleCustomDateChange('from', date)}
+              weekStartsOn={6}
+              initialFocus
+            />
             </PopoverContent>
           </Popover>
         </div>
@@ -187,12 +188,13 @@ const TimesheetDateFilter: React.FC<TimesheetDateFilterProps> = ({
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0">
-              <Calendar
-                mode="single"
-                selected={dateRange.to}
-                onSelect={(date) => handleCustomDateChange('to', date)}
-                initialFocus
-              />
+            <Calendar
+              mode="single"
+              selected={dateRange.to}
+              onSelect={(date) => handleCustomDateChange('to', date)}
+              weekStartsOn={6}
+              initialFocus
+            />
             </PopoverContent>
           </Popover>
         </div>
