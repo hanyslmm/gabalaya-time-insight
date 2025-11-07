@@ -15,7 +15,6 @@ import './App.css';
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'));
 const EmployeesPage = lazy(() => import('@/pages/EmployeesPage'));
 const TimesheetsPage = lazy(() => import('@/pages/TimesheetsPage'));
-const EmployeeMonitorPage = lazy(() => import('@/pages/EmployeeMonitorPage'));
 const ReportsPage = lazy(() => import('@/pages/ReportsPage'));
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
@@ -80,11 +79,6 @@ function App() {
                 <Route path="timesheets" element={
                   <Suspense fallback={<PageLoader />}>
                     <TimesheetsPage />
-                  </Suspense>
-                } />
-                <Route path="employee-monitor" element={
-                  <Suspense fallback={<PageLoader />}>
-                    <EmployeeMonitorPage />
                   </Suspense>
                 } />
                 <Route path="reports" element={

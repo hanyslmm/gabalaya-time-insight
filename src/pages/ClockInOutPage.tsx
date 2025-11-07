@@ -4,7 +4,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -29,7 +32,10 @@ interface ClockEntry {
 
 // Defines the structure for team member status
 interface TeamMemberStatus {
-  employee_name: string;
+  employee_name: string;           // display name
+  employee_key?: string;           // raw key stored in timesheets (staff_id/full_name)
+  employee_id?: string | null;     // canonical employee UUID when available
+  entry_id: string;                // active timesheet entry id
   clock_in_time: string;
   clock_in_date: string;
   clock_in_location?: string;
@@ -55,6 +61,19 @@ const ClockInOutPage: React.FC = () => {
   const [timezoneAbbr, setTimezoneAbbr] = useState('Local');
   const [initializationError, setInitializationError] = useState<string | null>(null);
   const [companyTimezone, setCompanyTimezone] = useState<string>('Africa/Cairo');
+  const [adminActionEmployeeId, setAdminActionEmployeeId] = useState<string | null>(null);
+  const [confirmClockOutOpen, setConfirmClockOutOpen] = useState(false);
+  const [memberToClockOut, setMemberToClockOut] = useState<TeamMemberStatus | null>(null);
+
+  // Edit clock-in dialog state (admin/owner)
+  const [editClockInOpen, setEditClockInOpen] = useState(false);
+  const [editMember, setEditMember] = useState<TeamMemberStatus | null>(null);
+  const [editDate, setEditDate] = useState<string>(''); // YYYY-MM-DD
+  const [editTime, setEditTime] = useState<string>(''); // HH:MM
+  const [editSaving, setEditSaving] = useState(false);
+  // Bulk clock-out
+  const [bulkClockOutOpen, setBulkClockOutOpen] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
   
   // Manual clock-in state for admin/owner
   const [employees, setEmployees] = useState<Array<{id: string, full_name: string, staff_id: string}>>([]);
@@ -292,6 +311,9 @@ const ClockInOutPage: React.FC = () => {
         if (!statusMap.has(displayName) || isActive) {
           statusMap.set(displayName, {
             employee_name: displayName,
+            employee_key: entry.employee_name,
+            employee_id: entry.employee_id || null,
+            entry_id: entry.id,
             clock_in_time: entry.clock_in_time,
             clock_in_date: entry.clock_in_date,
             clock_in_location: entry.clock_in_location,
@@ -481,6 +503,33 @@ const ClockInOutPage: React.FC = () => {
     
     return () => clearInterval(interval);
   }, [user, fetchTodayEntries, fetchTeamStatus]);
+
+  // Realtime updates: refresh team status on timesheet changes
+  useEffect(() => {
+    if (!user) return;
+    try {
+      const channel = supabase
+        .channel('timesheet_entries_changes')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'timesheet_entries' },
+          () => {
+            fetchTeamStatus().catch(() => {});
+            fetchTodayEntries().catch(() => {});
+          }
+        )
+        .subscribe();
+      return () => {
+        try {
+          supabase.removeChannel(channel);
+        } catch {
+          // ignore
+        }
+      };
+    } catch {
+      // ignore realtime setup failures
+    }
+  }, [user, fetchTeamStatus, fetchTodayEntries]);
 
   const handleClockIn = async () => {
     if (!user) {
@@ -692,6 +741,133 @@ const ClockInOutPage: React.FC = () => {
       toast.error(error.message || 'Failed to clock out');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  // Admin/Owner: open confirm dialog for clock-out
+  const openAdminClockOutConfirm = (member: TeamMemberStatus) => {
+    if (!user || !['admin', 'owner'].includes(user.role)) {
+      toast.error('Unauthorized');
+      return;
+    }
+    setMemberToClockOut(member);
+    setConfirmClockOutOpen(true);
+  };
+
+  // Perform admin clock-out after confirmation
+  const performAdminClockOut = async () => {
+    const member = memberToClockOut;
+    if (!member) return;
+    if (!member.entry_id) {
+      toast.error('Active entry not found for this employee');
+      return;
+    }
+    setAdminActionEmployeeId(member.entry_id);
+    try {
+      const { error } = await supabase.rpc('clock_out', {
+        p_entry_id: member.entry_id,
+        p_clock_out_location: 'Admin Clock-Out',
+      });
+      if (error) throw new Error(error.message);
+      await fetchTeamStatus();
+      toast.success(`Clocked out ${member.employee_name}`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to clock out employee');
+    } finally {
+      setAdminActionEmployeeId(null);
+      setConfirmClockOutOpen(false);
+      setMemberToClockOut(null);
+    }
+  };
+
+  // Admin/Owner: open edit clock-in dialog
+  const openEditClockInDialog = (member: TeamMemberStatus) => {
+    if (!user || !['admin', 'owner'].includes(user.role)) {
+      toast.error('Unauthorized');
+      return;
+    }
+    setEditMember(member);
+    setEditClockInOpen(true);
+    // Initialize fields from member
+    const baseTime = (member.clock_in_time || '').split('.')[0];
+    const [hh, mm] = (baseTime || '00:00').split(':');
+    setEditTime(`${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`);
+    setEditDate(member.clock_in_date);
+  };
+
+  // Admin/Owner: apply edit
+  const applyEditClockIn = async () => {
+    if (!editMember || !editMember.entry_id) return;
+    if (!editDate || !editTime) {
+      toast.error('Please provide both date and time');
+      return;
+    }
+    setEditSaving(true);
+    try {
+      // Use standard seconds format
+      const timeWithSeconds = editTime.length === 5 ? `${editTime}:00` : editTime;
+      const { error } = await supabase
+        .from('timesheet_entries')
+        .update({
+          clock_in_date: editDate,
+          clock_in_time: timeWithSeconds
+        })
+        .eq('id', editMember.entry_id);
+      if (error) {
+        // Overlap violation
+        if ((error as any)?.code === '23P01' || (error.message || '').toLowerCase().includes('exclusion')) {
+          toast.error('This start time overlaps another shift for this employee.');
+        } else {
+          toast.error(error.message || 'Failed to update clock-in time');
+        }
+        return;
+      }
+      await fetchTeamStatus();
+      await fetchTodayEntries();
+      toast.success('Clock-in time updated');
+      setEditClockInOpen(false);
+      setEditMember(null);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update clock-in time');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  // Perform bulk clock out of all active teamStatus entries
+  const performBulkClockOut = async () => {
+    if (!user || !['admin', 'owner'].includes(user.role)) {
+      toast.error('Unauthorized');
+      return;
+    }
+    if (teamStatus.length === 0) {
+      setBulkClockOutOpen(false);
+      return;
+    }
+    setBulkLoading(true);
+    try {
+      const results = await Promise.allSettled(
+        teamStatus
+          .filter(m => !!m.entry_id)
+          .map(m => supabase.rpc('clock_out', {
+            p_entry_id: m.entry_id,
+            p_clock_out_location: 'Admin Bulk Clock-Out'
+          }))
+      );
+      const successes = results.filter(r => r.status === 'fulfilled' && !(r as any).value?.error).length;
+      const failures = results.length - successes;
+      await fetchTeamStatus();
+      await fetchTodayEntries();
+      if (failures === 0) {
+        toast.success(`Clocked out ${successes} employee(s).`);
+      } else {
+        toast.error(`Clocked out ${successes}, failed ${failures}. Check logs and try again.`);
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Bulk clock-out failed');
+    } finally {
+      setBulkLoading(false);
+      setBulkClockOutOpen(false);
     }
   };
 
@@ -934,17 +1110,19 @@ const ClockInOutPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Debug toggle */}
-        <div className="flex justify-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowDebug(!showDebug)}
-            className="text-xs opacity-30 hover:opacity-60"
-          >
-            {showDebug ? 'Hide Debug' : 'Show Debug'}
-          </Button>
-        </div>
+        {/* Debug toggle - owners only */}
+        {user?.role === 'owner' && (
+          <div className="flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowDebug(!showDebug)}
+              className="text-xs opacity-30 hover:opacity-60"
+            >
+              {showDebug ? 'Hide Debug' : 'Show Debug'}
+            </Button>
+          </div>
+        )}
 
         {/* Debug info - hidden by default */}
         {showDebug && (
@@ -1001,18 +1179,30 @@ const ClockInOutPage: React.FC = () => {
                   )}
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowTeamStatus(!showTeamStatus)}
-                className="h-9 px-3 hover:scale-105 transition-transform"
-              >
-                {showTeamStatus ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
+              <div className="flex items-center gap-2">
+                {user && ['admin', 'owner'].includes(user.role) && teamStatus.length > 0 && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="h-9 px-3"
+                    onClick={() => setBulkClockOutOpen(true)}
+                  >
+                    Clock out all
+                  </Button>
                 )}
-              </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowTeamStatus(!showTeamStatus)}
+                  className="h-9 px-3 hover:scale-105 transition-transform"
+                >
+                  {showTeamStatus ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
             </div>
           </CardHeader>
           
@@ -1052,10 +1242,30 @@ const ClockInOutPage: React.FC = () => {
                             </div>
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="flex items-center gap-2">
                           <Badge variant="outline" className="bg-success/10 text-success border-success/30 font-semibold">
                             ⏱️ {formatDuration(member.duration_minutes)}
                           </Badge>
+                          {user && ['admin', 'owner'].includes(user.role) && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size="sm" className="ml-2">
+                                  Actions
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openEditClockInDialog(member)}>
+                                  Edit start
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => openAdminClockOutConfirm(member)}
+                                  disabled={adminActionEmployeeId === member.entry_id}
+                                >
+                                  {adminActionEmployeeId === member.entry_id ? 'Clocking out...' : 'Clock out'}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1279,6 +1489,86 @@ const ClockInOutPage: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Confirm Clock-Out Modal */}
+      <AlertDialog open={confirmClockOutOpen} onOpenChange={setConfirmClockOutOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clock out {memberToClockOut?.employee_name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will end the current active session for this employee and record the clock-out time now.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={performAdminClockOut}>
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit Clock-In Modal */}
+      <Dialog open={editClockInOpen} onOpenChange={setEditClockInOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit clock-in time</DialogTitle>
+            <DialogDescription>
+              Adjust the start date/time for {editMember?.employee_name}. Overlapping times will be blocked.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Date</label>
+                <input
+                  type="date"
+                  className="w-full px-3 py-2 border rounded-md bg-background"
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Time</label>
+                <input
+                  type="time"
+                  className="w-full px-3 py-2 border rounded-md bg-background"
+                  value={editTime}
+                  onChange={(e) => setEditTime(e.target.value)}
+                  step={60}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Note: If the new start overlaps another shift for the employee, the update will be rejected.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditClockInOpen(false)}>Cancel</Button>
+            <Button onClick={applyEditClockIn} disabled={editSaving}>
+              {editSaving ? (<><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Saving...</>) : 'Save changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Clock-Out Confirmation */}
+      <AlertDialog open={bulkClockOutOpen} onOpenChange={setBulkClockOutOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clock out all active employees?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will immediately clock out all currently active employees shown in Team Activity.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={performBulkClockOut} disabled={bulkLoading}>
+              {bulkLoading ? 'Processing…' : 'Confirm'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

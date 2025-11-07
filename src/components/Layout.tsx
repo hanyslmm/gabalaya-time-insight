@@ -103,13 +103,7 @@ const Layout = () => {
       description: 'All Time Records',
       roles: ['admin', 'owner']
     },
-    {
-      name: 'Employee Monitor',
-      href: '/employee-monitor',
-      icon: Monitor,
-      description: 'Live Tracking',
-      roles: ['admin', 'owner']
-    },
+    // Employee Monitor removed; functionality integrated into Clock In/Out
     {
       name: 'Reports',
       href: '/reports',
