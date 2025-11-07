@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -52,22 +52,35 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [availableRoles, setAvailableRoles] = useState([
-    'Champion',
-    'Barista', 
-    'Host',
-    'Employee',
-    'admin'
-  ]);
-
-  useEffect(() => {
-    // Load roles from localStorage
-    const savedRoles = localStorage.getItem('employee-roles');
-    if (savedRoles) {
-      const roles = JSON.parse(savedRoles);
-      setAvailableRoles(roles.map((role: any) => role.name));
+  
+  const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
+  
+  // Fetch roles from database
+  const { data: rolesData = [] } = useQuery({
+    queryKey: ['employee-roles', activeOrganizationId],
+    enabled: !!activeOrganizationId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('employee_roles')
+        .select('name')
+        .eq('organization_id', activeOrganizationId)
+        .order('name');
+      
+      if (error) {
+        console.error('Failed to fetch roles:', error);
+        return [];
+      }
+      return data || [];
     }
-  }, []);
+  });
+  
+  // Build available roles list with system roles and custom roles
+  const availableRoles = [
+    ...rolesData.map((r: any) => r.name),
+    'Employee',
+    'admin',
+    'owner'
+  ].filter((role, index, self) => self.indexOf(role) === index); // Remove duplicates
 
   useEffect(() => {
     if (employee) {
