@@ -55,21 +55,37 @@ const RoleManagement: React.FC = () => {
       }
       
       try {
+        console.log('RoleManagement: Inserting role:', { name: trimmed, organization_id: activeOrganizationId });
+        
         // Try to insert the new role directly
-        const { error } = await (supabase as any)
+        const { data, error } = await (supabase as any)
           .from('employee_roles')
           .insert({ name: trimmed, is_default: false, organization_id: activeOrganizationId })
           .select('id')
           .single();
         
+        console.log('RoleManagement: Insert result:', { data, error });
+        
         if (error) {
+          console.error('RoleManagement: Error details:', {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            full: error
+          });
+          
           // Check if it's a unique constraint violation
           if (error.code === '23505' || error.message?.includes('duplicate key') || error.message?.includes('unique constraint')) {
             throw new Error('Role already exists');
           }
-          throw error;
+          throw new Error(error.message || 'Database error');
         }
+        
+        console.log('RoleManagement: Role inserted successfully');
+        return data;
       } catch (err: any) {
+        console.error('RoleManagement: Caught error:', err);
         // Handle any other errors
         if (err.message === 'Role already exists') {
           throw err;
