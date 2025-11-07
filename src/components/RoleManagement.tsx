@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,7 +20,7 @@ const RoleManagement: React.FC = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
-  const { data: roles = [] } = useQuery<Role[]>({
+  const { data: roles = [], isLoading, isError } = useQuery<Role[]>({
     queryKey: ['employee-roles', activeOrganizationId],
     enabled: !!activeOrganizationId,
     queryFn: async () => {
@@ -35,16 +35,32 @@ const RoleManagement: React.FC = () => {
     }
   });
   const [newRoleName, setNewRoleName] = useState('');
+  const canManage = (user?.role === 'admin' || user?.role === 'owner') && !!activeOrganizationId;
+  const normalizedExisting = useMemo(
+    () => new Set((roles || []).map(r => r.name.trim().toLowerCase())),
+    [roles]
+  );
   
   const addRoleMutation = useMutation({
     mutationFn: async (name: string) => {
       const trimmed = name.trim();
+      if (!activeOrganizationId) {
+        throw new Error('Please select an organization first');
+      }
+      if (trimmed.length < 2) {
+        throw new Error('Role name is too short');
+      }
+      if (normalizedExisting.has(trimmed.toLowerCase())) {
+        throw new Error('Role already exists');
+      }
       
       try {
         // Try to insert the new role directly
         const { error } = await (supabase as any)
           .from('employee_roles')
-          .insert({ name: trimmed, is_default: false, organization_id: activeOrganizationId });
+          .insert({ name: trimmed, is_default: false, organization_id: activeOrganizationId })
+          .select('id')
+          .single();
         
         if (error) {
           // Check if it's a unique constraint violation
@@ -106,13 +122,23 @@ const RoleManagement: React.FC = () => {
         <CardTitle>Employee Roles Management</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {!activeOrganizationId && (
+          <div className="text-sm text-muted-foreground">
+            Select an organization to manage roles.
+          </div>
+        )}
+        {isError && (
+          <div className="text-sm text-destructive">
+            Failed to load roles. Please refresh.
+          </div>
+        )}
         <div className="flex flex-wrap gap-2">
           {(roles || []).map((role) => (
             <div key={role.id} className="flex items-center gap-2">
               <Badge variant={role.is_default ? "default" : "secondary"}>
                 {role.name}
               </Badge>
-              {!role.is_default && (
+              {!role.is_default && canManage && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -134,11 +160,12 @@ const RoleManagement: React.FC = () => {
               value={newRoleName}
               onChange={(e) => setNewRoleName(e.target.value)}
               placeholder="Enter role name"
-              onKeyPress={(e) => e.key === 'Enter' && handleAddRole()}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddRole()}
+              disabled={!canManage}
             />
           </div>
           <div className="flex items-end">
-            <Button onClick={handleAddRole} size="sm" disabled={!activeOrganizationId || addRoleMutation.isPending}>
+            <Button onClick={handleAddRole} size="sm" disabled={!canManage || addRoleMutation.isPending}>
               <Plus className="h-4 w-4 mr-2" />
               Add Role
             </Button>
