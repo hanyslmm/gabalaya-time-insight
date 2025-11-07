@@ -138,81 +138,44 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
 
       const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
 
-      // Debug logging
-      console.log('🔍 EmployeeForm - employee object (original prop):', employee);
-      console.log('🔍 EmployeeForm - data object (form values):', data);
-      console.log('🔍 EmployeeForm - is_admin_user flag:', (employee as any)?.is_admin_user);
-      console.log('🔍 EmployeeForm - employee role:', employee?.role);
-      console.log('🔍 EmployeeForm - target role:', data.role);
-
-      // Check if this is an admin user
-      const isAdminUser = (employee as any)?.is_admin_user;
-      const isTargetingAdminRole = data.role === 'admin' || data.role === 'owner';
-
-      console.log('🔍 EmployeeForm - isAdminUser:', isAdminUser);
-      console.log('🔍 EmployeeForm - isTargetingAdminRole:', isTargetingAdminRole);
-
       if (employee?.id) {
-        if (isAdminUser || isTargetingAdminRole) {
-          if (isAdminUser) {
-            console.log('🔍 EmployeeForm - Updating existing admin user');
-            // Update existing admin user in admin_users table
-            const { error } = await supabase
-              .from('admin_users')
-              .update({ 
-                full_name: cleanData.full_name,
-                role: cleanData.role,
-                organization_id: activeOrganizationId
-              })
-              .eq('id', employee.id);
-            
-            if (error) {
-              console.error('🔍 EmployeeForm - Admin update error:', error);
-              throw error;
-            }
-          } else {
-            console.log('🔍 EmployeeForm - Promoting employee to admin');
-            // Promote regular employee to admin using the database function
-            const { data: promoteResult, error: promoteError } = await supabase
-              .rpc('promote_employee_to_admin' as any, {
-                p_staff_id: employee.staff_id,
-                p_full_name: cleanData.full_name,
-                p_role: cleanData.role,
-                p_organization_id: activeOrganizationId
-              });
-            
-            if (promoteError) {
-              console.error('🔍 EmployeeForm - Promotion error:', promoteError);
-              throw promoteError;
-            }
-            
-            console.log('🔍 EmployeeForm - Promotion result:', promoteResult);
-            
-            const result = promoteResult as any;
-            if (!result?.success) {
-              throw new Error(result?.error || 'Failed to promote employee to admin');
-            }
-          }
-        } else {
-          console.log('🔍 EmployeeForm - Updating employees table');
-          // Update regular employee in employees table
-          const { error } = await supabase
-            .from('employees')
-            .update({ ...cleanData, organization_id: activeOrganizationId })
-            .eq('id', employee.id);
-          
-          if (error) {
-            console.error('🔍 EmployeeForm - Employee update error:', error);
-            throw error;
-          }
-        }
-      } else {
-        // Create new employee (always in employees table)
+        // Update existing employee - always use employees table
+        // The employees table is the single source of truth
         const { error } = await supabase
           .from('employees')
-          .insert({ ...cleanData, organization_id: activeOrganizationId });
+          .update({ 
+            staff_id: cleanData.staff_id,
+            full_name: cleanData.full_name,
+            role: cleanData.role,
+            hiring_date: cleanData.hiring_date,
+            email: cleanData.email || null,
+            phone_number: cleanData.phone_number || null,
+            organization_id: activeOrganizationId
+          })
+          .eq('id', employee.id);
         
-        if (error) throw error;
+        if (error) {
+          console.error('EmployeeForm - Update error:', error);
+          throw error;
+        }
+      } else {
+        // Create new employee
+        const { error } = await supabase
+          .from('employees')
+          .insert({ 
+            staff_id: cleanData.staff_id,
+            full_name: cleanData.full_name,
+            role: cleanData.role,
+            hiring_date: cleanData.hiring_date,
+            email: cleanData.email || null,
+            phone_number: cleanData.phone_number || null,
+            organization_id: activeOrganizationId
+          });
+        
+        if (error) {
+          console.error('EmployeeForm - Insert error:', error);
+          throw error;
+        }
       }
     },
     onSuccess: () => {
