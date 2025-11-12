@@ -274,7 +274,7 @@ const DashboardPage: React.FC = () => {
           {stats.map((stat, index) => (
             <Card 
               key={index}
-              className="group relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-500 hover:scale-[1.02] cursor-pointer bg-gradient-to-br from-card to-card/90 backdrop-blur-sm"
+              className="group relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-500 cursor-pointer bg-gradient-to-br from-card to-card/90 backdrop-blur-sm"
             >
               {/* Gradient overlay */}
               <div className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-0 group-hover:opacity-5 transition-opacity duration-500`} />
@@ -301,7 +301,7 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-                <div className={`p-3 rounded-2xl ${stat.bgColor} ${stat.textColor} group-hover:scale-110 transition-transform duration-300`}>
+                <div className={`p-3 rounded-2xl ${stat.bgColor} ${stat.textColor} transition-colors duration-300`}>
                   <stat.icon className="h-6 w-6" />
                 </div>
                 </CardHeader>
@@ -350,7 +350,7 @@ const DashboardPage: React.FC = () => {
                   {/* Background gradient on hover */}
                   <div className={`absolute inset-0 bg-gradient-to-br ${action.color} opacity-0 group-hover:opacity-5 transition-opacity duration-300 rounded-2xl`} />
                   
-                  <div className={`relative z-10 p-3 rounded-2xl bg-gradient-to-br ${action.color} text-white shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all duration-300`}>
+                  <div className={`relative z-10 p-3 rounded-2xl bg-gradient-to-br ${action.color} text-white shadow-lg group-hover:shadow-xl transition-all duration-300`}>
                     <action.icon className="h-6 w-6" />
                   </div>
                   

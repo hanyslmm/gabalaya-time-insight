@@ -313,11 +313,17 @@ const SettingsPage: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <h4 className="font-medium">Version</h4>
-                  <p className="text-sm text-gray-600">2.6.0</p>
+                  <p className="text-sm text-gray-600">2.7.0</p>
                 </div>
                 <div>
                   <h4 className="font-medium">Recent Updates</h4>
                   <ul className="text-sm text-gray-600 space-y-1 list-disc pl-5">
+                    <li>🎨 UI/UX Revamp: Modernized color palette and design system for cleaner, more intuitive interface</li>
+                    <li>✨ Enhanced Click Experience: Improved single-click responsiveness across desktop, eliminating double-click issues</li>
+                    <li>✅ Better Checkbox Interaction: Increased checkbox size and clickable area for easier selection in timesheets</li>
+                    <li>🚫 Disabled Annoying Animations: Removed scale/transform animations on hover and click for stable, professional feel</li>
+                    <li>💚 Improved Amount Visibility: Enhanced totalAmount display with high-contrast green color in both light and dark themes</li>
+                    <li>🔒 Dialog Stability: Fixed edit timesheet dialog positioning to prevent switching between modes</li>
                     <li>Unified Settings: merged Company + Settings into a modern tabbed page</li>
                     <li>Clock-In page: integrated Team Activity with admin actions (edit start, clock out, clock out all)</li>
                     <li>Reports: added role filter (supports custom roles like Housekeeping)</li>

@@ -19,14 +19,99 @@
     -moz-osx-font-smoothing: grayscale;
   }
   
-  /* Improve touch targets and scrolling */
-  * {
-    -webkit-tap-highlight-color: transparent;
+  /* Global: Disable all zoom/scale animations on click/interaction */
+  [class*="zoom-in"], [class*="zoom-out"], [class*="scale-in"], [class*="animate-scale-in"], [class*="animate-fadeInScale"] {
+    animation: none !important;
+  }
+  
+  /* Disable transform scale effects on active states (but keep translate for positioning) */
+  /* Exclude dialog content to preserve its positioning */
+  button:active:not([class*="left-[50%]"][class*="top-[50%]"]), 
+  [role="button"]:active:not([class*="left-[50%]"][class*="top-[50%]"]), 
+  a:active:not([class*="left-[50%]"][class*="top-[50%]"]), 
+  [tabindex]:active:not([class*="left-[50%]"][class*="top-[50%]"]) {
+    transform: scale(1) !important;
+  }
+  
+  /* Global: Disable all hover scale transforms on interactive elements */
+  button:hover, 
+  [role="button"]:hover, 
+  a:hover, 
+  [tabindex]:hover,
+  .card-interactive:hover,
+  .hover-scale:hover,
+  [class*="hover:scale"]:hover {
+    transform: scale(1) !important;
+  }
+  
+  /* CRITICAL: Ensure dialog content always maintains its centering transform */
+  /* Radix Dialog uses translate-x-[-50%] translate-y-[-50%] = translate(-50%, -50%) */
+  /* This rule must have higher specificity than the hover rules above */
+  /* Target dialog content by its positioning classes (left-[50%] top-[50%]) */
+  [class*="left-[50%]"][class*="top-[50%]"][class*="translate-x-[-50%]"][class*="translate-y-[-50%]"],
+  [class*="left-[50%]"][class*="top-[50%]"][class*="translate-x-[-50%]"][class*="translate-y-[-50%]"]:hover,
+  [class*="left-[50%]"][class*="top-[50%]"][class*="translate-x-[-50%]"][class*="translate-y-[-50%]"]:active {
+    /* Always preserve translate for dialog centering, never apply scale(1) */
+    transform: translate(-50%, -50%) !important;
+  }
+  
+  /* Also protect dialog content without all classes (fallback) */
+  [class*="left-[50%]"][class*="top-[50%]"] {
+    /* If this element has translate classes, preserve them */
+  }
+  
+  /* Desktop: Improve click responsiveness */
+  @media (hover: hover) and (pointer: fine) {
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    /* Ensure buttons and links are immediately clickable */
+    button, a, [role="button"], [tabindex] {
+      cursor: pointer;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    
+    /* Prevent accidental text selection on double-click */
+    button, [role="button"] {
+      -webkit-touch-callout: none;
+    }
+    
+    /* Disable all zoom/scale animations globally */
+    [class*="zoom-in"], [class*="zoom-out"] {
+      animation: none !important;
+      transform: none !important;
+    }
+  }
+  
+  /* Mobile: Keep touch optimizations */
+  @media (hover: none) and (pointer: coarse) {
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
   }
   
   /* Enhanced touch manipulation for better mobile/tablet experience */
-  button, [role="button"], [tabindex] {
-    touch-action: manipulation;
+  /* Only apply touch-action on touch devices to prevent interference with desktop clicks */
+  @media (hover: none) and (pointer: coarse) {
+    button, [role="button"], [tabindex] {
+      touch-action: manipulation;
+    }
+  }
+  
+  /* Desktop: Ensure proper click handling without touch interference */
+  @media (hover: hover) and (pointer: fine) {
+    button, [role="button"], [tabindex], a {
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    /* Prevent double-click text selection on desktop */
+    button, [role="button"] {
+      user-select: none;
+      -webkit-user-select: none;
+    }
   }
   
   /* Prevent text selection on navigation elements */
@@ -140,9 +225,9 @@
   animation: slideInDown 0.3s ease-out;
 }
 
-.animate-fadeInScale {
-  animation: fadeInScale 0.3s ease-out;
-}
+  .animate-fadeInScale {
+    /* animation: fadeInScale 0.3s ease-out; - Disabled per user request */
+  }
 
 .animate-bounce-gentle {
   animation: bounce 0.6s ease-in-out;
@@ -189,13 +274,13 @@ html {
 }
 
 .card-interactive:hover {
-  transform: translateY(-2px);
+  /* transform: translateY(-2px); - Disabled per user request */
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
 }
 
-/* Button press effect */
+/* Button press effect - DISABLED per user request */
 .btn-press:active {
-  transform: scale(0.98);
+  /* transform: scale(0.98); - Disabled */
 }
 
 /* Loading states */
@@ -400,40 +485,51 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
+    /* Core Background & Foreground - Modernized */
     --background: 0 0% 100%;
-    --foreground: 0 0% 9%;
+    --foreground: 224 71% 4%;
 
+    /* Card System - Enhanced Contrast */
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 9%;
+    --card-foreground: 224 71% 4%;
 
+    /* Popover */
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 9%;
+    --popover-foreground: 224 71% 4%;
 
-    --primary: 221.2 83.2% 53.3%;
+    /* Primary Brand Color - Modern Blue */
+    --primary: 221 83% 53%;
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 0 0% 9%;
+    /* Secondary & Accent - Refined */
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222 47% 11%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 0 0% 45%;
+    /* Muted Colors - Enhanced Hierarchy */
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215 20% 65.1%;
 
-    --accent: 210 40% 96%;
-    --accent-foreground: 0 0% 9%;
+    /* Accent */
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222 47% 11%;
 
-    --destructive: 0 84.2% 60.2%;
+    /* Destructive Actions */
+    --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    /* Borders & Inputs - Softer, More Elegant */
+    --border: 214 31.8% 91.4%;
+    --input: 214 31.8% 91.4%;
+    --ring: 221 83% 53%;
 
+    /* Success & Warning - Maintained */
     --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
 
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
 
+    /* Border Radius - Consistent */
     --radius: 0.5rem;
 
     --sidebar-background: 220 15% 12%;
@@ -734,7 +830,7 @@ All colors MUST be HSL.
   }
 
   .animate-scale-in {
-    animation: scale-in 0.3s ease-out;
+    /* animation: scale-in 0.3s ease-out; - Disabled per user request */
   }
 
   .animate-slide-up {
@@ -743,11 +839,11 @@ All colors MUST be HSL.
 
   /* Hover Effects */
   .hover-scale {
-    transition: transform 0.2s ease-in-out;
+    /* transition: transform 0.2s ease-in-out; - Disabled per user request */
   }
 
   .hover-scale:hover {
-    transform: scale(1.05);
+    /* transform: scale(1.05); - Disabled per user request */
   }
 
   .hover-glow {
@@ -835,18 +931,18 @@ All colors MUST be HSL.
 
   /* Mobile-First Card Interactions */
   .card-interactive {
-    transform-origin: center;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* transform-origin: center; - Disabled per user request */
+    transition: box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   @media (hover: hover) {
     .card-interactive:hover {
-      transform: translateY(-2px) scale(1.02);
+      /* transform: translateY(-2px) scale(1.02); - Disabled per user request */
     }
   }
 
   .card-interactive:active {
-    transform: translateY(0) scale(0.98);
+    /* transform: translateY(0) scale(0.98); - Disabled per user request */
   }
 
   /* Enhanced Table Improvements */
@@ -866,7 +962,7 @@ All colors MUST be HSL.
   @media (hover: hover) {
     .table-row:hover {
       background: linear-gradient(135deg, hsl(var(--primary) / 0.02), hsl(var(--secondary) / 0.02));
-      transform: scale(1.002);
+      /* transform: scale(1.002); - Disabled per user request */
     }
   }
 
@@ -952,7 +1048,7 @@ All colors MUST be HSL.
 
   /* Enhanced card interactions with modern effects */
   .card-interactive {
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
   }
@@ -974,7 +1070,7 @@ All colors MUST be HSL.
   }
 
   .card-interactive:hover {
-    transform: translateY(-8px) scale(1.02);
+    /* transform: translateY(-8px) scale(1.02); - Disabled per user request */
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
   }
 
@@ -1011,12 +1107,12 @@ All colors MUST be HSL.
   }
 
   .btn-modern:hover {
-    transform: translateY(-2px);
+    /* transform: translateY(-2px); - Disabled per user request */
     box-shadow: 0 8px 30px hsl(var(--primary) / 0.4);
   }
 
   .btn-modern:active {
-    transform: translateY(0);
+    /* transform: translateY(0); - Disabled per user request */
   }
 
   /* Mobile navigation utilities */
@@ -1142,15 +1238,29 @@ All colors MUST be HSL.
   }
 
   /* Enhanced button interactions for mobile */
-  .mobile-button {
-    min-height: 3rem;
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  }
+  @media (hover: none) and (pointer: coarse) {
+    .mobile-button {
+      min-height: 3rem;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
 
-  .mobile-button:active {
-    transform: scale(0.98);
+    .mobile-button:active {
+      /* transform: scale(0.98); - Disabled per user request */
+    }
+  }
+  
+  /* Desktop: Immediate click response */
+  @media (hover: hover) and (pointer: fine) {
+    .mobile-button, button, [role="button"] {
+      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .mobile-button:active, button:active, [role="button"]:active {
+      /* transform: scale(0.98); - Disabled per user request */
+      /* transition: transform 0.1s; - Disabled */
+    }
   }
 
   /* Modern gradient backgrounds */
@@ -1214,11 +1324,11 @@ All colors MUST be HSL.
 
   /* Enhanced hover states */
   .hover-lift {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .hover-lift:hover {
-    transform: translateY(-4px);
+    /* transform: translateY(-4px); - Disabled per user request */
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
   }
 

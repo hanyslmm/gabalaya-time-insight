@@ -588,7 +588,7 @@ const ReportsPage: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-amber-700">Total Amount</p>
-                      <p className="text-2xl font-bold text-amber-900">{keyMetrics.totalAmount.toFixed(0)} LE</p>
+                      <p className="text-2xl font-bold text-green-600 dark:text-green-400">{keyMetrics.totalAmount.toFixed(0)} LE</p>
                     </div>
                     <DollarSign className="h-8 w-8 text-amber-600" />
                   </div>
@@ -677,7 +677,7 @@ const ReportsPage: React.FC = () => {
                         </div>
                         <div className="text-right">
                           <p className="font-medium">{entry.total_hours?.toFixed(1)}h</p>
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge variant="secondary" className="text-xs font-medium text-green-600 dark:text-green-400">
                             {entry.calculated_amount || entry.total_card_amount_flat || 0} LE
                           </Badge>
                         </div>
@@ -754,7 +754,7 @@ const ReportsPage: React.FC = () => {
                           <TableCell className="font-medium">{entry.total_hours?.toFixed(1) || '0.0'}h</TableCell>
                           <TableCell className="hidden md:table-cell text-sm">{entry.calculated_morning_hours?.toFixed(1) || '0.0'}h</TableCell>
                           <TableCell className="hidden md:table-cell text-sm">{entry.calculated_night_hours?.toFixed(1) || '0.0'}h</TableCell>
-                          <TableCell className="font-medium">{entry.calculated_amount || entry.total_card_amount_flat || 0} LE</TableCell>
+                          <TableCell className="font-medium text-green-600 dark:text-green-400">{entry.calculated_amount || entry.total_card_amount_flat || 0} LE</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -822,7 +822,7 @@ const ReportsPage: React.FC = () => {
                           <TableCell className="hidden md:table-cell">{summary.morning_hours?.toFixed(1)}h</TableCell>
                           <TableCell className="hidden md:table-cell">{summary.night_hours?.toFixed(1)}h</TableCell>
                           <TableCell className="hidden sm:table-cell">{summary.shifts}</TableCell>
-                          <TableCell className="font-bold text-green-600">{Math.round(summary.total_split_amount || summary.total_flat_amount || 0)} LE</TableCell>
+                          <TableCell className="font-bold text-green-600 dark:text-green-400">{Math.round(summary.total_split_amount || summary.total_flat_amount || 0)} LE</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

@@ -780,6 +780,89 @@ Sprint close protocol:
 
 ---
 
-**Last Updated**: January 2025 - v2.5.1 Sprint  
+**Last Updated**: January 2025 - v2.7.0 Sprint  
 **Project**: Gabalaya Time Insight System  
 **Developed through**: Systematic debugging and incremental development methodology
+
+---
+
+## LESSONS LEARNED FROM RECENT SPRINTS
+
+### Sprint: UI/UX Revamp & Interaction Improvements (v2.7.0)
+
+**Key Insights:**
+
+#### 1. **Global CSS Transform Conflicts with Dialog Positioning**
+- **Issue**: Dialog content switching between two modes when clicking elements inside
+- **Root Cause**: Global CSS rule `transform: scale(1) !important;` on hover was overriding dialog's centering transform `translate(-50%, -50%)`
+- **Lesson**: When applying global CSS rules, always consider elements that use transforms for positioning (dialogs, modals, tooltips)
+- **Solution**: Add specific CSS rules with higher specificity to protect dialog content elements, ensuring they maintain their positioning transforms
+- **Pattern**: `[class*="left-[50%]"][class*="top-[50%]"][class*="translate-x-[-50%]"][class*="translate-y-[-50%]"] { transform: translate(-50%, -50%) !important; }`
+- **Best Practice**: Test global CSS changes with all UI primitives (dialogs, popovers, tooltips, sheets)
+
+#### 2. **Hover Scale Animations Can Be Distracting**
+- **Issue**: Users found scale/transform animations on hover annoying and unprofessional
+- **Lesson**: Not all animations improve UX - some can be distracting, especially scale transforms that cause visual movement
+- **Solution**: Disabled all hover scale transforms globally while preserving color/shadow changes for visual feedback
+- **Pattern**: Use color, opacity, and shadow changes for hover feedback instead of transforms
+- **Best Practice**: Provide animation preferences or disable animations by default for professional applications
+
+#### 3. **Click Debouncing for Desktop Interactions**
+- **Issue**: Users experiencing double-click issues on desktop, requiring multiple clicks
+- **Root Cause**: Browser-level touch/pointer event handling causing event duplication
+- **Lesson**: Desktop and mobile require different click handling strategies
+- **Solution**: Created `handleSingleClick` utility with debouncing (150ms) for desktop, direct handling for mobile
+- **Pattern**: Detect device type with `window.matchMedia('(hover: hover) and (pointer: fine)')` and apply appropriate handler
+- **Best Practice**: Always test click interactions on both desktop and mobile devices
+
+#### 4. **Checkbox Clickability Requires Larger Hit Areas**
+- **Issue**: Checkboxes difficult to click, especially in table rows
+- **Root Cause**: Small checkbox size (h-4 w-4) and event propagation conflicts with row clicks
+- **Lesson**: Interactive elements need adequate touch/click targets (minimum 44x44px recommended)
+- **Solution**: Increased checkbox size to h-5 w-5, added wrapper div with larger clickable area (w-8 h-8), and stopped event propagation
+- **Pattern**: Wrap small interactive elements in larger clickable containers with `stopPropagation()` to prevent conflicts
+- **Best Practice**: Follow accessibility guidelines for minimum touch target sizes
+
+#### 5. **Color Contrast for Financial Data**
+- **Issue**: `totalAmount` values dimmed and not noticeable in both light and dark themes
+- **Root Cause**: Using `text-accent` color which had insufficient contrast
+- **Lesson**: Financial/critical data requires high contrast colors for visibility
+- **Solution**: Changed to `text-green-600 dark:text-green-400` for consistent, high-contrast display
+- **Pattern**: Use theme-aware colors with explicit light/dark variants for critical data
+- **Best Practice**: Test color contrast in both themes, especially for important data displays
+
+#### 6. **Incremental Theme Application**
+- **Success**: Applied theme changes incrementally, testing each step
+- **Pattern**: Step 1 (Theme Foundation) → Fix Issues → Step 2 (Layout) → Fix Issues → Continue
+- **Lesson**: Breaking UI changes into small increments allows for early issue detection and easier rollback
+- **Best Practice**: Complete and test one major component/page before moving to the next
+
+**Updated Debugging Checklist:**
+```
+□ Check browser console for errors
+□ Verify all imports are present
+□ Check for React Hook Rules violations
+□ Validate date object mutations
+□ Ensure data consistency across components
+□ Test with realistic data volumes
+□ Verify mobile responsiveness
+□ Test global CSS changes with dialogs/modals
+□ Verify click interactions on desktop and mobile
+□ Check color contrast in both light and dark themes
+□ Test checkbox/toggle interactions
+□ Verify no unwanted animations/transforms
+```
+
+**Updated CSS Development Pattern:**
+```
+1. Identify all affected elements before making global CSS changes
+2. Test global rules with dialogs, popovers, tooltips, and other positioned elements
+3. Use specific selectors with higher specificity for exceptions
+4. Preserve transforms needed for positioning (translate) while disabling others (scale)
+5. Test hover/active states in both themes
+6. Verify click/touch interactions on all device types
+```
+
+---
+
+### Sprint: Timesheet Enhancements & Filtering (v2.3.0)

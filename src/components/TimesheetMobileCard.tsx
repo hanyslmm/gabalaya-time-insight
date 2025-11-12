@@ -112,11 +112,11 @@ const TimesheetMobileCard: React.FC<TimesheetMobileCardProps> = ({
               </div>
             </div>
             
-            <div className="flex items-center space-x-2 p-2 bg-accent/5 rounded-lg border border-accent/20 min-w-0">
-              <DollarSign className="h-3 w-3 text-accent flex-shrink-0" />
+            <div className="flex items-center space-x-2 p-2 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800/30 min-w-0">
+              <DollarSign className="h-3 w-3 text-green-600 dark:text-green-400 flex-shrink-0" />
               <div className="min-w-0 flex-1">
-                <p className="text-xs text-accent font-medium">Amount</p>
-                <p className="text-sm font-bold text-accent line-clamp-1">
+                <p className="text-xs text-green-600 dark:text-green-400 font-medium">Amount</p>
+                <p className="text-sm font-bold text-green-700 dark:text-green-300 line-clamp-1">
                   LE {(entry.total_card_amount_split || entry.total_card_amount_flat).toFixed(2)}
                 </p>
               </div>

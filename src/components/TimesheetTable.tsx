@@ -557,11 +557,21 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
                       const disp = computeDisplay(entry);
                       return (
                         <TableRow key={entry.id} className="table-row">
-                          <TableCell className="sticky left-0 bg-background/95 backdrop-blur">
-                            <Checkbox
-                              checked={selectedRows.includes(entry.id)}
-                              onCheckedChange={(checked) => handleSelectRow(entry.id, !!checked)}
-                            />
+                          <TableCell className="sticky left-0 bg-background/95 backdrop-blur p-2">
+                            <div 
+                              className="flex items-center justify-center w-8 h-8 cursor-pointer" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSelectRow(entry.id, !selectedRows.includes(entry.id));
+                              }}
+                            >
+                              <Checkbox
+                                checked={selectedRows.includes(entry.id)}
+                                onCheckedChange={(checked) => handleSelectRow(entry.id, !!checked)}
+                                className="cursor-pointer"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </div>
                           </TableCell>
                           {visibleColumns.employee_name && (
                           <TableCell className="font-medium sticky left-12 bg-background/95 backdrop-blur min-w-0 z-10 p-2">
@@ -635,7 +645,7 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
                           )}
                           <TableCell>
                             <div className="space-y-1">
-                              <div className="font-bold text-accent">
+                              <div className="font-bold text-green-600 dark:text-green-400">
                                 {disp.amount.toFixed(2)} LE
                               </div>
                               <div className="text-fluid-xs text-muted-foreground">

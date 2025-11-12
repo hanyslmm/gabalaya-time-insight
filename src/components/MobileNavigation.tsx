@@ -132,7 +132,7 @@ const MobileNavigation: React.FC = () => {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-t border-border/50 mobile-safe-bottom shadow-lg md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-sm border-t border-border mobile-safe-bottom shadow-lg md:hidden"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -148,17 +148,17 @@ const MobileNavigation: React.FC = () => {
               variant="ghost"
               onClick={() => handleNavigation(item.href, index)}
               className={cn(
-                "relative flex flex-col items-center justify-center min-h-[64px] rounded-md transition-all duration-300",
-                "hover:bg-accent/80 active:bg-accent/90 focus:ring-2 focus:ring-primary/20",
+                "relative flex flex-col items-center justify-center min-h-[64px] rounded-md transition-all duration-200",
+                "hover:bg-muted/50 active:bg-muted/70 focus:ring-2 focus:ring-primary/20",
                 isActive
-                  ? "bg-primary/10 text-primary border-t-2 border-t-primary shadow-md"
+                  ? "bg-primary/10 text-primary border-t-2 border-t-primary"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
               <div className="relative mb-1">
                 <Icon className={cn(
-                  "h-6 w-6 transition-all duration-300",
-                  isActive ? "text-primary scale-110 drop-shadow-sm" : "text-muted-foreground group-hover:text-foreground"
+                  "h-5 w-5 sm:h-6 sm:w-6 transition-all duration-200",
+                  isActive ? "text-primary scale-105" : "text-muted-foreground group-hover:text-foreground"
                 )} />
 
                 {item.badge && item.badge > 0 && (

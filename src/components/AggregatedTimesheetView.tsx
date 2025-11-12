@@ -172,7 +172,7 @@ const AggregatedTimesheetView: React.FC<AggregatedTimesheetViewProps> = ({ data,
                           <TableCell>{entry.total_hours.toFixed(2)}h</TableCell>
                           <TableCell>{entry.morning_hours?.toFixed(2) || '0.00'}h</TableCell>
                           <TableCell>{entry.night_hours?.toFixed(2) || '0.00'}h</TableCell>
-                          <TableCell>LE {(entry.total_card_amount_split || entry.total_card_amount_flat).toFixed(2)}</TableCell>
+                          <TableCell className="font-medium text-green-600 dark:text-green-400">LE {(entry.total_card_amount_split || entry.total_card_amount_flat).toFixed(2)}</TableCell>
                           {isAdmin && (
                             <TableCell>
                               <Button

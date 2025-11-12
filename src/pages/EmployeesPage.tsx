@@ -393,7 +393,7 @@ const EmployeesPage: React.FC = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full hover-scale"
+                    className="w-full"
                     onClick={() => handleViewStats(employee)}
                   >
                     View Statistics

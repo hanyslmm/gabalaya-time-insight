@@ -41,7 +41,7 @@ const Index = () => {
         <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
           <Button 
             onClick={handleGetStarted}
-            className="px-8 py-3 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+            className="px-8 py-3 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
           >
             Get Started
           </Button>

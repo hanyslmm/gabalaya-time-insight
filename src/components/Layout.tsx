@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { handleSingleClick } from '@/utils/clickHandler';
 
 const Layout = () => {
   const { user, logout } = useAuth();
@@ -63,6 +64,15 @@ const Layout = () => {
   const closeMobileSidebar = () => {
     setSidebarOpen(false);
   };
+  
+  // Enhanced click handler for navigation links (prevents double-clicks on desktop)
+  const handleNavClick = React.useCallback((e: React.MouseEvent) => {
+    if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+      handleSingleClick(() => closeMobileSidebar(), { preventDefault: false, stopPropagation: false })(e);
+    } else {
+      closeMobileSidebar();
+    }
+  }, []);
 
   const isAdmin = user?.role === 'admin';
   const isOwner = user?.role === 'owner';
@@ -171,24 +181,24 @@ const Layout = () => {
 
       {/* Left Sidebar */}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 flex flex-col bg-card border-r border-border transition-all duration-300 ease-in-out",
+        "fixed inset-y-0 left-0 z-50 flex flex-col bg-card border-r border-border transition-all duration-300 ease-in-out shadow-sm",
         "lg:relative lg:translate-x-0",
         sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         sidebarCollapsed ? "lg:w-16" : "lg:w-64",
         "w-64"
       )}>
         {/* Sidebar Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-border">
           <div className={cn(
             "flex items-center gap-3 transition-opacity duration-200",
             sidebarCollapsed ? "lg:opacity-0 lg:w-0 lg:overflow-hidden" : "opacity-100"
           )}>
-            <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center shadow-lg">
+            <div className="w-9 h-9 bg-gradient-to-br from-primary to-primary/90 rounded-lg flex items-center justify-center shadow-md">
               <span className="text-primary-foreground font-bold text-sm">C</span>
             </div>
             <div>
               <h1 className="text-lg font-semibold text-foreground tracking-tight">ChampTime</h1>
-              <p className="text-xs text-muted-foreground font-medium">HRM System</p>
+              <p className="text-xs text-muted-foreground">HRM System</p>
             </div>
           </div>
           
@@ -218,40 +228,46 @@ const Layout = () => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-4 space-y-1">
+        <nav className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-1">
           {navigation.map((item) => {
             const isActive = isActivePath(item.href);
             return (
               <Link
                 key={item.name}
                 to={item.href}
-                onClick={closeMobileSidebar}
+                onClick={handleNavClick}
                 className={cn(
                   "group flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 mobile-press mobile-touch-target mobile-focus-ring",
                   isActive
-                    ? "bg-primary text-primary-foreground shadow-md mobile-gradient-primary"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground mobile-hover"
+                    ? "bg-primary text-primary-foreground shadow-sm hover:shadow-md"
+                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                 )}
               >
                 <item.icon className={cn(
-                  "flex-shrink-0 h-5 w-5",
-                  isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-accent-foreground"
+                  "flex-shrink-0 h-5 w-5 transition-colors duration-200",
+                  isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
                 )} />
                 
                 <div className={cn(
                   "ml-3 min-w-0 flex-1 transition-all duration-200",
                   sidebarCollapsed ? "lg:opacity-0 lg:w-0 lg:overflow-hidden" : "opacity-100"
                 )}>
-                  <p className="text-sm font-medium truncate">
+                  <p className={cn(
+                    "text-sm truncate transition-colors duration-200",
+                    isActive ? "font-semibold" : "font-medium"
+                  )}>
                     {item.name}
                   </p>
-                  <p className="text-xs opacity-75 truncate">
+                  <p className={cn(
+                    "text-xs truncate transition-colors duration-200",
+                    isActive ? "text-primary-foreground/80" : "text-muted-foreground/70"
+                  )}>
                     {item.description}
                   </p>
                 </div>
                 
                 {isActive && !sidebarCollapsed && (
-                  <div className="hidden lg:block w-1 h-4 bg-primary-foreground rounded-full ml-auto opacity-75" />
+                  <div className="hidden lg:block w-1 h-5 bg-primary-foreground rounded-full ml-auto" />
                 )}
               </Link>
             );
@@ -259,7 +275,7 @@ const Layout = () => {
         </nav>
 
         {/* Sidebar Footer - User Info & Role */}
-        <div className="border-t border-border p-4">
+        <div className="border-t border-border p-3 sm:p-4">
           {/* Role Badge */}
           <div className={cn(
             "mb-3 transition-all duration-200",
@@ -358,8 +374,8 @@ const Layout = () => {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-h-screen">
         {/* Top Header */}
-        <header className="mobile-header border-b bg-card/80 backdrop-blur-sm sticky top-0 z-30">
-          <div className="flex items-center justify-between w-full px-4 py-2 sm:py-3">
+        <header className="border-b border-border bg-card/95 backdrop-blur-sm sticky top-0 z-30 shadow-sm">
+          <div className="flex items-center justify-between w-full px-4 py-3 sm:py-4">
             {/* Hamburger Menu Button (for mobile) */}
             <Button
               variant="ghost"

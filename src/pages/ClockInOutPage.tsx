@@ -975,7 +975,7 @@ const ClockInOutPage: React.FC = () => {
                 size="sm"
                 onClick={refreshData}
                 disabled={loading}
-                className="h-8 w-8 p-0 opacity-60 hover:opacity-100 hover:scale-110 transition-all"
+                className="h-8 w-8 p-0 opacity-60 hover:opacity-100 transition-all"
                 title="Refresh status"
               >
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -1054,7 +1054,7 @@ const ClockInOutPage: React.FC = () => {
                   onClick={handleClockOut}
                   disabled={actionLoading}
                   size="lg"
-                  className="w-full h-16 bg-gradient-to-r from-destructive via-destructive/90 to-destructive/80 hover:from-destructive/80 hover:to-destructive/70 text-xl font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                  className="w-full h-16 bg-gradient-to-r from-destructive via-destructive/90 to-destructive/80 hover:from-destructive/80 hover:to-destructive/70 text-xl font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300"
                 >
                   {actionLoading ? (
                     <>
@@ -1091,7 +1091,7 @@ const ClockInOutPage: React.FC = () => {
                   onClick={handleClockIn}
                   disabled={actionLoading}
                   size="lg"
-                  className="w-full h-16 bg-gradient-to-r from-primary via-primary/90 to-primary/80 hover:from-primary/80 hover:to-primary/70 text-xl font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                  className="w-full h-16 bg-gradient-to-r from-primary via-primary/90 to-primary/80 hover:from-primary/80 hover:to-primary/70 text-xl font-bold rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300"
                 >
                   {actionLoading ? (
                     <>
@@ -1163,7 +1163,7 @@ const ClockInOutPage: React.FC = () => {
         )}
 
         {/* Enhanced Team Status Section */}
-        <Card className="shadow-xl border-border/20 bg-gradient-to-br from-card to-card/90 rounded-3xl overflow-hidden animate-scale-in">
+        <Card className="shadow-xl border-border/20 bg-gradient-to-br from-card to-card/90 rounded-3xl overflow-hidden">
           <CardHeader className="px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
@@ -1194,7 +1194,7 @@ const ClockInOutPage: React.FC = () => {
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowTeamStatus(!showTeamStatus)}
-                  className="h-9 px-3 hover:scale-105 transition-transform"
+                  className="h-9 px-3 transition-colors"
                 >
                   {showTeamStatus ? (
                     <EyeOff className="h-4 w-4" />
@@ -1356,7 +1356,7 @@ const ClockInOutPage: React.FC = () => {
                      <Button
                        onClick={handleManualClockIn}
                        disabled={!selectedEmployee || manualClockInLoading}
-                       className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                       className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
                      >
                        {manualClockInLoading ? (
                          <>
@@ -1378,7 +1378,7 @@ const ClockInOutPage: React.FC = () => {
         )}
 
         {/* Enhanced Today's Activity */}
-        <Card className="shadow-xl border-border/20 bg-gradient-to-br from-card to-card/90 rounded-3xl overflow-hidden animate-scale-in">
+        <Card className="shadow-xl border-border/20 bg-gradient-to-br from-card to-card/90 rounded-3xl overflow-hidden">
           <CardHeader className="px-6 py-5">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-xl flex items-center justify-center">

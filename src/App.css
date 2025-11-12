@@ -143,8 +143,9 @@ body {
 /* ===== MICRO-INTERACTIONS ===== */
 .mobile-hover {
   @apply transition-all duration-200 ease-out;
-  @apply hover:scale-[1.02] hover:shadow-md;
-  @apply active:scale-[0.98];
+  @apply hover:shadow-md;
+  /* hover:scale-[1.02] - Disabled per user request */
+  /* active:scale-[0.98] - Disabled per user request */
 }
 
 .mobile-press {
@@ -219,7 +220,7 @@ body {
 }
 
 .mobile-scale-in {
-  @apply animate-scale-in;
+  /* @apply animate-scale-in; - Disabled per user request */
 }
 
 /* ===== STATUS INDICATORS ===== */

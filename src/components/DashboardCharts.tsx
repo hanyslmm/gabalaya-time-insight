@@ -414,7 +414,7 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   {chartData?.employeeData?.slice(0, 4).map((employee, index) => (
                     <div key={employee.name} className="group relative">
-                      <div className="flex flex-col items-center p-6 bg-gradient-to-br from-background/80 via-background/60 to-primary/5 rounded-2xl border border-border/50 hover:border-primary/30 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                      <div className="flex flex-col items-center p-6 bg-gradient-to-br from-background/80 via-background/60 to-primary/5 rounded-2xl border border-border/50 hover:border-primary/30 shadow-lg hover:shadow-xl transition-all duration-300">
                         <div className="flex items-center gap-3 mb-4">
                           {index === 0 && <Trophy className="h-5 w-5 text-yellow-500" />}
                           {index === 1 && <Medal className="h-5 w-5 text-gray-400" />}

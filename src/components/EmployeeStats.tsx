@@ -181,7 +181,7 @@ const EmployeeStats: React.FC<EmployeeStatsProps> = ({ employee, onClose }) => {
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{stats?.totalAmount || '0.00'} LE</div>
+                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">{stats?.totalAmount || '0.00'} LE</div>
                 </CardContent>
               </Card>
             </div>

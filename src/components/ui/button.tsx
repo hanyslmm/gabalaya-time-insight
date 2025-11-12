@@ -3,9 +3,10 @@ import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
+import { handleSingleClick } from "@/utils/clickHandler"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 mobile-button",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 mobile-button cursor-pointer",
   {
     variants: {
       variant: {
@@ -40,12 +41,26 @@ export interface ButtonProps
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, onClick, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
+    
+    // Wrap onClick with single-click handler for desktop
+    const handleClick = React.useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+      if (onClick) {
+        // Use enhanced click handler for desktop, direct call for mobile/touch
+        if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+          handleSingleClick(onClick, { preventDefault: false, stopPropagation: false })(event)
+        } else {
+          onClick(event)
+        }
+      }
+    }, [onClick])
+    
     return (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
+        onClick={handleClick}
         {...props}
       />
     )

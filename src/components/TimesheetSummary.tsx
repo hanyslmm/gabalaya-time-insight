@@ -81,7 +81,7 @@ const TimesheetSummary: React.FC<TimesheetSummaryProps> = ({ data, dateRange }) 
             <DollarSign className="h-4 w-4 text-green-500" />
             <div>
               <p className="text-sm text-gray-600">Total Amount</p>
-              <p className="text-lg font-semibold">LE {summary.totalAmount.toFixed(2)}</p>
+              <p className="text-lg font-semibold text-green-600 dark:text-green-400">LE {summary.totalAmount.toFixed(2)}</p>
             </div>
           </div>
           

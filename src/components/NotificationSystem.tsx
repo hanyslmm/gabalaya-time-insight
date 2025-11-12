@@ -170,7 +170,7 @@ const NotificationSystem: React.FC = () => {
         variant="ghost"
         size="sm"
         onClick={() => setShowNotifications(!showNotifications)}
-        className="relative hover:scale-105 transition-transform"
+        className="relative transition-colors"
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
@@ -189,7 +189,7 @@ const NotificationSystem: React.FC = () => {
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowNotifications(false)}
-                className="hover:scale-105 transition-transform"
+                className="transition-colors"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -207,7 +207,7 @@ const NotificationSystem: React.FC = () => {
                     key={notification.id}
                     className={`p-3 border-l-4 ${getNotificationColor(notification.type)} ${
                       notification.read ? 'bg-muted/30' : 'bg-background'
-                    } rounded-r-lg cursor-pointer hover:bg-accent/30 transition-all duration-200 transform hover:scale-[1.01]`}
+                    } rounded-r-lg cursor-pointer hover:bg-accent/30 transition-all duration-200`}
                     onClick={() => markAsRead(notification.id)}
                   >
                     <div className="flex items-start justify-between">
@@ -230,7 +230,7 @@ const NotificationSystem: React.FC = () => {
                           e.stopPropagation();
                           clearNotification(notification.id);
                         }}
-                        className="h-6 w-6 p-0 hover:scale-105 transition-transform"
+                        className="h-6 w-6 p-0 transition-colors"
                       >
                         <X className="h-3 w-3" />
                       </Button>
