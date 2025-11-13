@@ -1313,7 +1313,7 @@ const ClockInOutPage: React.FC = () => {
                           setEmployeeSearchTerm(''); // Clear search when employee is selected
                         }}
                       >
-                        <SelectTrigger className="w-full bg-white/80 dark:bg-gray-800/80 border-orange-200 dark:border-orange-800">
+                        <SelectTrigger className="w-full bg-background/80 border-border">
                           <SelectValue placeholder="Search and select employee..." />
                         </SelectTrigger>
                         <SelectContent>
@@ -1323,7 +1323,7 @@ const ClockInOutPage: React.FC = () => {
                               placeholder="Search employees..."
                               value={employeeSearchTerm}
                               onChange={(e) => setEmployeeSearchTerm(e.target.value)}
-                              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                              className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
                             />
                           </div>
                           {employees
@@ -1346,7 +1346,7 @@ const ClockInOutPage: React.FC = () => {
                             employee.full_name.toLowerCase().includes(employeeSearchTerm.toLowerCase()) ||
                             employee.staff_id.toLowerCase().includes(employeeSearchTerm.toLowerCase())
                           ).length === 0 && employeeSearchTerm && (
-                            <div className="p-3 text-center text-sm text-gray-500">
+                            <div className="p-3 text-center text-sm text-muted-foreground">
                               No employees found matching "{employeeSearchTerm}"
                             </div>
                           )}

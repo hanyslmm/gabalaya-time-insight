@@ -55,24 +55,82 @@ const ProfilePage: React.FC = () => {
     try {
       setLoading(true);
 
-      // First check if user is admin (in admin_users table)
-      if (user?.role === 'admin') {
-        const { data: adminData, error: adminError } = await supabase
-          .from('admin_users')
-          .select('*')
-          .eq('username', user.username)
-          .single();
+      // First check if user is admin or owner (in admin_users table)
+      if (user?.role === 'admin' || user?.role === 'owner') {
+        console.log('Fetching admin/owner profile:', {
+          id: user.id,
+          username: user.username,
+          role: user.role,
+          full_name: user.full_name
+        });
+        
+        // Try querying by ID first (more reliable)
+        let adminData = null;
+        let adminError = null;
+        
+        if (user.id) {
+          const result = await supabase
+            .from('admin_users')
+            .select('*')
+            .eq('id', user.id)
+            .maybeSingle();
+          adminData = result.data;
+          adminError = result.error;
+        }
+        
+        // Fallback to username if ID query didn't work
+        if (!adminData && !adminError && user.username) {
+          const result = await supabase
+            .from('admin_users')
+            .select('*')
+            .eq('username', user.username)
+            .maybeSingle();
+          adminData = result.data;
+          adminError = result.error;
+        }
 
         if (adminError) {
-        } else if (adminData) {
+          console.error('Error fetching admin/owner data:', adminError);
+          console.error('Error details:', {
+            code: adminError.code,
+            message: adminError.message,
+            details: adminError.details,
+            hint: adminError.hint
+          });
+          toast.error(`Error loading profile data: ${adminError.message || 'Unknown error'}`);
+          setLoading(false);
+          return;
+        }
+        
+        if (adminData) {
+          console.log('Admin/owner data loaded:', adminData);
           setEmployee({
             id: adminData.id,
             staff_id: adminData.username,
-            full_name: adminData.full_name || adminData.username,
+            full_name: adminData.full_name || user.full_name || adminData.username,
             email: null,
             phone_number: null, 
             role: adminData.role,
             hiring_date: adminData.created_at?.split('T')[0] || ''
+          });
+          setFormData({
+            email: '',
+            phone_number: ''
+          });
+          setLoading(false);
+          return;
+        } else {
+          // If no data found, use the user object from auth as fallback
+          console.warn('No admin/owner data found in database, using auth user data as fallback');
+          console.warn('User object:', user);
+          setEmployee({
+            id: user.id,
+            staff_id: user.username,
+            full_name: user.full_name || user.username,
+            email: null,
+            phone_number: null, 
+            role: user.role,
+            hiring_date: ''
           });
           setFormData({
             email: '',
@@ -111,8 +169,8 @@ const ProfilePage: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!employee || employee.role === 'admin') {
-      toast.error('Contact information not available for admin users');
+    if (!employee || employee.role === 'admin' || employee.role === 'owner') {
+      toast.error('Contact information not available for admin/owner users');
       return;
     }
 
@@ -174,7 +232,7 @@ const ProfilePage: React.FC = () => {
         newPassword: passwordData.newPassword
       };
 
-      if (user?.role === 'admin') {
+      if (user?.role === 'admin' || user?.role === 'owner') {
         requestBody.currentPassword = passwordData.currentPassword || 'dummy_password';
       }
 
@@ -193,8 +251,8 @@ const ProfilePage: React.FC = () => {
         confirmPassword: ''
       });
 
-      toast.success(user?.role === 'admin' 
-        ? 'Admin password updated successfully' 
+      toast.success(user?.role === 'admin' || user?.role === 'owner'
+        ? 'Password updated successfully' 
         : `Password format noted. Employee passwords follow the format: ${user?.username}123`
       );
 
@@ -218,7 +276,7 @@ const ProfilePage: React.FC = () => {
     return (
       <MobilePageWrapper>
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-2 border-primary border-t-transparent"></div>
         </div>
       </MobilePageWrapper>
     );
@@ -248,17 +306,17 @@ const ProfilePage: React.FC = () => {
 
       {/* Profile Picture and Basic Info */}
       <MobileSection>
-        <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+        <Card className="border-border bg-card">
           <CardContent className="p-6">
             <div className="flex items-center space-x-4">
-              <Avatar className="h-20 w-20 ring-4 ring-primary/20">
+              <Avatar className="h-20 w-20 ring-2 ring-border">
                 <AvatarFallback className="text-2xl font-bold bg-primary text-primary-foreground">
                   {getInitials(employee.full_name)}
                 </AvatarFallback>
               </Avatar>
-              <div className="flex-1">
-                <h2 className="text-2xl font-bold text-foreground">{employee.full_name}</h2>
-                <p className="text-muted-foreground font-mono">{employee.staff_id}</p>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-2xl font-bold text-foreground truncate">{employee.full_name}</h2>
+                <p className="text-muted-foreground font-mono text-sm mt-1">{employee.staff_id}</p>
                 <Badge variant={employee.role === 'admin' ? 'destructive' : 'secondary'} className="mt-2">
                   <Shield className="h-3 w-3 mr-1" />
                   {employee.role.toUpperCase()}
@@ -280,20 +338,20 @@ const ProfilePage: React.FC = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-muted/50 p-3 rounded-lg">
+              <div className="bg-muted/50 p-4 rounded-lg border border-border/50">
                 <Label className="text-sm font-medium text-muted-foreground">Staff ID</Label>
                 <div className="mt-1 text-foreground font-mono font-medium">{employee.staff_id}</div>
               </div>
-              <div className="bg-muted/50 p-3 rounded-lg">
+              <div className="bg-muted/50 p-4 rounded-lg border border-border/50">
                 <Label className="text-sm font-medium text-muted-foreground">Role</Label>
                 <div className="mt-1 text-foreground font-medium capitalize">{employee.role}</div>
               </div>
-              <div className="md:col-span-2 bg-muted/50 p-3 rounded-lg">
+              <div className="md:col-span-2 bg-muted/50 p-4 rounded-lg border border-border/50">
                 <Label className="text-sm font-medium text-muted-foreground">Full Name</Label>
                 <div className="mt-1 text-foreground font-medium">{employee.full_name}</div>
               </div>
               {employee.hiring_date && (
-                <div className="md:col-span-2 bg-muted/50 p-3 rounded-lg">
+                <div className="md:col-span-2 bg-muted/50 p-4 rounded-lg border border-border/50">
                   <Label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
                     Hiring Date
@@ -309,7 +367,7 @@ const ProfilePage: React.FC = () => {
       </MobileSection>
 
       {/* Contact Information - Only for employees */}
-      {employee.role !== 'admin' && (
+      {employee.role !== 'admin' && employee.role !== 'owner' && (
         <MobileSection>
           <Card>
             <CardHeader>
@@ -373,9 +431,9 @@ const ProfilePage: React.FC = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             {employee.role === 'employee' && (
-              <Alert>
-                <AlertDescription>
-                  <strong>Employee Password Format:</strong> {employee.staff_id}123
+              <Alert className="bg-muted/50 border-border">
+                <AlertDescription className="text-foreground">
+                  <strong className="text-foreground">Employee Password Format:</strong> <span className="font-mono text-foreground">{employee.staff_id}123</span>
                   {employee.staff_id === 'EMP085382' && (
                     <span className="block mt-1 text-primary">
                       ⚠️ Special user: Uses the same format as others.
@@ -385,7 +443,7 @@ const ProfilePage: React.FC = () => {
               </Alert>
             )}
 
-            {employee.role === 'admin' && (
+            {(employee.role === 'admin' || employee.role === 'owner') && (
               <div>
                 <Label htmlFor="currentPassword" className="flex items-center gap-2">
                   <Lock className="h-4 w-4" />

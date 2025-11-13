@@ -388,11 +388,11 @@ const CompanySettingsPage: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4 rounded-lg">
-                  <h4 className="font-medium text-sm text-blue-800 dark:text-blue-200 mb-2">
+                <div className="bg-muted/50 border border-border p-4 rounded-lg">
+                  <h4 className="font-medium text-sm text-foreground mb-2">
                     📋 Auto Clock-Out Rules:
                   </h4>
-                  <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                  <ul className="text-sm text-muted-foreground space-y-1">
                     <li>• Employees are clocked out after working {maxWorkHours} hours</li>
                     <li>• Employees are clocked out at {autoClockoutTime} the day after they clocked in</li>
                     <li>• Only admins can manually add extra hours after auto clock-out</li>
@@ -475,11 +475,11 @@ const CompanySettingsPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4 rounded-lg">
-                  <h4 className="font-medium text-sm text-blue-800 dark:text-blue-200 mb-2">
+                <div className="bg-muted/50 border border-border p-4 rounded-lg">
+                  <h4 className="font-medium text-sm text-foreground mb-2">
                     📋 Working Hours Window Rules:
                   </h4>
-                  <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                  <ul className="text-sm text-muted-foreground space-y-1">
                     <li>• Only hours worked between {workingHoursStartTime} and {workingHoursEndTime} will be counted as payable hours</li>
                     <li>• Hours worked outside this window will not be included in payroll calculations</li>
                     <li>• This applies to both morning and night shift calculations</li>

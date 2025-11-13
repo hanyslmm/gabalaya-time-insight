@@ -392,11 +392,11 @@ const DashboardPage: React.FC = () => {
                   Welcome to ChampTime HRM System. Everything is running smoothly.
                 </p>
                 <div className="flex items-center gap-4 text-sm">
-                  <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50 dark:bg-green-950/20">
+                  <Badge variant="outline" className="text-green-600 dark:text-green-400 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/20">
                     <Activity className="h-3 w-3 mr-1" />
                     System Online
                   </Badge>
-                  <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+                  <Badge variant="outline" className="text-primary border-border bg-muted/50">
                     Last Updated: {new Date().toLocaleTimeString()}
                   </Badge>
                 </div>

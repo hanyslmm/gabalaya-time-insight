@@ -604,9 +604,9 @@ const MyTimesheetPage: React.FC = () => {
           <div className="bg-card border rounded p-1 sm:p-3 shadow-sm">
             <div className="flex items-center justify-between mb-0.5 sm:mb-1">
               <span className="text-xs font-medium text-muted-foreground">Morning</span>
-              <TrendingUp className="h-3 w-3 text-blue-600" />
+              <TrendingUp className="h-3 w-3 text-primary" />
             </div>
-            <div className="text-sm sm:text-xl font-bold text-blue-600">{formatHours(totalMorningHours)}</div>
+            <div className="text-sm sm:text-xl font-bold text-primary">{formatHours(totalMorningHours)}</div>
             <div className="text-xs text-muted-foreground hidden sm:block">LE {morningWageRate}/h</div>
           </div>
 
@@ -624,9 +624,9 @@ const MyTimesheetPage: React.FC = () => {
           <div className="bg-card border rounded p-1 sm:p-3 shadow-sm">
             <div className="flex items-center justify-between mb-0.5 sm:mb-1">
               <span className="text-xs font-medium text-muted-foreground">Earnings</span>
-              <DollarSign className="h-3 w-3 text-green-600" />
+              <DollarSign className="h-3 w-3 text-green-600 dark:text-green-400" />
             </div>
-            <div className="text-sm sm:text-xl font-bold text-green-600">LE {totalEarnings.toFixed(0)}</div>
+            <div className="text-sm sm:text-xl font-bold text-green-600 dark:text-green-400">LE {totalEarnings.toFixed(0)}</div>
             <div className="text-xs text-muted-foreground hidden sm:block">Total</div>
           </div>
         </div>
@@ -682,16 +682,16 @@ const MyTimesheetPage: React.FC = () => {
                       {formatHours(entry.total_hours)}h
                     </Badge>
                     {entry.morning_hours > 0 && (
-                      <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs h-4">
+                      <Badge variant="secondary" className="text-xs h-4">
                         M:{formatHours(entry.morning_hours)}
                       </Badge>
                     )}
                     {entry.night_hours > 0 && (
-                      <Badge variant="secondary" className="bg-purple-100 text-purple-800 text-xs h-4">
+                      <Badge variant="secondary" className="text-xs h-4">
                         N:{formatHours(entry.night_hours)}
                       </Badge>
                     )}
-                    <span className="text-xs font-medium text-green-600">
+                    <span className="text-xs font-medium text-green-600 dark:text-green-400">
                       LE{(() => {
                         const storedAmount = (entry as any).total_card_amount_split || (entry as any).total_card_amount_flat;
                         if (storedAmount && storedAmount > 0) {

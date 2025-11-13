@@ -547,50 +547,50 @@ const ReportsPage: React.FC = () => {
           <div className="space-y-6">
             {/* Key Metrics Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+              <Card className="bg-card border-border">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-blue-700">Total Hours</p>
-                      <p className="text-2xl font-bold text-blue-900">{keyMetrics.totalHours.toFixed(1)}h</p>
+                      <p className="text-sm font-medium text-muted-foreground">Total Hours</p>
+                      <p className="text-2xl font-bold text-foreground">{keyMetrics.totalHours.toFixed(1)}h</p>
                     </div>
-                    <Clock className="h-8 w-8 text-blue-600" />
+                    <Clock className="h-8 w-8 text-primary" />
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+              <Card className="bg-card border-border">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-green-700">Total Shifts</p>
-                      <p className="text-2xl font-bold text-green-900">{keyMetrics.totalShifts}</p>
+                      <p className="text-sm font-medium text-muted-foreground">Total Shifts</p>
+                      <p className="text-2xl font-bold text-foreground">{keyMetrics.totalShifts}</p>
                     </div>
-                    <Calendar className="h-8 w-8 text-green-600" />
+                    <Calendar className="h-8 w-8 text-primary" />
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+              <Card className="bg-card border-border">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-purple-700">Employees</p>
-                      <p className="text-2xl font-bold text-purple-900">{keyMetrics.totalEmployees}</p>
+                      <p className="text-sm font-medium text-muted-foreground">Employees</p>
+                      <p className="text-2xl font-bold text-foreground">{keyMetrics.totalEmployees}</p>
                     </div>
-                    <Users className="h-8 w-8 text-purple-600" />
+                    <Users className="h-8 w-8 text-primary" />
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200">
+              <Card className="bg-card border-border">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-amber-700">Total Amount</p>
+                      <p className="text-sm font-medium text-muted-foreground">Total Amount</p>
                       <p className="text-2xl font-bold text-green-600 dark:text-green-400">{keyMetrics.totalAmount.toFixed(0)} LE</p>
                     </div>
-                    <DollarSign className="h-8 w-8 text-amber-600" />
+                    <DollarSign className="h-8 w-8 text-green-600 dark:text-green-400" />
                   </div>
                 </CardContent>
               </Card>
@@ -609,7 +609,7 @@ const ReportsPage: React.FC = () => {
                     onClick={() => setCurrentView('attendance')}
                   >
                     <div className="flex items-center gap-3">
-                      <Users className="h-5 w-5 text-blue-600" />
+                      <Users className="h-5 w-5 text-primary" />
                       <div className="text-left">
                         <p className="font-medium">View Attendance</p>
                         <p className="text-sm text-muted-foreground">Detailed timesheet records</p>
@@ -624,7 +624,7 @@ const ReportsPage: React.FC = () => {
                     onClick={() => setCurrentView('payroll')}
                   >
                     <div className="flex items-center gap-3">
-                      <FileSpreadsheet className="h-5 w-5 text-green-600" />
+                      <FileSpreadsheet className="h-5 w-5 text-green-600 dark:text-green-400" />
                       <div className="text-left">
                         <p className="font-medium">Payroll Summary</p>
                         <p className="text-sm text-muted-foreground">Employee wage calculations</p>

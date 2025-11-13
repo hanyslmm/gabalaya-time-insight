@@ -343,7 +343,7 @@ const TimesheetsPage: React.FC = () => {
     return (
       <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="text-center py-12">
-          <div className="text-red-600 text-lg mb-2">Error loading timesheets</div>
+          <div className="text-destructive text-lg mb-2">Error loading timesheets</div>
           <div className="text-muted-foreground text-sm mb-4">
             {error.message || 'An error occurred while loading the data'}
           </div>
@@ -369,7 +369,7 @@ const TimesheetsPage: React.FC = () => {
              {(user?.role === 'admin' || user?.role === 'owner') && (
                <Button
                  onClick={() => setShowNewEntryDialog(true)}
-                 className="bg-green-600 hover:bg-green-700 h-7 sm:h-9"
+                 className="h-7 sm:h-9"
                  size="sm"
                >
                  <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -378,7 +378,8 @@ const TimesheetsPage: React.FC = () => {
              )}
              <Button
                onClick={() => setShowUpload(true)}
-               className="bg-blue-600 hover:bg-blue-700 h-7 sm:h-9"
+               variant="secondary"
+               className="h-7 sm:h-9"
                size="sm"
              >
                <Upload className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -564,7 +565,7 @@ const TimesheetsPage: React.FC = () => {
                     {/* Total Hours */}
                     <div className="bg-card border rounded-lg p-3 sm:p-4">
                       <div className="text-xs sm:text-sm text-muted-foreground mb-1">Total Hours</div>
-                      <div className="text-lg sm:text-2xl font-bold text-blue-600">{totalHours.toFixed(1)}h</div>
+                      <div className="text-lg sm:text-2xl font-bold text-primary">{totalHours.toFixed(1)}h</div>
                       <div className="text-xs text-muted-foreground">All worked hours</div>
                     </div>
 
@@ -735,7 +736,7 @@ const TimesheetsPage: React.FC = () => {
         <CardContent>
           {isLoading ? (
             <div className="flex items-center justify-center h-32">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
             </div>
           ) : (
             <TimesheetTable 

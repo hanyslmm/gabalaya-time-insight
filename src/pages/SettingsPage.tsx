@@ -313,11 +313,11 @@ const SettingsPage: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <h4 className="font-medium">Version</h4>
-                  <p className="text-sm text-gray-600">2.8.0</p>
+                  <p className="text-sm text-muted-foreground">2.8.0</p>
                 </div>
                 <div>
                   <h4 className="font-medium">Recent Updates</h4>
-                  <ul className="text-sm text-gray-600 space-y-1 list-disc pl-5">
+                  <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-5">
                     <li>📊 Employees Page Redesign: Converted card layout to modern table view with pagination for better data management</li>
                     <li>🔧 Unified Employee Operations: All employee actions (edit, wages, password, terminate, delete) now accessible from single edit dialog with tabs</li>
                     <li>📄 Enhanced Pagination: Added configurable items per page (10, 20, 50, 100) with smart page navigation</li>
