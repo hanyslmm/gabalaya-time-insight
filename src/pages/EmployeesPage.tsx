@@ -5,6 +5,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,13 +19,9 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Plus, Edit, Trash2, Search, DollarSign, Lock, UserX } from 'lucide-react';
+import { Plus, Edit, Search, Lock, UserX, DollarSign, BarChart3 } from 'lucide-react';
 import EmployeeForm from '@/components/EmployeeForm';
 import EmployeeStats from '@/components/EmployeeStats';
-import EmployeeWageRates from '@/components/EmployeeWageRates';
-import AdminPasswordChange from '@/components/AdminPasswordChange';
-import AdminRoleChange from '@/components/AdminRoleChange';
-import TerminateEmployeeDialog from '@/components/TerminateEmployeeDialog';
 import { useAuth } from '@/hooks/useAuth';
 
 interface Employee {
@@ -46,6 +45,8 @@ interface Employee {
   last_organization_id?: string;
 }
 
+const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100];
+
 const EmployeesPage: React.FC = () => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -54,11 +55,8 @@ const EmployeesPage: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [wageRateEmployee, setWageRateEmployee] = useState<Employee | null>(null);
-  const [passwordChangeEmployee, setPasswordChangeEmployee] = useState<Employee | null>(null);
-  const [roleChangeAdmin, setRoleChangeAdmin] = useState<any>(null);
-  const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
-  const [employeeToTerminate, setEmployeeToTerminate] = useState<Employee | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const { data: employees, isLoading, error: employeesError } = useQuery({
     queryKey: ['employees', (user as any)?.current_organization_id || user?.organization_id],
@@ -214,43 +212,34 @@ const EmployeesPage: React.FC = () => {
     employee.role.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedEmployees = filteredEmployees.slice(startIndex, startIndex + itemsPerPage);
+
+  // Reset to first page when search term changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleEdit = (employee: Employee) => {
-    // Don't allow editing admin users through employee form
-    if (employee.is_admin_user) {
-      toast.error('Admin users should be managed through the admin panel');
-      return;
-    }
     setEditingEmployee(employee);
     setShowForm(true);
-  };
-
-  const handleDelete = (employee: Employee) => {
-    setEmployeeToDelete(employee);
-  };
-
-  const confirmDelete = () => {
-    if (employeeToDelete) {
-      deleteEmployeeMutation.mutate(employeeToDelete);
-      setEmployeeToDelete(null);
-    }
   };
 
   const handleViewStats = (employee: Employee) => {
     setSelectedEmployee(employee);
   };
 
-  const handleSetWageRates = (employee: Employee) => {
-    setWageRateEmployee(employee);
-  };
-
-  const handleChangePassword = (employee: Employee) => {
-    setPasswordChangeEmployee(employee);
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -259,8 +248,8 @@ const EmployeesPage: React.FC = () => {
     <div>
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('employees')}</h1>
-          <p className="mt-2 text-sm text-gray-600">Manage employee records and information</p>
+          <h1 className="text-2xl font-bold text-foreground">{t('employees')}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">Manage employee records and information</p>
         </div>
         <Button onClick={() => setShowForm(true)} className="flex items-center space-x-2">
           <Plus className="h-4 w-4" />
@@ -268,10 +257,10 @@ const EmployeesPage: React.FC = () => {
         </Button>
       </div>
 
-      <Card className="mb-6">
+      <Card className="mb-6 border-border shadow-sm">
         <CardContent className="p-6">
           <div className="flex items-center space-x-2">
-            <Search className="h-4 w-4 text-gray-400" />
+            <Search className="h-4 w-4 text-muted-foreground" />
             <Input
               placeholder={t('search')}
               value={searchTerm}
@@ -282,127 +271,151 @@ const EmployeesPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      <h2 className="text-xl font-semibold mb-4 text-gray-900">All Users</h2>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        {filteredEmployees.map((employee) => (
-          <Card key={employee.id} className="hover:shadow-lg transition-all duration-300 animate-fade-in card-interactive">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex flex-col sm:flex-row justify-between items-start gap-3">
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-fluid-lg font-semibold text-foreground break-words-enhanced">
-                    {employee.full_name}
-                  </h3>
-                  <p className="text-fluid-sm text-muted-foreground">{employee.staff_id}</p>
-                  {employee.is_admin_user && (
-                    <div className="flex items-center mt-2 space-x-2">
-                      <Lock className="h-4 w-4 text-destructive" />
-                      <span className="text-xs font-semibold text-destructive">Administrator Account</span>
-                    </div>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleEdit(employee)}
-                    title="Edit"
-                    className="h-8 w-8 p-0"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  {(user?.role === 'owner' || user?.role === 'admin' || !employee.is_admin_user) && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleSetWageRates(employee)}
-                      title="Set Wage Rates"
-                      className="h-8 w-8 p-0"
-                    >
-                      <DollarSign className="h-4 w-4" />
-                    </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleChangePassword(employee)}
-                    title="Change Password"
-                    className="h-8 w-8 p-0"
-                  >
-                    <Lock className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEmployeeToTerminate(employee)}
-                    className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 h-8 w-8 p-0"
-                    title="Terminate Employee"
-                  >
-                    <UserX className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDelete(employee)}
-                    className="text-destructive hover:text-destructive/80 h-8 w-8 p-0"
-                    title="Delete (Permanent)"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-3 rounded-lg border border-primary/20">
-                      <p className="text-xs font-medium text-primary uppercase tracking-wide">Morning Rate</p>
-                      <p className="text-fluid-lg font-bold text-primary">LE {employee.morning_wage_rate?.toFixed(2) || '17.00'}</p>
-                      <p className="text-xs text-primary/70">per hour</p>
-                    </div>
-                    <div className="bg-gradient-to-br from-secondary/20 to-secondary/10 p-3 rounded-lg border border-secondary/30">
-                      <p className="text-xs font-medium text-secondary-foreground uppercase tracking-wide">Night Rate</p>
-                      <p className="text-fluid-lg font-bold text-secondary-foreground">LE {employee.night_wage_rate?.toFixed(2) || '20.00'}</p>
-                      <p className="text-xs text-secondary-foreground/70">per hour</p>
-                    </div>
+      <Card className="border-border shadow-sm">
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-lg font-semibold">All Employees ({filteredEmployees.length})</CardTitle>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Show:</span>
+              <Select value={itemsPerPage.toString()} onValueChange={(value) => {
+                setItemsPerPage(parseInt(value, 10));
+                setCurrentPage(1);
+              }}>
+                <SelectTrigger className="w-20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ITEMS_PER_PAGE_OPTIONS.map(option => (
+                    <SelectItem key={option} value={option.toString()}>{option}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {paginatedEmployees.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <p>No employees found</p>
+            </div>
+          ) : (
+            <>
+              <div className="rounded-md border border-border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Staff ID</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Hiring Date</TableHead>
+                      <TableHead>Morning Rate</TableHead>
+                      <TableHead>Night Rate</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedEmployees.map((employee) => (
+                      <TableRow key={employee.id} className="hover:bg-muted/50">
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <span>{employee.full_name}</span>
+                            {employee.is_admin_user && (
+                              <Lock className="h-4 w-4 text-destructive" title="Administrator" />
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{employee.staff_id}</TableCell>
+                        <TableCell>{employee.role}</TableCell>
+                        <TableCell>{new Date(employee.hiring_date).toLocaleDateString()}</TableCell>
+                        <TableCell className="text-green-600 dark:text-green-400 font-medium">
+                          LE {employee.morning_wage_rate?.toFixed(2) || '17.00'}
+                        </TableCell>
+                        <TableCell className="text-green-600 dark:text-green-400 font-medium">
+                          LE {employee.night_wage_rate?.toFixed(2) || '20.00'}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{employee.email || '—'}</TableCell>
+                        <TableCell className="text-muted-foreground">{employee.phone_number || '—'}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(employee)}
+                              title="Edit Employee"
+                              className="h-8 w-8 p-0"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewStats(employee)}
+                              title="View Statistics"
+                              className="h-8 w-8 p-0"
+                            >
+                              <BarChart3 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredEmployees.length)} of {filteredEmployees.length} employees
                   </div>
-                  
-                  <div className="space-y-2 text-fluid-sm">
-                    <div className="flex justify-between">
-                      <span className="font-medium text-muted-foreground">{t('role')}:</span>
-                      <span className="text-foreground">{employee.role}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium text-muted-foreground">{t('hiringDate')}:</span>
-                      <span className="text-foreground">{new Date(employee.hiring_date).toLocaleDateString()}</span>
-                    </div>
-                    {employee.email && (
-                      <div className="flex justify-between">
-                        <span className="font-medium text-muted-foreground">{t('email')}:</span>
-                        <span className="text-foreground break-words-enhanced">{employee.email}</span>
-                      </div>
-                    )}
-                    {employee.phone_number && (
-                      <div className="flex justify-between">
-                        <span className="font-medium text-muted-foreground">{t('phoneNumber')}:</span>
-                        <span className="text-foreground">{employee.phone_number}</span>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => handleViewStats(employee)}
-                  >
-                    View Statistics
-                  </Button>
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious 
+                          onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                          className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNumber;
+                        if (totalPages <= 5) {
+                          pageNumber = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNumber = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNumber = totalPages - 4 + i;
+                        } else {
+                          pageNumber = currentPage - 2 + i;
+                        }
+                        return (
+                          <PaginationItem key={pageNumber}>
+                            <PaginationLink
+                              onClick={() => handlePageChange(pageNumber)}
+                              isActive={currentPage === pageNumber}
+                              className="cursor-pointer"
+                            >
+                              {pageNumber}
+                            </PaginationLink>
+                          </PaginationItem>
+                        );
+                      })}
+                      <PaginationItem>
+                        <PaginationNext 
+                          onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                          className={currentPage === totalPages || totalPages === 0 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
                 </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {showForm && (
         <EmployeeForm
@@ -420,71 +433,6 @@ const EmployeesPage: React.FC = () => {
           onClose={() => setSelectedEmployee(null)}
         />
       )}
-
-      {wageRateEmployee && (
-        <EmployeeWageRates
-          employee={wageRateEmployee}
-          onClose={() => setWageRateEmployee(null)}
-        />
-      )}
-
-      {passwordChangeEmployee && (
-        <AdminPasswordChange
-          employee={passwordChangeEmployee}
-          onClose={() => setPasswordChangeEmployee(null)}
-        />
-      )}
-
-      {roleChangeAdmin && (
-        <AdminRoleChange
-          adminUser={roleChangeAdmin}
-          onClose={() => setRoleChangeAdmin(null)}
-        />
-      )}
-
-      {/* Terminate Employee Dialog */}
-      <TerminateEmployeeDialog
-        employee={employeeToTerminate}
-        open={!!employeeToTerminate}
-        onOpenChange={(open) => !open && setEmployeeToTerminate(null)}
-      />
-
-      {/* Modern Delete Confirmation Dialog */}
-      <AlertDialog open={!!employeeToDelete} onOpenChange={(open) => !open && setEmployeeToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <Trash2 className="h-5 w-5 text-destructive" />
-              Delete Employee
-            </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3">
-              <p>
-                Are you sure you want to delete <span className="font-semibold text-foreground">{employeeToDelete?.full_name}</span>?
-              </p>
-              <p className="text-sm">
-                This will permanently remove:
-              </p>
-              <ul className="text-sm list-disc list-inside space-y-1 pl-2">
-                <li>Employee profile and information</li>
-                <li>All associated timesheet records</li>
-                <li>Wage rate settings</li>
-              </ul>
-              <p className="text-sm font-semibold text-destructive">
-                ⚠️ This action cannot be undone.
-              </p>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete Employee
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };

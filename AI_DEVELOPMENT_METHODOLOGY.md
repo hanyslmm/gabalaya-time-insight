@@ -780,13 +780,99 @@ Sprint close protocol:
 
 ---
 
-**Last Updated**: January 2025 - v2.7.0 Sprint  
+**Last Updated**: January 2025 - v2.8.0 Sprint  
 **Project**: Gabalaya Time Insight System  
 **Developed through**: Systematic debugging and incremental development methodology
 
 ---
 
 ## LESSONS LEARNED FROM RECENT SPRINTS
+
+### Sprint: Employees Page Redesign & Unified Operations (v2.8.0)
+
+**Key Insights:**
+
+#### 1. **Table Layout vs Card Layout for Data Management**
+- **Success**: Converting card-based employee grid to table layout significantly improved data scanning and management efficiency
+- **Lesson**: Tables are superior for displaying structured data with multiple attributes (name, ID, role, rates, contact info)
+- **Pattern**: Use tables when displaying:
+  - Multiple data points per item
+  - Need for quick scanning and comparison
+  - Sorting/filtering requirements
+  - Large datasets requiring pagination
+- **Best Practice**: Card layouts work better for:
+  - Rich media content
+  - Detailed single-item views
+  - Mobile-first designs with limited screen space
+
+#### 2. **Unified Operations Pattern in Dialogs**
+- **Success**: Consolidating all employee operations (edit, wages, password, terminate, delete) into a single tabbed dialog improved UX
+- **Lesson**: Related operations should be grouped together rather than scattered across multiple dialogs
+- **Pattern**: Use tabs in dialogs when:
+  - Multiple related operations exist for the same entity
+  - Operations share context (same employee)
+  - Reduces cognitive load and navigation overhead
+- **Best Practice**: Group operations logically (Info → Actions → Destructive Actions) and use visual hierarchy (destructive actions in red)
+
+#### 3. **Pagination Implementation Best Practices**
+- **Success**: Added configurable pagination (10, 20, 50, 100 items per page) with smart navigation
+- **Lesson**: Pagination should:
+  - Reset to page 1 when filters/search change
+  - Show current range clearly ("Showing 1 to 10 of 50")
+  - Scroll to top on page change for better UX
+  - Store user preference for items per page
+- **Pattern**: 
+  ```typescript
+  // Reset pagination on filter change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filters]);
+  
+  // Scroll to top on page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  ```
+- **Best Practice**: Always show pagination controls even for small datasets to maintain consistency
+
+#### 4. **Number Input UX - Removing Spinners**
+- **Issue**: Number input spinners (up/down arrows) can be distracting and interfere with direct number entry
+- **Lesson**: For financial/numeric inputs where users type exact values, hide spinners for cleaner UX
+- **Solution**: Use CSS to hide spinner controls:
+  ```css
+  [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
+  ```
+- **Pattern**: Hide spinners when:
+  - Users need to type exact values (wage rates, prices, percentages)
+  - Inputs have decimal precision requirements
+  - Spinners would cause accidental value changes
+- **Best Practice**: Keep spinners for inputs where incremental adjustment is the primary use case (quantities, ratings)
+
+#### 5. **Component Consolidation Strategy**
+- **Success**: Merged multiple separate dialogs (EmployeeForm, EmployeeWageRates, AdminPasswordChange, TerminateEmployeeDialog) into one unified component
+- **Lesson**: Consolidating related components reduces:
+  - Code duplication
+  - State management complexity
+  - User navigation overhead
+  - Maintenance burden
+- **Pattern**: Consolidate when:
+  - Components share the same data source
+  - Operations are related and sequential
+  - User workflow benefits from unified access
+- **Best Practice**: Use tabs or accordions to organize consolidated operations while maintaining clear separation
+
+**Updated Component Development Pattern:**
+```
+1. Analyze user workflow and identify related operations
+2. Consider data structure (table vs cards) based on use case
+3. Group related operations in unified interfaces (tabs/accordions)
+4. Implement pagination for large datasets with user preferences
+5. Optimize input controls for the specific use case (hide spinners for direct entry)
+6. Test with realistic data volumes and user scenarios
+```
+
+---
 
 ### Sprint: UI/UX Revamp & Interaction Improvements (v2.7.0)
 
