@@ -427,14 +427,14 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
 
   return (
     <>
-      <Dialog open={true} onOpenChange={onClose}>
+    <Dialog open={true} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {employee ? t('editEmployee') : t('addEmployee')}
-            </DialogTitle>
-          </DialogHeader>
-          
+        <DialogHeader>
+          <DialogTitle>
+            {employee ? t('editEmployee') : t('addEmployee')}
+          </DialogTitle>
+        </DialogHeader>
+        
           {isEditMode ? (
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-5">
@@ -799,108 +799,108 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
             </Tabs>
           ) : (
             // New employee form (no tabs)
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {formData.full_name && (
-                <div className="flex justify-center py-4">
-                  <div className="text-center space-y-2">
-                    <ProfileAvatar employeeName={formData.full_name} size="lg" showChangeOption={true} />
-                    <p className="text-sm text-muted-foreground">Employee Avatar</p>
-                  </div>
-                </div>
-              )}
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="staff_id">{t('staffId')} *</Label>
-                  <Input
-                    id="staff_id"
-                    value={formData.staff_id}
-                    onChange={(e) => handleInputChange('staff_id', e.target.value)}
-                    className={errors.staff_id ? 'border-red-500' : ''}
-                  />
-                  {errors.staff_id && <p className="text-sm text-red-500">{errors.staff_id}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="full_name">{t('fullName')} *</Label>
-                  <Input
-                    id="full_name"
-                    value={formData.full_name}
-                    onChange={(e) => handleInputChange('full_name', e.target.value)}
-                    className={errors.full_name ? 'border-red-500' : ''}
-                  />
-                  {errors.full_name && <p className="text-sm text-red-500">{errors.full_name}</p>}
-                </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {formData.full_name && (
+            <div className="flex justify-center py-4">
+              <div className="text-center space-y-2">
+                <ProfileAvatar employeeName={formData.full_name} size="lg" showChangeOption={true} />
+                <p className="text-sm text-muted-foreground">Employee Avatar</p>
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="role">{t('role')} *</Label>
-                  <Select value={formData.role} onValueChange={(value) => handleInputChange('role', value)}>
-                    <SelectTrigger className={errors.role ? 'border-red-500' : ''}>
-                      <SelectValue placeholder="Select a role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableRoles.map((role) => (
-                        <SelectItem key={role} value={role}>
-                          {role}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.role && <p className="text-sm text-red-500">{errors.role}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="hiring_date">{t('hiringDate')} *</Label>
-                  <Input
-                    id="hiring_date"
-                    type="date"
-                    value={formData.hiring_date}
-                    onChange={(e) => handleInputChange('hiring_date', e.target.value)}
-                    className={errors.hiring_date ? 'border-red-500' : ''}
-                  />
-                  {errors.hiring_date && <p className="text-sm text-red-500">{errors.hiring_date}</p>}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">{t('email')} (Optional)</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email || ''}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  className={errors.email ? 'border-red-500' : ''}
-                  placeholder="Optional - enter email if available"
-                />
-                {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
-                <p className="text-xs text-muted-foreground">Leave empty if not available</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="phone_number">{t('phoneNumber')} (Optional)</Label>
-                <Input
-                  id="phone_number"
-                  value={formData.phone_number || ''}
-                  onChange={(e) => handleInputChange('phone_number', e.target.value)}
-                  className={errors.phone_number ? 'border-red-500' : ''}
-                  placeholder="Optional - enter phone if available"
-                />
-                {errors.phone_number && <p className="text-sm text-red-500">{errors.phone_number}</p>}
-                <p className="text-xs text-muted-foreground">Leave empty if not available</p>
-              </div>
-
-              <div className="flex justify-end space-x-2 pt-4">
-                <Button type="button" variant="outline" onClick={onClose}>
-                  {t('cancel')}
-                </Button>
-                <Button type="submit" disabled={loading || mutation.isPending}>
-                  {loading || mutation.isPending ? t('loading') : t('save')}
-                </Button>
-              </div>
-            </form>
+            </div>
           )}
-        </DialogContent>
-      </Dialog>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="staff_id">{t('staffId')} *</Label>
+              <Input
+                id="staff_id"
+                value={formData.staff_id}
+                onChange={(e) => handleInputChange('staff_id', e.target.value)}
+                className={errors.staff_id ? 'border-red-500' : ''}
+              />
+              {errors.staff_id && <p className="text-sm text-red-500">{errors.staff_id}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="full_name">{t('fullName')} *</Label>
+              <Input
+                id="full_name"
+                value={formData.full_name}
+                onChange={(e) => handleInputChange('full_name', e.target.value)}
+                className={errors.full_name ? 'border-red-500' : ''}
+              />
+              {errors.full_name && <p className="text-sm text-red-500">{errors.full_name}</p>}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="role">{t('role')} *</Label>
+              <Select value={formData.role} onValueChange={(value) => handleInputChange('role', value)}>
+                <SelectTrigger className={errors.role ? 'border-red-500' : ''}>
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableRoles.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {role}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.role && <p className="text-sm text-red-500">{errors.role}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="hiring_date">{t('hiringDate')} *</Label>
+              <Input
+                id="hiring_date"
+                type="date"
+                value={formData.hiring_date}
+                onChange={(e) => handleInputChange('hiring_date', e.target.value)}
+                className={errors.hiring_date ? 'border-red-500' : ''}
+              />
+              {errors.hiring_date && <p className="text-sm text-red-500">{errors.hiring_date}</p>}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="email">{t('email')} (Optional)</Label>
+            <Input
+              id="email"
+              type="email"
+              value={formData.email || ''}
+              onChange={(e) => handleInputChange('email', e.target.value)}
+              className={errors.email ? 'border-red-500' : ''}
+              placeholder="Optional - enter email if available"
+            />
+            {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
+            <p className="text-xs text-muted-foreground">Leave empty if not available</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="phone_number">{t('phoneNumber')} (Optional)</Label>
+            <Input
+              id="phone_number"
+              value={formData.phone_number || ''}
+              onChange={(e) => handleInputChange('phone_number', e.target.value)}
+              className={errors.phone_number ? 'border-red-500' : ''}
+              placeholder="Optional - enter phone if available"
+            />
+            {errors.phone_number && <p className="text-sm text-red-500">{errors.phone_number}</p>}
+            <p className="text-xs text-muted-foreground">Leave empty if not available</p>
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button type="button" variant="outline" onClick={onClose}>
+              {t('cancel')}
+            </Button>
+            <Button type="submit" disabled={loading || mutation.isPending}>
+              {loading || mutation.isPending ? t('loading') : t('save')}
+            </Button>
+          </div>
+        </form>
+          )}
+      </DialogContent>
+    </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>

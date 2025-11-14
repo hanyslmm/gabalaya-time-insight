@@ -565,12 +565,12 @@ const TimesheetTable: React.FC<TimesheetTableProps> = ({
                                 handleSelectRow(entry.id, !selectedRows.includes(entry.id));
                               }}
                             >
-                              <Checkbox
-                                checked={selectedRows.includes(entry.id)}
-                                onCheckedChange={(checked) => handleSelectRow(entry.id, !!checked)}
+                            <Checkbox
+                              checked={selectedRows.includes(entry.id)}
+                              onCheckedChange={(checked) => handleSelectRow(entry.id, !!checked)}
                                 className="cursor-pointer"
                                 onClick={(e) => e.stopPropagation()}
-                              />
+                            />
                             </div>
                           </TableCell>
                           {visibleColumns.employee_name && (

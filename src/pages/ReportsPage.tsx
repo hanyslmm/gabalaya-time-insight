@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -35,6 +36,7 @@ const ReportsPage: React.FC = () => {
   console.log('ReportsPage: Component rendering...');
   
   // Hooks at top level
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [currentView, setCurrentView] = useState<ViewType>('overview');
   const { calculatePayPeriod, mode, endDay, isLoading: settingsLoading } = usePayPeriodSettings();
@@ -437,7 +439,7 @@ const ReportsPage: React.FC = () => {
       }
 
       if (data.length === 0) {
-        toast.error('No data to export');
+        toast.error(t('noDataToExport'));
         return;
       }
 
@@ -448,7 +450,7 @@ const ReportsPage: React.FC = () => {
       ws['!cols'] = cols;
 
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, type === 'attendance' ? 'Attendance Report' : 'Payroll Summary');
+      XLSX.utils.book_append_sheet(wb, ws, type === 'attendance' ? t('attendanceReportLabel') : t('payrollSummaryLabel'));
       
       XLSX.writeFile(wb, filename);
       toast.success(`${filename} exported successfully`);
@@ -473,7 +475,7 @@ const ReportsPage: React.FC = () => {
   if (wageLoading || timesheetLoading || employeesLoading) {
     return (
       <MobilePageWrapper>
-        <MobileHeader title="Reports" subtitle="Loading..." />
+        <MobileHeader title={t('reports')} subtitle={t('loading')} />
         <div className="flex items-center justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
@@ -485,12 +487,12 @@ const ReportsPage: React.FC = () => {
   if (timesheetError || employeesError) {
     return (
       <MobilePageWrapper>
-        <MobileHeader title="Reports" subtitle="Error loading data" />
+        <MobileHeader title={t('reports')} subtitle={t('errorLoadingData')} />
         <Card className="border-destructive">
           <CardContent className="p-6">
             <div className="flex items-center gap-2 text-destructive">
               <AlertCircle className="h-5 w-5" />
-              <p>Failed to load reports data. Please try again.</p>
+              <p>{t('failedToLoadReports')}</p>
             </div>
           </CardContent>
         </Card>
@@ -510,8 +512,8 @@ const ReportsPage: React.FC = () => {
   return (
     <MobilePageWrapper>
       <MobileHeader 
-        title="Reports" 
-        subtitle={currentView === 'overview' ? `${attendanceReport.length} entries • ${formatDateRange()}` : ''}
+        title={t('reports')} 
+        subtitle={currentView === 'overview' ? `${attendanceReport.length} ${t('entries')} • ${formatDateRange()}` : ''}
       />
 
       <MobileSection>
@@ -526,13 +528,13 @@ const ReportsPage: React.FC = () => {
         {/* Role Filter */}
         <div className="mt-4 bg-card rounded-lg border p-4">
           <div className="space-y-2">
-            <Label>Filter by Role</Label>
+            <Label>{t('filterByRole')}</Label>
             <Select value={selectedRole} onValueChange={setSelectedRole}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="All Roles" />
+                <SelectValue placeholder={t('allRoles')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Roles</SelectItem>
+                <SelectItem value="all">{t('allRoles')}</SelectItem>
                 {availableRoles.map((role: string) => (
                   <SelectItem key={role} value={role}>{role}</SelectItem>
                 ))}
@@ -551,7 +553,7 @@ const ReportsPage: React.FC = () => {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground">Total Hours</p>
+                      <p className="text-sm font-medium text-muted-foreground">{t('totalHours')}</p>
                       <p className="text-2xl font-bold text-foreground">{keyMetrics.totalHours.toFixed(1)}h</p>
                     </div>
                     <Clock className="h-8 w-8 text-primary" />
@@ -563,7 +565,7 @@ const ReportsPage: React.FC = () => {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground">Total Shifts</p>
+                      <p className="text-sm font-medium text-muted-foreground">{t('totalShifts')}</p>
                       <p className="text-2xl font-bold text-foreground">{keyMetrics.totalShifts}</p>
                     </div>
                     <Calendar className="h-8 w-8 text-primary" />
@@ -575,7 +577,7 @@ const ReportsPage: React.FC = () => {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground">Employees</p>
+                      <p className="text-sm font-medium text-muted-foreground">{t('employees')}</p>
                       <p className="text-2xl font-bold text-foreground">{keyMetrics.totalEmployees}</p>
                     </div>
                     <Users className="h-8 w-8 text-primary" />
@@ -587,7 +589,7 @@ const ReportsPage: React.FC = () => {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground">Total Amount</p>
+                      <p className="text-sm font-medium text-muted-foreground">{t('totalAmount')}</p>
                       <p className="text-2xl font-bold text-green-600 dark:text-green-400">{keyMetrics.totalAmount.toFixed(0)} LE</p>
                     </div>
                     <DollarSign className="h-8 w-8 text-green-600 dark:text-green-400" />
@@ -599,7 +601,7 @@ const ReportsPage: React.FC = () => {
             {/* Quick Actions */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Quick Actions</CardTitle>
+                <CardTitle className="text-lg">{t('quickActions')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -611,8 +613,8 @@ const ReportsPage: React.FC = () => {
                     <div className="flex items-center gap-3">
                       <Users className="h-5 w-5 text-primary" />
                       <div className="text-left">
-                        <p className="font-medium">View Attendance</p>
-                        <p className="text-sm text-muted-foreground">Detailed timesheet records</p>
+                        <p className="font-medium">{t('viewAttendance')}</p>
+                        <p className="text-sm text-muted-foreground">{t('detailedTimesheetRecords')}</p>
                       </div>
                     </div>
                     <ChevronRight className="h-4 w-4" />
@@ -626,8 +628,8 @@ const ReportsPage: React.FC = () => {
                     <div className="flex items-center gap-3">
                       <FileSpreadsheet className="h-5 w-5 text-green-600 dark:text-green-400" />
                       <div className="text-left">
-                        <p className="font-medium">Payroll Summary</p>
-                        <p className="text-sm text-muted-foreground">Employee wage calculations</p>
+                        <p className="font-medium">{t('payrollSummary')}</p>
+                        <p className="text-sm text-muted-foreground">{t('employeeWageCalculations')}</p>
                       </div>
                     </div>
                     <ChevronRight className="h-4 w-4" />
@@ -641,8 +643,8 @@ const ReportsPage: React.FC = () => {
                     <div className="flex items-center gap-3">
                       <TrendingUp className="h-5 w-5 text-purple-600" />
                       <div className="text-left">
-                        <p className="font-medium">Analytics</p>
-                        <p className="text-sm text-muted-foreground">Charts and insights</p>
+                        <p className="font-medium">{t('analytics')}</p>
+                        <p className="text-sm text-muted-foreground">{t('chartsAndInsights')}</p>
                       </div>
                     </div>
                     <ChevronRight className="h-4 w-4" />
@@ -655,13 +657,13 @@ const ReportsPage: React.FC = () => {
             {attendanceReport.length > 0 && (
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle className="text-lg">Recent Activity</CardTitle>
+                  <CardTitle className="text-lg">{t('recentActivity')}</CardTitle>
                   <Button 
                     variant="ghost" 
                     size="sm"
                     onClick={() => setCurrentView('attendance')}
                   >
-                    View All <ChevronRight className="h-4 w-4 ml-1" />
+                    {t('viewAll')} <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
                 </CardHeader>
                 <CardContent>
@@ -701,11 +703,11 @@ const ReportsPage: React.FC = () => {
                     onClick={() => setCurrentView('overview')}
                     className="mr-2"
                   >
-                    ← Back
+                    {t('back')}
                   </Button>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5" />
-                  Attendance Report
+                  {t('attendanceReport')}
                 </CardTitle>
                 </div>
                 <Button
@@ -715,7 +717,7 @@ const ReportsPage: React.FC = () => {
                   disabled={attendanceReport.length === 0}
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  Export
+                  {t('exportTimesheet')}
                 </Button>
               </div>
             </CardHeader>
@@ -723,10 +725,10 @@ const ReportsPage: React.FC = () => {
               {attendanceReport.length === 0 ? (
                 <div className="text-center py-12">
                   <Users className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">No Data Found</h3>
-                  <p className="text-muted-foreground mb-4">No timesheet entries found for {formatDateRange()}</p>
+                  <h3 className="text-xl font-semibold mb-2">{t('noDataFound')}</h3>
+                  <p className="text-muted-foreground mb-4">{t('noTimesheetEntriesFound')} {formatDateRange()}</p>
                   <p className="text-sm text-muted-foreground">
-                    Try expanding the date range or check if employees have clocked in.
+                    {t('tryExpandingDateRange')}
                   </p>
                 </div>
               ) : (
@@ -734,14 +736,14 @@ const ReportsPage: React.FC = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Employee</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead className="hidden sm:table-cell">Clock In</TableHead>
-                        <TableHead className="hidden sm:table-cell">Clock Out</TableHead>
-                        <TableHead>Hours</TableHead>
-                        <TableHead className="hidden md:table-cell">Morning</TableHead>
-                        <TableHead className="hidden md:table-cell">Night</TableHead>
-                        <TableHead>Amount</TableHead>
+                        <TableHead>{t('employee')}</TableHead>
+                        <TableHead>{t('hiringDate')}</TableHead>
+                        <TableHead className="hidden sm:table-cell">{t('clockIn')}</TableHead>
+                        <TableHead className="hidden sm:table-cell">{t('clockOut')}</TableHead>
+                        <TableHead>{t('hours')}</TableHead>
+                        <TableHead className="hidden md:table-cell">{t('morning')}</TableHead>
+                        <TableHead className="hidden md:table-cell">{t('night')}</TableHead>
+                        <TableHead>{t('amount')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -776,11 +778,11 @@ const ReportsPage: React.FC = () => {
                     onClick={() => setCurrentView('overview')}
                     className="mr-2"
                   >
-                    ← Back
+                    {t('back')}
                   </Button>
                 <CardTitle className="flex items-center gap-2">
                   <FileSpreadsheet className="h-5 w-5" />
-                  Payroll Summary
+                  {t('payrollSummary')}
                 </CardTitle>
                 </div>
                 <Button
@@ -790,7 +792,7 @@ const ReportsPage: React.FC = () => {
                   disabled={payrollSummary.length === 0}
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  Export
+                  {t('exportTimesheet')}
                 </Button>
               </div>
             </CardHeader>
@@ -798,20 +800,20 @@ const ReportsPage: React.FC = () => {
               {payrollSummary.length === 0 ? (
                 <div className="text-center py-12">
                   <FileSpreadsheet className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">No Payroll Data</h3>
-                  <p className="text-muted-foreground">No payroll data available for the selected period.</p>
+                  <h3 className="text-xl font-semibold mb-2">{t('noPayrollData')}</h3>
+                  <p className="text-muted-foreground">{t('noPayrollDataAvailable')}</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Employee</TableHead>
-                        <TableHead>Total Hours</TableHead>
-                        <TableHead className="hidden md:table-cell">Morning</TableHead>
-                        <TableHead className="hidden md:table-cell">Night</TableHead>
-                        <TableHead className="hidden sm:table-cell">Shifts</TableHead>
-                        <TableHead>Amount</TableHead>
+                        <TableHead>{t('employee')}</TableHead>
+                        <TableHead>{t('totalHours')}</TableHead>
+                        <TableHead className="hidden md:table-cell">{t('morning')}</TableHead>
+                        <TableHead className="hidden md:table-cell">{t('night')}</TableHead>
+                        <TableHead className="hidden sm:table-cell">{t('shifts')}</TableHead>
+                        <TableHead>{t('amount')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -841,9 +843,9 @@ const ReportsPage: React.FC = () => {
                 size="sm" 
                 onClick={() => setCurrentView('overview')}
               >
-                ← Back
+                {t('back')}
               </Button>
-              <h2 className="text-xl font-semibold">Analytics Dashboard</h2>
+              <h2 className="text-xl font-semibold">{t('analyticsDashboard')}</h2>
             </div>
           <HRAnalytics dateRange={dateRange} />
                     </div>

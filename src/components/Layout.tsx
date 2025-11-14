@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { LanguageToggle } from '@/components/LanguageToggle';
 import NotificationSystem from '@/components/NotificationSystem';
 import OfflineIndicator from '@/components/OfflineIndicator';
 import GlobalSearch from '@/components/GlobalSearch';
@@ -32,6 +34,7 @@ import { toast } from 'sonner';
 import { handleSingleClick } from '@/utils/clickHandler';
 
 const Layout = () => {
+  const { t } = useTranslation();
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -45,10 +48,10 @@ const Layout = () => {
   const handleLogout = async () => {
     try {
       await logout();
-      toast.success('Logged out successfully');
+      toast.success(t('logoutSuccess'));
       navigate('/login');
     } catch (error) {
-      toast.error('Failed to logout');
+      toast.error(t('logoutError'));
     }
   };
 
@@ -79,74 +82,74 @@ const Layout = () => {
 
   const allNavigation = [
     {
-      name: 'Dashboard',
+      name: t('dashboard'),
       href: '/dashboard',
       icon: LayoutDashboard,
-      description: 'Overview & Analytics',
+      description: t('overviewAnalytics'),
       roles: ['owner'] // Removed 'admin' - only owners can see Dashboard
     },
     {
-      name: 'Clock In/Out',
+      name: t('clockInOut'),
       href: '/clock-in-out',
       icon: Clock,
-      description: 'Time Tracking',
+      description: t('timeTracking'),
       roles: ['admin', 'employee', 'owner']
     },
     {
-      name: 'My Timesheet',
+      name: t('myTimesheet'),
       href: '/my-timesheet',
       icon: FileText,
-      description: 'Your Records',
+      description: t('yourRecords'),
       roles: ['admin', 'employee', 'owner']
     },
     {
-      name: 'Employees',
+      name: t('employees'),
       href: '/employees',
       icon: Users,
-      description: 'Staff Management',
+      description: t('staffManagement'),
       roles: ['admin', 'owner']
     },
     {
-      name: 'Timesheets',
+      name: t('timesheets'),
       href: '/timesheets',
       icon: FileText,
-      description: 'All Time Records',
+      description: t('allTimeRecords'),
       roles: ['admin', 'owner']
     },
     // Employee Monitor removed; functionality integrated into Clock In/Out
     {
-      name: 'Reports',
+      name: t('reports'),
       href: '/reports',
       icon: BarChart3,
-      description: 'Analytics & Insights',
+      description: t('analyticsInsights'),
       roles: ['admin', 'owner']
     },
     {
-      name: 'Profile',
+      name: t('profile'),
       href: '/profile',
       icon: User,
-      description: 'Account Settings',
+      description: t('accountSettings'),
       roles: ['admin', 'employee', 'owner']
     },
     {
-      name: 'Settings',
+      name: t('settings'),
       href: '/settings',
       icon: Settings,
-      description: 'System Configuration',
+      description: t('systemConfiguration'),
       roles: ['admin', 'owner']
     },
     {
-      name: 'Company Settings',
+      name: t('companySettings'),
       href: '/company-settings',
       icon: Building,
-      description: 'Company Setup',
+      description: t('companySetup'),
       roles: ['admin', 'owner']
     },
     {
-      name: 'Organizations',
+      name: t('organizations'),
       href: '/organizations',
       icon: Building,
-      description: 'Multi-tenant Management',
+      description: t('multiTenantManagement'),
       roles: ['owner']
     },
   ];
@@ -198,7 +201,7 @@ const Layout = () => {
             </div>
             <div>
               <h1 className="text-lg font-semibold text-foreground tracking-tight">ChampTime</h1>
-              <p className="text-xs text-muted-foreground">HRM System</p>
+              <p className="text-xs text-muted-foreground">{t('hrmSystem')}</p>
             </div>
           </div>
           
@@ -332,20 +335,20 @@ const Layout = () => {
                   sidebarCollapsed ? "lg:opacity-0 lg:w-0 lg:overflow-hidden" : "opacity-100"
                 )}>
                   <p className="text-sm font-medium truncate">{user?.full_name || user?.username}</p>
-                  <p className="text-xs text-muted-foreground truncate">{user?.role || 'User'}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user?.role || t('user')}</p>
                 </div>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <div className="px-2 py-1.5">
                 <p className="text-sm font-medium">{user?.full_name || user?.username}</p>
-                <p className="text-xs text-muted-foreground">{user?.role || 'User'}</p>
+                <p className="text-xs text-muted-foreground">{user?.role || t('user')}</p>
               </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link to="/profile" className="mobile-touch-target mobile-focus-ring">
                   <User className="h-4 w-4 mr-2" />
-                  <span>Profile</span>
+                  <span>{t('profile')}</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -354,7 +357,7 @@ const Layout = () => {
                 className="text-destructive focus:text-destructive mobile-touch-target mobile-focus-ring"
               >
                 <LogOut className="h-4 w-4 mr-2" />
-                <span>Logout</span>
+                <span>{t('logout')}</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -401,6 +404,8 @@ const Layout = () => {
               <OrganizationSwitcher />
               {/* Notifications */}
               <NotificationSystem />
+              {/* Language Toggle */}
+              <LanguageToggle />
               {/* Theme Toggle */}
               <ThemeToggle />
             </div>

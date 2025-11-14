@@ -105,7 +105,7 @@ const SettingsPage: React.FC = () => {
       return data;
     },
     onSuccess: () => {
-      toast({ title: 'Settings saved', description: 'Company settings updated successfully.' });
+      toast({ title: t('settingsSaved'), description: t('companySettingsUpdated') });
       clearTimezoneCache();
       queryClient.invalidateQueries({ queryKey: ['company-settings', activeOrganizationId] });
       queryClient.invalidateQueries({ queryKey: ['working-hours-settings', activeOrganizationId] });
@@ -155,16 +155,16 @@ const SettingsPage: React.FC = () => {
         </div>
         <div>
           <h1 className="text-2xl font-bold">{t('settings')}</h1>
-          <p className="text-sm text-muted-foreground">Configure organization, payroll, roles, and system preferences</p>
+          <p className="text-sm text-muted-foreground">{t('configureOrganization')}</p>
         </div>
       </div>
 
       <Tabs defaultValue="company" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="company"><Building2 className="h-4 w-4 mr-1" /> Company</TabsTrigger>
-          <TabsTrigger value="payroll">Payroll & Policies</TabsTrigger>
-          <TabsTrigger value="roles">Roles & Permissions</TabsTrigger>
-          <TabsTrigger value="system">System</TabsTrigger>
+          <TabsTrigger value="company"><Building2 className="h-4 w-4 mr-1" /> {t('company')}</TabsTrigger>
+          <TabsTrigger value="payroll">{t('payrollPolicies')}</TabsTrigger>
+          <TabsTrigger value="roles">{t('rolesPermissions')}</TabsTrigger>
+          <TabsTrigger value="system">{t('system')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="company">
@@ -173,19 +173,19 @@ const SettingsPage: React.FC = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <MessageCircle className="h-5 w-5 text-primary" />
-                  Employee Motivational Message
+                  {t('employeeMotivationalMessage')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="motivational-message">Message for employee pages</Label>
+                  <Label htmlFor="motivational-message">{t('messageForEmployeePages')}</Label>
                   <Textarea id="motivational-message" value={message} onChange={(e) => setMessage(e.target.value)} maxLength={500} className="min-h-[120px]" />
                   <p className="text-xs text-muted-foreground">{message.length}/500</p>
                 </div>
                 <div className="flex justify-end">
                   <Button onClick={handleSaveCompany} disabled={saveMutation.isPending || !message.trim()}>
                     <Save className="h-4 w-4 mr-2" />
-                    {saveMutation.isPending ? 'Saving...' : 'Save'}
+                    {saveMutation.isPending ? t('saving') : t('save')}
                   </Button>
                 </div>
               </CardContent>
@@ -195,15 +195,15 @@ const SettingsPage: React.FC = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Clock className="h-5 w-5 text-secondary" />
-                  Timezone & Working Window
+                  {t('timezoneWorkingWindow')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-2">
-                  <Label>Company Timezone</Label>
+                  <Label>{t('companyTimezone')}</Label>
                   <Select value={timezone} onValueChange={setTimezone}>
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select timezone..." />
+                      <SelectValue placeholder={t('selectTimezone')} />
                     </SelectTrigger>
                     <SelectContent>
                       {COMMON_TIMEZONES.map(tz => (
@@ -215,8 +215,8 @@ const SettingsPage: React.FC = () => {
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <Label>Enable Working Hours Window</Label>
-                    <p className="text-xs text-muted-foreground">Limit payable hours to a window</p>
+                    <Label>{t('enableWorkingHoursWindow')}</Label>
+                    <p className="text-xs text-muted-foreground">{t('limitPayableHours')}</p>
                   </div>
                   <Switch checked={workingHoursWindowEnabled} onCheckedChange={setWorkingHoursWindowEnabled} />
                 </div>
@@ -224,11 +224,11 @@ const SettingsPage: React.FC = () => {
                 {workingHoursWindowEnabled && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Start Time</Label>
+                      <Label>{t('startTime')}</Label>
                       <Input type="time" value={workingHoursStartTime} onChange={(e) => setWorkingHoursStartTime(e.target.value)} />
                     </div>
                     <div className="space-y-2">
-                      <Label>End Time</Label>
+                      <Label>{t('endTime')}</Label>
                       <Input type="time" value={workingHoursEndTime} onChange={(e) => setWorkingHoursEndTime(e.target.value)} />
                     </div>
                   </div>
@@ -236,8 +236,8 @@ const SettingsPage: React.FC = () => {
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <Label>Enable Auto Clock-Out</Label>
-                    <p className="text-xs text-muted-foreground">Auto close long-running sessions</p>
+                    <Label>{t('enableAutoClockout')}</Label>
+                    <p className="text-xs text-muted-foreground">{t('autoCloseLongRunning')}</p>
                   </div>
                   <Switch checked={autoClockoutEnabled} onCheckedChange={setAutoClockoutEnabled} />
                 </div>
@@ -246,15 +246,15 @@ const SettingsPage: React.FC = () => {
                   <>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-2">
-                        <Label>Max Work Hours</Label>
+                        <Label>{t('maxWorkHours')}</Label>
                         <Input type="number" min="1" max="24" step="0.5" value={maxWorkHours} onChange={(e) => setMaxWorkHours(parseFloat(e.target.value) || 8)} />
                       </div>
                       <div className="space-y-2">
-                        <Label>Daily Auto Clock-Out Time</Label>
+                        <Label>{t('dailyAutoClockoutTime')}</Label>
                         <Input type="time" value={autoClockoutTime} onChange={(e) => setAutoClockoutTime(e.target.value)} />
                       </div>
                       <div className="space-y-2">
-                        <Label>Auto Clock-Out Location</Label>
+                        <Label>{t('autoClockoutLocation')}</Label>
                         <Input value={autoClockoutLocation} onChange={(e) => setAutoClockoutLocation(e.target.value)} />
                       </div>
                     </div>
@@ -264,7 +264,7 @@ const SettingsPage: React.FC = () => {
                 <div className="flex justify-end">
                   <Button onClick={handleSaveCompany} disabled={saveMutation.isPending}>
                     <Save className="h-4 w-4 mr-2" />
-                    {saveMutation.isPending ? 'Saving...' : 'Save All'}
+                    {saveMutation.isPending ? t('saving') : t('saveAll')}
                   </Button>
                 </div>
               </CardContent>
@@ -276,7 +276,7 @@ const SettingsPage: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Wage Settings</CardTitle>
+                <CardTitle>{t('wageSettings')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <WageSettings />
@@ -284,7 +284,7 @@ const SettingsPage: React.FC = () => {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>Pay Period Settings</CardTitle>
+                <CardTitle>{t('payPeriodSettings')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <PayPeriodSettings />
@@ -296,7 +296,7 @@ const SettingsPage: React.FC = () => {
         <TabsContent value="roles">
           <Card>
             <CardHeader>
-              <CardTitle>Roles & Permissions</CardTitle>
+              <CardTitle>{t('rolesPermissions')}</CardTitle>
             </CardHeader>
             <CardContent>
               <RoleManagement />
@@ -307,17 +307,18 @@ const SettingsPage: React.FC = () => {
         <TabsContent value="system">
           <Card>
             <CardHeader>
-              <CardTitle>System Information</CardTitle>
+              <CardTitle>{t('systemInformation')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div>
-                  <h4 className="font-medium">Version</h4>
-                  <p className="text-sm text-muted-foreground">2.8.1</p>
+                  <h4 className="font-medium">{t('version')}</h4>
+                  <p className="text-sm text-muted-foreground">2.9.0</p>
                 </div>
                 <div>
-                  <h4 className="font-medium">Recent Updates</h4>
+                  <h4 className="font-medium">{t('recentUpdates')}</h4>
                   <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-5">
+                    <li>{t('i18nRtlIncrement')}</li>
                     <li>🔧 ProfilePage Fix: Fixed admin/owner profile loading with robust fallback mechanism and improved error handling</li>
                     <li>🎨 Theme Revamp Complete: All pages now use consistent theme variables for better dark mode support</li>
                     <li>📊 Employees Page Redesign: Converted card layout to modern table view with pagination for better data management</li>

@@ -324,18 +324,18 @@ const TimesheetsPage: React.FC = () => {
       to: endOfToday
     });
     setSelectedRows([]);
-    toast.success('All filters cleared');
+    toast.success(t('allFiltersCleared'));
   }, []);
 
   const handleRefresh = useCallback(() => {
     refetch();
-    toast.success('Data refreshed');
+    toast.success(t('dataRefreshed'));
   }, [refetch]);
 
   // Calculate filter stats
   const totalEntries = filteredTimesheets?.length || 0;
-  const selectedEmployeeName = selectedEmployee === 'all' ? 'All Employees' : 
-    employees?.find(emp => emp.id === selectedEmployee)?.full_name || 'Unknown Employee';
+  const selectedEmployeeName = selectedEmployee === 'all' ? t('allEmployees') : 
+    employees?.find(emp => emp.id === selectedEmployee)?.full_name || t('unknownEmployee');
 
   const hasActiveFilters = selectedEmployee !== 'all' || (dateRange && dateRange.from && dateRange.to);
 
@@ -343,13 +343,13 @@ const TimesheetsPage: React.FC = () => {
     return (
       <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="text-center py-12">
-          <div className="text-destructive text-lg mb-2">Error loading timesheets</div>
+          <div className="text-destructive text-lg mb-2">{t('errorLoadingTimesheets')}</div>
           <div className="text-muted-foreground text-sm mb-4">
-            {error.message || 'An error occurred while loading the data'}
+            {error.message || t('errorOccurred')}
           </div>
           <Button onClick={handleRefresh} variant="outline">
             <RefreshCw className="h-4 w-4 mr-2" />
-            Retry
+            {t('retry')}
           </Button>
         </div>
       </div>
@@ -360,7 +360,7 @@ const TimesheetsPage: React.FC = () => {
     <MobilePageWrapper>
       <MobileHeader 
         title={t('timesheets')}
-        subtitle={`${totalEntries} total entries`}
+        subtitle={`${totalEntries} ${t('totalEntries')}`}
          actions={
            <div className="flex items-center gap-1 sm:gap-2">
              <Button onClick={handleRefresh} size="sm" variant="outline" className="h-7 sm:h-9">
@@ -373,7 +373,7 @@ const TimesheetsPage: React.FC = () => {
                  size="sm"
                >
                  <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
-                 <span className="hidden sm:inline ml-1">Add Entry</span>
+                 <span className="hidden sm:inline ml-1">{t('addEntry')}</span>
                </Button>
              )}
              <Button
@@ -383,7 +383,7 @@ const TimesheetsPage: React.FC = () => {
                size="sm"
              >
                <Upload className="h-3 w-3 sm:h-4 sm:w-4" />
-               <span className="hidden sm:inline ml-1">Import</span>
+               <span className="hidden sm:inline ml-1">{t('import')}</span>
              </Button>
               <TimesheetExport 
                 selectedRows={selectedRows}
@@ -396,12 +396,12 @@ const TimesheetsPage: React.FC = () => {
         <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-muted-foreground">
           {hasActiveFilters && (
             <Badge variant="secondary" className="text-xs">
-              Filtered
+              {t('filtered')}
             </Badge>
           )}
           <span className="hidden sm:inline">•</span>
           <span className="text-xs">
-            Selected: {selectedRows.length} items
+            {t('selected')}: {selectedRows.length} {t('items')}
           </span>
           <span className="hidden sm:inline">•</span>
           <DropdownMenu>
@@ -411,9 +411,9 @@ const TimesheetsPage: React.FC = () => {
               </UIButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-64">
-              <DropdownMenuLabel>Timezone</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => { localStorage.setItem('companyTimezoneOverride', 'Africa/Cairo'); location.reload(); }}>Africa/Cairo (Default)</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { localStorage.removeItem('companyTimezoneOverride'); location.reload(); }}>Use Company Setting</DropdownMenuItem>
+              <DropdownMenuLabel>{t('timezone')}</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => { localStorage.setItem('companyTimezoneOverride', 'Africa/Cairo'); location.reload(); }}>Africa/Cairo ({t('default')})</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { localStorage.removeItem('companyTimezoneOverride'); location.reload(); }}>{t('useCompanySetting')}</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => { localStorage.setItem('companyTimezoneOverride', 'Europe/Athens'); location.reload(); }}>Europe/Athens</DropdownMenuItem>
               <DropdownMenuItem onClick={() => { localStorage.setItem('companyTimezoneOverride', 'Europe/Istanbul'); location.reload(); }}>Europe/Istanbul</DropdownMenuItem>
@@ -442,10 +442,10 @@ const TimesheetsPage: React.FC = () => {
                   <User className="h-4 w-4 text-muted-foreground" />
                   <Select value={selectedEmployee} onValueChange={handleEmployeeChange} disabled={employeesLoading}>
                     <SelectTrigger className="w-64">
-                      <SelectValue placeholder="Filter by employee" />
+                      <SelectValue placeholder={t('filterByEmployee')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Employees</SelectItem>
+                      <SelectItem value="all">{t('allEmployees')}</SelectItem>
                       {employees?.map((employee) => (
                         <SelectItem key={employee.id} value={employee.id}>
                           {employee.full_name}
@@ -454,7 +454,7 @@ const TimesheetsPage: React.FC = () => {
                     </SelectContent>
                   </Select>
                   <div className="text-sm text-muted-foreground">
-                    Current: {selectedEmployeeName}
+                    {t('current')}: {selectedEmployeeName}
                   </div>
                 </div>
                 {hasActiveFilters && (
@@ -465,7 +465,7 @@ const TimesheetsPage: React.FC = () => {
                     className="ml-4"
                   >
                     <Filter className="h-4 w-4 mr-2" />
-                    Clear Filters
+                    {t('clearFilters')}
                   </Button>
                 )}
               </div>
@@ -478,7 +478,7 @@ const TimesheetsPage: React.FC = () => {
       {filteredTimesheets && filteredTimesheets.length > 0 && (
         <Card className="mb-4 sm:mb-6">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base sm:text-lg">Timesheet Summary</CardTitle>
+            <CardTitle className="text-base sm:text-lg">{t('timesheetSummary')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
@@ -557,42 +557,42 @@ const TimesheetsPage: React.FC = () => {
                   <>
                     {/* Total Entries */}
                     <div className="bg-card border rounded-lg p-3 sm:p-4">
-                      <div className="text-xs sm:text-sm text-muted-foreground mb-1">Total Entries</div>
+                      <div className="text-xs sm:text-sm text-muted-foreground mb-1">{t('totalEntriesLabel')}</div>
                       <div className="text-lg sm:text-2xl font-bold text-primary">{totalEntries}</div>
-                      <div className="text-xs text-muted-foreground">Timesheet records</div>
+                      <div className="text-xs text-muted-foreground">{t('timesheetRecords')}</div>
                     </div>
 
                     {/* Total Hours */}
                     <div className="bg-card border rounded-lg p-3 sm:p-4">
-                      <div className="text-xs sm:text-sm text-muted-foreground mb-1">Total Hours</div>
+                      <div className="text-xs sm:text-sm text-muted-foreground mb-1">{t('totalHours')}</div>
                       <div className="text-lg sm:text-2xl font-bold text-primary">{totalHours.toFixed(1)}h</div>
-                      <div className="text-xs text-muted-foreground">All worked hours</div>
+                      <div className="text-xs text-muted-foreground">{t('allWorkedHours')}</div>
                     </div>
 
                     {/* Morning Hours */}
                     <div className="bg-card border rounded-lg p-3 sm:p-4">
-                      <div className="text-xs sm:text-sm text-muted-foreground mb-1">Morning Hours</div>
+                      <div className="text-xs sm:text-sm text-muted-foreground mb-1">{t('morningHours')}</div>
                       <div className="text-lg sm:text-2xl font-bold text-orange-600">{totalMorningHours.toFixed(1)}h</div>
                       <div className="text-xs text-muted-foreground">
-                        {morningPercentage.toFixed(1)}% of total
+                        {morningPercentage.toFixed(1)}% {t('ofTotal')}
                       </div>
                     </div>
 
                     {/* Night Hours */}
                     <div className="bg-card border rounded-lg p-3 sm:p-4">
-                      <div className="text-xs sm:text-sm text-muted-foreground mb-1">Night Hours</div>
+                      <div className="text-xs sm:text-sm text-muted-foreground mb-1">{t('nightHours')}</div>
                       <div className="text-lg sm:text-2xl font-bold text-purple-600">{totalNightHours.toFixed(1)}h</div>
                       <div className="text-xs text-muted-foreground">
-                        {nightPercentage.toFixed(1)}% of total
+                        {nightPercentage.toFixed(1)}% {t('ofTotal')}
                       </div>
                     </div>
 
                     {/* Unassigned Hours (if any) */}
                     {unassignedHours > 0 && (
                       <div className="bg-card border rounded-lg p-3 sm:p-4">
-                        <div className="text-xs sm:text-sm text-muted-foreground mb-1">Unassigned Hours</div>
+                        <div className="text-xs sm:text-sm text-muted-foreground mb-1">{t('unassignedHours')}</div>
                         <div className="text-lg sm:text-2xl font-bold">{unassignedHours.toFixed(1)}h</div>
-                        <div className="text-xs text-muted-foreground">Outside morning/night or missing times</div>
+                        <div className="text-xs text-muted-foreground">{t('outsideMorningNight')}</div>
                       </div>
                     )}
                   </>
@@ -602,7 +602,7 @@ const TimesheetsPage: React.FC = () => {
             
             {/* Visual Breakdown Bar */}
             <div className="mt-4">
-              <div className="text-xs text-muted-foreground mb-2">Hours Distribution</div>
+              <div className="text-xs text-muted-foreground mb-2">{t('hoursDistribution')}</div>
               <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
                 {(() => {
                   // Recalculate morning hours for visual bar using processed data (includes virtual hours)
@@ -701,8 +701,8 @@ const TimesheetsPage: React.FC = () => {
                 })()}
               </div>
               <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                <span>Morning</span>
-                <span>Night</span>
+                <span>{t('morning')}</span>
+                <span>{t('night')}</span>
               </div>
             </div>
           </CardContent>
@@ -713,7 +713,7 @@ const TimesheetsPage: React.FC = () => {
       {(user?.role === 'admin' || user?.role === 'owner') && (
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Timesheet Change Requests</CardTitle>
+            <CardTitle>{t('timesheetChangeRequests')}</CardTitle>
           </CardHeader>
           <CardContent>
             <TimesheetRequestsManagement />
@@ -725,10 +725,10 @@ const TimesheetsPage: React.FC = () => {
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span>Timesheet Entries</span>
+            <span>{t('timesheetEntries')}</span>
             {hasActiveFilters && (
               <Badge variant="outline" className="text-xs">
-                Filtered View
+                {t('filteredView')}
               </Badge>
             )}
           </CardTitle>

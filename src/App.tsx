@@ -7,7 +7,8 @@ import Layout from '@/components/Layout';
 import LoginPage from '@/pages/LoginPage';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import NotFound from '@/pages/NotFound';
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import './i18n';
 import './App.css';
 
@@ -40,6 +41,15 @@ const PageLoader = () => (
 );
 
 function App() {
+  const { i18n } = useTranslation();
+
+  // Set document direction and language based on i18n language
+  useEffect(() => {
+    const direction = i18n.language === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.dir = direction;
+    document.documentElement.lang = i18n.language;
+  }, [i18n.language]);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>

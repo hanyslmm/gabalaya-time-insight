@@ -21,7 +21,7 @@ const LoginPage: React.FC = () => {
   const toggleLanguage = () => {
     const newLang = i18n.language === 'en' ? 'ar' : 'en';
     i18n.changeLanguage(newLang);
-    document.dir = newLang === 'ar' ? 'rtl' : 'ltr';
+    // Document direction is now managed globally in App.tsx
   };
 
   const togglePasswordVisibility = () => {

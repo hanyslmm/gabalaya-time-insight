@@ -249,7 +249,7 @@ const EmployeesPage: React.FC = () => {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-2xl font-bold text-foreground">{t('employees')}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Manage employee records and information</p>
+          <p className="mt-2 text-sm text-muted-foreground">{t('manageEmployeeRecords')}</p>
         </div>
         <Button onClick={() => setShowForm(true)} className="flex items-center space-x-2">
           <Plus className="h-4 w-4" />
@@ -274,9 +274,9 @@ const EmployeesPage: React.FC = () => {
       <Card className="border-border shadow-sm">
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle className="text-lg font-semibold">All Employees ({filteredEmployees.length})</CardTitle>
+            <CardTitle className="text-lg font-semibold">{t('allEmployees')} ({filteredEmployees.length})</CardTitle>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Show:</span>
+              <span className="text-sm text-muted-foreground">{t('show')}</span>
               <Select value={itemsPerPage.toString()} onValueChange={(value) => {
                 setItemsPerPage(parseInt(value, 10));
                 setCurrentPage(1);
@@ -296,7 +296,7 @@ const EmployeesPage: React.FC = () => {
         <CardContent>
           {paginatedEmployees.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              <p>No employees found</p>
+              <p>{t('noEmployeesFound')}</p>
             </div>
           ) : (
             <>
@@ -304,15 +304,15 @@ const EmployeesPage: React.FC = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Staff ID</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Hiring Date</TableHead>
-                      <TableHead>Morning Rate</TableHead>
-                      <TableHead>Night Rate</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Phone</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead>{t('name')}</TableHead>
+                      <TableHead>{t('staffId')}</TableHead>
+                      <TableHead>{t('role')}</TableHead>
+                      <TableHead>{t('hiringDate')}</TableHead>
+                      <TableHead>{t('morningRate')}</TableHead>
+                      <TableHead>{t('nightRate')}</TableHead>
+                      <TableHead>{t('email')}</TableHead>
+                      <TableHead>{t('phone')}</TableHead>
+                      <TableHead className="text-right">{t('actions')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -321,10 +321,10 @@ const EmployeesPage: React.FC = () => {
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
                             <span>{employee.full_name}</span>
-                            {employee.is_admin_user && (
-                              <Lock className="h-4 w-4 text-destructive" title="Administrator" />
-                            )}
-                          </div>
+                  {employee.is_admin_user && (
+                              <Lock className="h-4 w-4 text-destructive" title={t('administrator')} />
+                  )}
+                </div>
                         </TableCell>
                         <TableCell className="text-muted-foreground">{employee.staff_id}</TableCell>
                         <TableCell>{employee.role}</TableCell>
@@ -339,37 +339,37 @@ const EmployeesPage: React.FC = () => {
                         <TableCell className="text-muted-foreground">{employee.phone_number || '—'}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEdit(employee)}
-                              title="Edit Employee"
-                              className="h-8 w-8 p-0"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleEdit(employee)}
+                              title={t('editEmployee')}
+                    className="h-8 w-8 p-0"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                               onClick={() => handleViewStats(employee)}
-                              title="View Statistics"
-                              className="h-8 w-8 p-0"
-                            >
+                              title={t('viewStatistics')}
+                      className="h-8 w-8 p-0"
+                    >
                               <BarChart3 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                  </Button>
+                </div>
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
-              </div>
-              
+                  </div>
+                  
               {/* Pagination */}
               {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-4">
                   <div className="text-sm text-muted-foreground">
-                    Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredEmployees.length)} of {filteredEmployees.length} employees
+                    {t('showing')} {startIndex + 1} {t('to')} {Math.min(startIndex + itemsPerPage, filteredEmployees.length)} {t('of')} {filteredEmployees.length} {t('employees')}
                   </div>
                   <Pagination>
                     <PaginationContent>
@@ -414,8 +414,8 @@ const EmployeesPage: React.FC = () => {
               )}
             </>
           )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
 
       {showForm && (
         <EmployeeForm

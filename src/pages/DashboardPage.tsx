@@ -20,7 +20,7 @@ import GlobalSearch from '@/components/GlobalSearch';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
 const DashboardPage: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
   
@@ -63,14 +63,14 @@ const DashboardPage: React.FC = () => {
   };
 
   const getPeriodLabel = () => {
-    if (selectedPeriod === 'current') return 'Current';
-    if (selectedPeriod === 'previous') return 'Previous';
+    if (selectedPeriod === 'current') return t('current');
+    if (selectedPeriod === 'previous') return t('previous');
     if (selectedMonth) {
-      const monthNames = ['This Month', 'Last Month', '2 Months Ago'];
+      const monthNames = [t('thisMonth'), t('lastMonth'), t('twoMonthsAgo')];
       const index = Math.abs(parseInt(selectedMonth));
-      return monthNames[index] || 'Custom';
+      return monthNames[index] || t('custom');
     }
-    return 'Total';
+    return t('total');
   };
 
   // Memoize period calculations
@@ -105,14 +105,14 @@ const DashboardPage: React.FC = () => {
         <Alert variant="destructive" className="max-w-md">
           <ShieldAlert className="h-4 w-4" />
           <AlertDescription>
-            Access denied. The dashboard is only available for administrators.
+            {t('accessDenied')}
             <div className="mt-4">
               <Button 
                 onClick={() => navigate('/clock-in-out')}
                 variant="outline"
                 size="sm"
               >
-                Go to Clock In/Out
+                {t('goToClockInOut')}
               </Button>
             </div>
           </AlertDescription>
@@ -123,32 +123,32 @@ const DashboardPage: React.FC = () => {
 
   const quickActions = [
     { 
-      title: 'View Timesheets', 
-      description: 'Manage employee time records', 
+      title: t('viewTimesheets'), 
+      description: t('manageEmployeeTimeRecords'), 
       icon: Timer, 
       action: () => navigate('/timesheets'), 
       color: 'from-blue-500 to-blue-600',
       shortcut: 'T'
     },
     { 
-      title: 'Employee Monitor', 
-      description: 'Live attendance tracking', 
+      title: t('employeeMonitor'), 
+      description: t('liveAttendanceTracking'), 
       icon: Activity, 
       action: () => navigate('/monitor'), 
       color: 'from-green-500 to-green-600',
       shortcut: 'M'
     },
     { 
-      title: 'Manage Team', 
-      description: 'Add & edit employees', 
+      title: t('manageTeam'), 
+      description: t('addEditEmployees'), 
       icon: Users, 
       action: () => navigate('/employees'), 
       color: 'from-purple-500 to-purple-600',
       shortcut: 'E'
     },
     { 
-      title: 'Reports & Analytics', 
-      description: 'Export payroll data', 
+      title: t('reportsAnalytics'), 
+      description: t('exportPayrollData'), 
       icon: BarChart3, 
       action: () => navigate('/timesheets'), 
       color: 'from-orange-500 to-orange-600',
@@ -158,9 +158,9 @@ const DashboardPage: React.FC = () => {
 
   const stats = [
     {
-      title: 'Total Employees',
+      title: t('totalEmployees'),
       value: activeLoading ? '...' : Math.round(activeData?.employeeCount || 0),
-      description: 'Active staff members',
+      description: t('activeStaffMembers'),
       icon: Users,
       color: 'from-blue-500 to-blue-600',
       bgColor: 'bg-blue-50 dark:bg-blue-950/20',
@@ -168,9 +168,9 @@ const DashboardPage: React.FC = () => {
       change: 0, // Employee count doesn't change frequently
     },
     {
-      title: `${getPeriodLabel()} Hours`,
+      title: `${getPeriodLabel()} ${t('hours')}`,
       value: activeLoading ? '...' : (activeData?.totalHours?.toFixed(1) || '0.0'),
-      description: 'Hours worked',
+      description: t('hoursWorked'),
       icon: Clock,
       color: 'from-green-500 to-green-600',
       bgColor: 'bg-green-50 dark:bg-green-950/20',
@@ -178,9 +178,9 @@ const DashboardPage: React.FC = () => {
       change: getPercentageChange(activeData?.totalHours || 0, previousData?.totalHours || 0),
     },
     {
-      title: `${getPeriodLabel()} Payroll`,
+      title: `${getPeriodLabel()} ${t('payroll')}`,
       value: activeLoading ? '...' : `${(activeData?.totalPayroll?.toFixed(0) || '0')} LE`,
-      description: 'Total earnings',
+      description: t('totalEarnings'),
       icon: DollarSign,
       color: 'from-purple-500 to-purple-600',
       bgColor: 'bg-purple-50 dark:bg-purple-950/20',
@@ -188,9 +188,9 @@ const DashboardPage: React.FC = () => {
       change: getPercentageChange(activeData?.totalPayroll || 0, previousData?.totalPayroll || 0),
     },
     {
-      title: `${getPeriodLabel()} Shifts`,
+      title: `${getPeriodLabel()} ${t('shifts')}`,
       value: activeLoading ? '...' : Math.round(activeData?.totalShifts || 0),
-      description: 'Completed shifts',
+      description: t('completedShifts'),
       icon: TrendingUp,
       color: 'from-orange-500 to-orange-600',
       bgColor: 'bg-orange-50 dark:bg-orange-950/20',
@@ -212,20 +212,20 @@ const DashboardPage: React.FC = () => {
                     {t('dashboard') || 'Dashboard'}
                   </h1>
                   <Badge variant="secondary" className="animate-pulse">
-                    Live
+                    {t('live')}
                   </Badge>
                 </div>
                 <p className="text-base sm:text-lg text-muted-foreground max-w-2xl">
-                  Real-time insights into your workforce performance and business metrics
+                  {t('realTimeInsights')}
                 </p>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <Calendar className="h-4 w-4" />
-                    <span>{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                    <span>{new Date().toLocaleDateString(i18n.language === 'ar' ? 'ar-EG' : 'en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Activity className="h-4 w-4" />
-                    <span>{activeData?.employeeCount || 0} Active Employees</span>
+                    <span>{activeData?.employeeCount || 0} {t('activeEmployees')}</span>
                   </div>
                 </div>
           </div>
@@ -234,23 +234,23 @@ const DashboardPage: React.FC = () => {
             <div className="flex items-center gap-2">
               <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
                     <SelectTrigger className="w-44 bg-background/80 backdrop-blur-sm border-border/50">
-                  <SelectValue placeholder="Select period" />
+                  <SelectValue placeholder={t('selectPeriod')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="current">Current Period</SelectItem>
-                  <SelectItem value="previous">Previous Period</SelectItem>
-                  <SelectItem value="custom">Custom Month</SelectItem>
+                  <SelectItem value="current">{t('currentPeriod')}</SelectItem>
+                  <SelectItem value="previous">{t('previousPeriod')}</SelectItem>
+                  <SelectItem value="custom">{t('customMonth')}</SelectItem>
                 </SelectContent>
               </Select>
               {selectedPeriod === 'custom' && (
                 <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                       <SelectTrigger className="w-40 bg-background/80 backdrop-blur-sm border-border/50">
-                    <SelectValue placeholder="Select month" />
+                    <SelectValue placeholder={t('selectMonth')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="-2">2 Months Ago</SelectItem>
-                    <SelectItem value="-1">Last Month</SelectItem>
-                    <SelectItem value="0">This Month</SelectItem>
+                    <SelectItem value="-2">{t('twoMonthsAgo')}</SelectItem>
+                    <SelectItem value="-1">{t('lastMonth')}</SelectItem>
+                    <SelectItem value="0">{t('thisMonth')}</SelectItem>
                   </SelectContent>
                 </Select>
               )}
@@ -310,7 +310,7 @@ const DashboardPage: React.FC = () => {
                 <p className="text-sm text-muted-foreground">{stat.description}</p>
                 {stat.change !== 0 && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    vs. previous period
+                    {t('vsPreviousPeriod')}
                   </p>
                 )}
                 </CardContent>
@@ -329,12 +329,12 @@ const DashboardPage: React.FC = () => {
               <div>
                 <CardTitle className="text-xl font-bold flex items-center gap-2">
                   <Zap className="h-5 w-5 text-primary" />
-                  Quick Actions
+                  {t('quickActions')}
                 </CardTitle>
-                <p className="text-muted-foreground mt-1">Streamline your workflow with one-click actions</p>
+                <p className="text-muted-foreground mt-1">{t('streamlineWorkflow')}</p>
           </div>
               <Badge variant="outline" className="text-xs">
-                4 Actions
+                4 {t('actions')}
               </Badge>
         </div>
           </CardHeader>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,7 @@ interface Employee {
 }
 
 const ProfilePage: React.FC = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
@@ -81,9 +83,9 @@ const ProfilePage: React.FC = () => {
         // Fallback to username if ID query didn't work
         if (!adminData && !adminError && user.username) {
           const result = await supabase
-            .from('admin_users')
-            .select('*')
-            .eq('username', user.username)
+          .from('admin_users')
+          .select('*')
+          .eq('username', user.username)
             .maybeSingle();
           adminData = result.data;
           adminError = result.error;
@@ -153,7 +155,7 @@ const ProfilePage: React.FC = () => {
       const { data: employeeData, error: employeeError } = await profileQuery.single();
 
       if (employeeError) {
-        toast.error('Error loading profile data');
+        toast.error(t('errorLoadingProfileData'));
       } else if (employeeData) {
         setEmployee(employeeData);
         setFormData({
@@ -170,7 +172,7 @@ const ProfilePage: React.FC = () => {
 
   const handleSave = async () => {
     if (!employee || employee.role === 'admin' || employee.role === 'owner') {
-      toast.error('Contact information not available for admin/owner users');
+      toast.error(t('contactInfoNotAvailable'));
       return;
     }
 
@@ -193,9 +195,9 @@ const ProfilePage: React.FC = () => {
         phone_number: formData.phone_number || undefined
       } : null);
 
-      toast.success('Profile updated successfully');
+      toast.success(t('profileUpdatedSuccessfully'));
     } catch (error) {
-      toast.error('Error updating profile');
+      toast.error(t('errorUpdatingProfile'));
     } finally {
       setSaving(false);
     }
@@ -203,17 +205,17 @@ const ProfilePage: React.FC = () => {
 
   const handlePasswordChange = async () => {
     if (!passwordData.newPassword || !passwordData.confirmPassword) {
-      toast.error('Please fill in all password fields');
+      toast.error(t('fillAllPasswordFields'));
       return;
     }
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      toast.error('New passwords do not match');
+      toast.error(t('passwordsDoNotMatch'));
       return;
     }
 
     if (passwordData.newPassword.length < 4) {
-      toast.error('Password must be at least 4 characters long');
+      toast.error(t('passwordMinLength'));
       return;
     }
 
@@ -222,7 +224,7 @@ const ProfilePage: React.FC = () => {
 
       const token = localStorage.getItem('auth_token');
       if (!token) {
-        toast.error('Authentication token not found');
+        toast.error(t('authTokenNotFound'));
         return;
       }
 
@@ -285,11 +287,11 @@ const ProfilePage: React.FC = () => {
   if (!employee) {
     return (
       <MobilePageWrapper>
-        <MobileHeader title="Profile" subtitle="User profile not found" />
+        <MobileHeader title={t('profile')} subtitle={t('userProfileNotFound')} />
         <MobileSection>
           <Alert>
             <AlertDescription>
-              Employee profile not found. Please contact your administrator.
+              {t('employeeProfileNotFound')}
             </AlertDescription>
           </Alert>
         </MobileSection>
@@ -300,8 +302,8 @@ const ProfilePage: React.FC = () => {
   return (
     <MobilePageWrapper>
       <MobileHeader 
-        title="Profile" 
-        subtitle="Manage your account information"
+        title={t('profile')} 
+        subtitle={t('manageAccountInfo')}
       />
 
       {/* Profile Picture and Basic Info */}
@@ -333,7 +335,7 @@ const ProfilePage: React.FC = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="h-5 w-5" />
-              Basic Information
+              {t('basicInformation')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -373,21 +375,21 @@ const ProfilePage: React.FC = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Mail className="h-5 w-5" />
-                Contact Information
+                {t('contactInformation')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="email" className="flex items-center gap-2">
                   <Mail className="h-4 w-4" />
-                  Email Address
+                  {t('emailAddress')}
                 </Label>
                 <Input
                   id="email"
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="Enter your email address"
+                  placeholder={t('enterEmail')}
                   className="mt-1"
                 />
               </div>
@@ -395,14 +397,14 @@ const ProfilePage: React.FC = () => {
               <div>
                 <Label htmlFor="phone" className="flex items-center gap-2">
                   <Phone className="h-4 w-4" />
-                  Phone Number
+                  {t('phoneNumber')}
                 </Label>
                 <Input
                   id="phone"
                   type="tel"
                   value={formData.phone_number}
                   onChange={(e) => setFormData(prev => ({ ...prev, phone_number: e.target.value }))}
-                  placeholder="Enter your phone number"
+                  placeholder={t('enterPhone')}
                   className="mt-1"
                 />
               </div>
@@ -413,7 +415,7 @@ const ProfilePage: React.FC = () => {
                 className="w-full"
               >
                 <Save className="h-4 w-4 mr-2" />
-                {saving ? 'Saving...' : 'Save Changes'}
+                {saving ? t('saving') : t('saveChanges')}
               </Button>
             </CardContent>
           </Card>
@@ -426,7 +428,7 @@ const ProfilePage: React.FC = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Lock className="h-5 w-5" />
-              Password Management
+              {t('passwordManagement')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -447,7 +449,7 @@ const ProfilePage: React.FC = () => {
               <div>
                 <Label htmlFor="currentPassword" className="flex items-center gap-2">
                   <Lock className="h-4 w-4" />
-                  Current Password
+                  {t('currentPassword')}
                 </Label>
                 <div className="relative mt-1">
                   <Input
@@ -455,7 +457,7 @@ const ProfilePage: React.FC = () => {
                     type={showPasswords.current ? 'text' : 'password'}
                     value={passwordData.currentPassword}
                     onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                    placeholder="Enter current password"
+                    placeholder={t('enterCurrentPassword')}
                   />
                   <Button
                     type="button"
@@ -473,7 +475,7 @@ const ProfilePage: React.FC = () => {
             <div>
               <Label htmlFor="newPassword" className="flex items-center gap-2">
                 <Lock className="h-4 w-4" />
-                New Password
+                {t('newPassword')}
               </Label>
               <div className="relative mt-1">
                 <Input
@@ -481,7 +483,7 @@ const ProfilePage: React.FC = () => {
                   type={showPasswords.new ? 'text' : 'password'}
                   value={passwordData.newPassword}
                   onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
-                  placeholder="Enter new password"
+                  placeholder={t('enterNewPassword')}
                 />
                 <Button
                   type="button"
@@ -498,7 +500,7 @@ const ProfilePage: React.FC = () => {
             <div>
               <Label htmlFor="confirmPassword" className="flex items-center gap-2">
                 <Lock className="h-4 w-4" />
-                Confirm New Password
+                {t('confirmPassword')}
               </Label>
               <div className="relative mt-1">
                 <Input
@@ -506,7 +508,7 @@ const ProfilePage: React.FC = () => {
                   type={showPasswords.confirm ? 'text' : 'password'}
                   value={passwordData.confirmPassword}
                   onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                  placeholder="Confirm new password"
+                  placeholder={t('confirmNewPassword')}
                 />
                 <Button
                   type="button"
@@ -527,7 +529,7 @@ const ProfilePage: React.FC = () => {
               variant="secondary"
             >
               <Lock className="h-4 w-4 mr-2" />
-              {changingPassword ? 'Changing Password...' : 'Change Password'}
+              {changingPassword ? t('changingPassword') : t('changePassword')}
             </Button>
           </CardContent>
         </Card>

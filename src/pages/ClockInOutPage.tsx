@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -44,6 +45,7 @@ interface TeamMemberStatus {
 }
 
 const ClockInOutPage: React.FC = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -976,7 +978,7 @@ const ClockInOutPage: React.FC = () => {
                 onClick={refreshData}
                 disabled={loading}
                 className="h-8 w-8 p-0 opacity-60 hover:opacity-100 transition-all"
-                title="Refresh status"
+                title={t('refreshStatus')}
               >
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               </Button>
@@ -998,7 +1000,7 @@ const ClockInOutPage: React.FC = () => {
             </div>
 
             <CardTitle className="text-xl sm:text-3xl font-bold mb-3 bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text">
-              {currentEntry ? '🎯 You\'re Working!' : '🚀 Ready to Start?'}
+              {currentEntry ? t('youreWorking') : t('readyToStart')}
             </CardTitle>
 
             {/* Work Progress for Clocked In Users */}
@@ -1006,19 +1008,19 @@ const ClockInOutPage: React.FC = () => {
               <div className="space-y-4 mb-6">
                 <div className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl p-4 border border-primary/20">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-muted-foreground">Daily Progress</span>
+                    <span className="text-sm font-medium text-muted-foreground">{t('dailyProgress')}</span>
                     <span className="text-sm font-bold text-primary">{workedHours.toFixed(1)}/{targetHours}h</span>
                   </div>
                   <Progress value={getWorkDayProgress()} className="h-2 mb-2" />
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <div className="flex items-center space-x-1">
                       <Timer className="h-3 w-3" />
-                      <span>Since {formatCompanyTimeAMPM(currentEntry.clock_in_date, currentEntry.clock_in_time)}</span>
+                      <span>{t('since')} {formatCompanyTimeAMPM(currentEntry.clock_in_date, currentEntry.clock_in_time)}</span>
                     </div>
                     {getTimeUntilTarget() && (
                       <div className="flex items-center space-x-1">
                         <Target className="h-3 w-3" />
-                        <span>{getTimeUntilTarget()} remaining</span>
+                        <span>{getTimeUntilTarget()} {t('remaining')}</span>
                       </div>
                     )}
                   </div>
@@ -1028,7 +1030,7 @@ const ClockInOutPage: React.FC = () => {
 
             {!currentEntry && (
               <CardDescription className="text-base text-muted-foreground mb-6">
-                Tap the button below to start your workday
+                {t('tapToStartWorkday')}
               </CardDescription>
             )}
           </CardHeader>
@@ -1039,12 +1041,12 @@ const ClockInOutPage: React.FC = () => {
                 <div className="bg-gradient-to-r from-success/10 to-primary/10 rounded-2xl p-4 border border-success/20">
                   <div className="text-center space-y-2">
                     <p className="text-lg font-semibold text-success">
-                      ⏰ Working for {formatDuration(workedHours * 60)}
+                      {t('workingFor')} {formatDuration(workedHours * 60)}
                     </p>
                     {currentEntry.clock_in_location && (
                       <div className="flex items-center justify-center space-x-2 text-sm text-muted-foreground">
                         <MapPin className="h-4 w-4" />
-                        <span className="truncate max-w-48">📍 Clock-in location recorded</span>
+                        <span className="truncate max-w-48">{t('clockInLocationRecorded')}</span>
                       </div>
                     )}
                   </div>
@@ -1128,7 +1130,7 @@ const ClockInOutPage: React.FC = () => {
         {showDebug && (
           <Card className="bg-muted/20 border-muted animate-fade-in">
             <CardHeader>
-              <CardTitle className="text-sm">Debug Information</CardTitle>
+              <CardTitle className="text-sm">{t('debugInformation')}</CardTitle>
             </CardHeader>
             <CardContent className="text-xs space-y-2">
               <div className="grid grid-cols-2 gap-2">
@@ -1171,10 +1173,10 @@ const ClockInOutPage: React.FC = () => {
                   <Users className="h-5 w-5 text-secondary" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg font-bold">👥 Team Activity</CardTitle>
+                  <CardTitle className="text-lg font-bold">👥 {t('teamActivity')}</CardTitle>
                   {teamStatus.length > 0 && (
                     <p className="text-sm text-muted-foreground">
-                      {teamStatus.length} colleague{teamStatus.length !== 1 ? 's' : ''} working
+                      {teamStatus.length} {t('colleaguesWorking')}
                     </p>
                   )}
                 </div>
@@ -1214,10 +1216,10 @@ const ClockInOutPage: React.FC = () => {
                     <Coffee className="h-8 w-8 text-muted-foreground opacity-50" />
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    🏠 You're the first one here today!
+                    {t('firstOneHere')}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Team members will appear here when they clock in
+                    {t('teamMembersWillAppear')}
                   </p>
                 </div>
               ) : (
@@ -1250,18 +1252,18 @@ const ClockInOutPage: React.FC = () => {
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button size="sm" className="ml-2">
-                                  Actions
+                                  {t('actions')}
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={() => openEditClockInDialog(member)}>
-                                  Edit start
+                                  {t('editClockIn')}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() => openAdminClockOutConfirm(member)}
                                   disabled={adminActionEmployeeId === member.entry_id}
                                 >
-                                  {adminActionEmployeeId === member.entry_id ? 'Clocking out...' : 'Clock out'}
+                                  {adminActionEmployeeId === member.entry_id ? t('clockingOut') : t('clockOut')}
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -1286,10 +1288,10 @@ const ClockInOutPage: React.FC = () => {
                 </div>
                 <div>
                    <CardTitle className="text-lg font-bold text-orange-800 dark:text-orange-200">
-                     Manual Employee Clock-In
+                     {t('manualClockIn')}
                    </CardTitle>
                    <p className="text-sm text-orange-600 dark:text-orange-300">
-                     Start employee shifts manually
+                     {t('startEmployeeShiftsManually')}
                    </p>
                  </div>
               </div>
@@ -1301,7 +1303,7 @@ const ClockInOutPage: React.FC = () => {
                   <div className="flex items-center space-x-2 mb-3">
                      <UserPlus className="h-4 w-4 text-orange-600" />
                      <span className="text-sm font-medium text-orange-800 dark:text-orange-200">
-                       Select Employee
+                       {t('selectEmployee')}
                      </span>
                    </div>
                   
@@ -1314,13 +1316,13 @@ const ClockInOutPage: React.FC = () => {
                         }}
                       >
                         <SelectTrigger className="w-full bg-background/80 border-border">
-                          <SelectValue placeholder="Search and select employee..." />
+                          <SelectValue placeholder={t('searchAndSelectEmployee')} />
                         </SelectTrigger>
                         <SelectContent>
                           <div className="p-2 border-b">
                             <input
                               type="text"
-                              placeholder="Search employees..."
+                              placeholder={t('searchEmployees')}
                               value={employeeSearchTerm}
                               onChange={(e) => setEmployeeSearchTerm(e.target.value)}
                               className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
@@ -1347,7 +1349,7 @@ const ClockInOutPage: React.FC = () => {
                             employee.staff_id.toLowerCase().includes(employeeSearchTerm.toLowerCase())
                           ).length === 0 && employeeSearchTerm && (
                             <div className="p-3 text-center text-sm text-muted-foreground">
-                              No employees found matching "{employeeSearchTerm}"
+                              {t('noEmployeesFoundMatching')} "{employeeSearchTerm}"
                             </div>
                           )}
                         </SelectContent>
@@ -1361,12 +1363,12 @@ const ClockInOutPage: React.FC = () => {
                        {manualClockInLoading ? (
                          <>
                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                           Clocking In...
+                           {t('clockingIn')}...
                          </>
                        ) : (
                          <>
                            <UserPlus className="mr-2 h-4 w-4" />
-                           Start Employee Shift
+                           {t('startEmployeeShift')}
                          </>
                        )}
                      </Button>
@@ -1385,9 +1387,9 @@ const ClockInOutPage: React.FC = () => {
                 <Calendar className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <CardTitle className="text-xl font-bold">📊 Today's Activity</CardTitle>
+                <CardTitle className="text-xl font-bold">📊 {t('todaysActivity')}</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  {todayEntries.length} session{todayEntries.length !== 1 ? 's' : ''} recorded
+                  {todayEntries.length} {t('session')}{todayEntries.length !== 1 ? 's' : ''} {t('recorded')}
                 </p>
               </div>
             </div>
@@ -1544,9 +1546,9 @@ const ClockInOutPage: React.FC = () => {
             </p>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setEditClockInOpen(false)}>Cancel</Button>
+            <Button variant="ghost" onClick={() => setEditClockInOpen(false)}>{t('cancel')}</Button>
             <Button onClick={applyEditClockIn} disabled={editSaving}>
-              {editSaving ? (<><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Saving...</>) : 'Save changes'}
+              {editSaving ? (<><RefreshCw className="h-4 w-4 mr-2 animate-spin" />{t('saving')}...</>) : t('saveChanges')}
             </Button>
           </DialogFooter>
         </DialogContent>

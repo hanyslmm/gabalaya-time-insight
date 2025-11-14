@@ -51,6 +51,7 @@
     "file-saver": "^2.0.5",
     "framer-motion": "^12.23.0",
     "i18next": "^25.3.0",
+    "i18next-http-backend": "^3.0.2",
     "input-otp": "^1.2.4",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",

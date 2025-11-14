@@ -62,8 +62,8 @@
   
   /* Desktop: Improve click responsiveness */
   @media (hover: hover) and (pointer: fine) {
-    * {
-      -webkit-tap-highlight-color: transparent;
+  * {
+    -webkit-tap-highlight-color: transparent;
     }
     
     /* Ensure buttons and links are immediately clickable */
@@ -95,8 +95,8 @@
   /* Enhanced touch manipulation for better mobile/tablet experience */
   /* Only apply touch-action on touch devices to prevent interference with desktop clicks */
   @media (hover: none) and (pointer: coarse) {
-    button, [role="button"], [tabindex] {
-      touch-action: manipulation;
+  button, [role="button"], [tabindex] {
+    touch-action: manipulation;
     }
   }
   
@@ -225,9 +225,9 @@
   animation: slideInDown 0.3s ease-out;
 }
 
-  .animate-fadeInScale {
+.animate-fadeInScale {
     /* animation: fadeInScale 0.3s ease-out; - Disabled per user request */
-  }
+}
 
 .animate-bounce-gentle {
   animation: bounce 0.6s ease-in-out;
@@ -1239,14 +1239,14 @@ All colors MUST be HSL.
 
   /* Enhanced button interactions for mobile */
   @media (hover: none) and (pointer: coarse) {
-    .mobile-button {
-      min-height: 3rem;
-      touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    }
+  .mobile-button {
+    min-height: 3rem;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
 
-    .mobile-button:active {
+  .mobile-button:active {
       /* transform: scale(0.98); - Disabled per user request */
     }
   }
