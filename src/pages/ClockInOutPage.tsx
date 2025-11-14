@@ -12,12 +12,13 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Clock, LogIn, LogOut, MapPin, AlertCircle, RefreshCw, Users, Eye, EyeOff, Coffee, Target, Zap, Calendar, Timer, UserPlus, Shield } from 'lucide-react';
+import { Clock, LogIn, LogOut, MapPin, AlertCircle, RefreshCw, Users, Eye, EyeOff, Coffee, Target, Zap, Calendar, Timer, UserPlus, Shield, ClipboardList } from 'lucide-react';
 import { format, differenceInMinutes, startOfDay, addHours } from 'date-fns';
 import { toast } from 'sonner';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import { getCurrentCompanyTime, getTodayInCompanyTimezone, validateTimezone, parseCompanyDateTime } from '@/utils/timezoneUtils';
 import { getTimezoneAbbreviation, formatTimeToAMPM } from '@/utils/timeFormatter';
+import ShiftTasksModal from '@/components/ShiftTasksModal';
 
 // Defines the structure for a clock-in/out entry
 interface ClockEntry {
@@ -82,6 +83,11 @@ const ClockInOutPage: React.FC = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<string>('');
   const [manualClockInLoading, setManualClockInLoading] = useState(false);
   const [employeeSearchTerm, setEmployeeSearchTerm] = useState('');
+
+  // Shift tasks modal state
+  const [shiftTasks, setShiftTasks] = useState<any[]>([]);
+  const [currentTimesheetEntryId, setCurrentTimesheetEntryId] = useState<string | null>(null);
+  const [showShiftTasksModal, setShowShiftTasksModal] = useState(false);
 
   // Simplified loading timeout - just one timeout to prevent infinite loading
   useEffect(() => {
@@ -561,7 +567,7 @@ const ClockInOutPage: React.FC = () => {
       const staffId = employeeData && employeeData.length > 0 ? employeeData[0].staff_id : user.username;
 
 
-      const { data, error } = await supabase.rpc('clock_in', {
+      const { data: clockInData, error } = await supabase.rpc('clock_in', {
         p_staff_id: staffId,
         p_clock_in_location: userLocation,
       });
@@ -604,6 +610,21 @@ const ClockInOutPage: React.FC = () => {
             await fetchTodayEntries();
             await fetchTeamStatus();
             toast.success('🎉 Clocked in successfully!');
+            
+            // Check for shift tasks (non-blocking)
+            if (retryData?.id) {
+              setTimeout(async () => {
+                try {
+                  const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
+                  if (activeOrganizationId && retryData.id) {
+                    await checkForShiftTasksWithEntry(retryData.id, activeOrganizationId);
+                  }
+                } catch (error) {
+                  console.error('Error checking for shift tasks:', error);
+                  // User proceeds normally - no modal shown
+                }
+              }, 300);
+            }
             return;
 
           } catch (fixError) {
@@ -618,11 +639,140 @@ const ClockInOutPage: React.FC = () => {
       await fetchTodayEntries();
       await fetchTeamStatus(); // Refresh team status after clock in
       toast.success('Clocked in successfully!');
+      
+      // Check for shift tasks (non-blocking) - AFTER successful clock-in
+      // Use the timesheet entry ID from clock_in response if available
+      if (clockInData?.id) {
+        // Non-blocking task check - wrapped in try-catch to never block user flow
+        setTimeout(async () => {
+          try {
+            const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
+            if (activeOrganizationId && clockInData.id) {
+              await checkForShiftTasksWithEntry(clockInData.id, activeOrganizationId);
+            }
+          } catch (error) {
+            console.error('Error checking for shift tasks:', error);
+            // User proceeds normally - no modal shown
+          }
+        }, 300); // Small delay to ensure UI is updated
+      }
     } catch (error: any) {
       toast.error(error.message || 'Failed to clock in');
     } finally {
       setActionLoading(false);
     }
+  };
+
+  // Check for shift tasks after successful clock-in (non-blocking)
+  const checkForShiftTasks = async (timesheetEntryIdOverride: string | null = null) => {
+    try {
+      if (!user) return;
+
+      const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
+      if (!activeOrganizationId) return;
+
+      // Use provided ID or get from currentEntry (which should be updated by fetchTodayEntries)
+      const timesheetEntryId = timesheetEntryIdOverride || currentEntry?.id;
+      if (!timesheetEntryId) {
+        // If currentEntry not yet updated, try to get it from todayEntries
+        const latestEntry = todayEntries.find(entry => !entry.clock_out_time);
+        if (!latestEntry) return;
+        await checkForShiftTasksWithEntry(latestEntry.id, activeOrganizationId);
+        return;
+      }
+
+      await checkForShiftTasksWithEntry(timesheetEntryId, activeOrganizationId);
+    } catch (error) {
+      // Log error but don't block user flow
+      console.error('Error checking for shift tasks:', error);
+      // User proceeds normally - no modal shown
+    }
+  };
+
+  // Helper function to check tasks with a specific entry ID
+  const checkForShiftTasksWithEntry = async (timesheetEntryId: string, organizationId: string, showModalEvenIfEmpty: boolean = false) => {
+    try {
+      if (!user) return;
+
+      // Get employee_id from timesheet entry or employee record
+      const { data: timesheetData } = await supabase
+        .from('timesheet_entries')
+        .select('employee_id, employee_name')
+        .eq('id', timesheetEntryId)
+        .eq('organization_id', organizationId)
+        .single();
+
+      let employeeId: string | null = null;
+
+      if (timesheetData?.employee_id) {
+        employeeId = timesheetData.employee_id;
+      } else {
+        // Try to get employee_id from employee record
+        const { data: employeeData } = await supabase
+          .from('employees')
+          .select('id')
+          .or(`staff_id.eq.${user.username},full_name.eq.${user.full_name}`)
+          .eq('organization_id', organizationId)
+          .limit(1)
+          .single();
+
+        if (employeeData?.id) {
+          employeeId = employeeData.id;
+        }
+      }
+
+      if (!employeeId) {
+        console.warn('Could not find employee_id for task check');
+        return;
+      }
+
+      // Call get_tasks_for_shift function
+      const { data: tasksData, error: tasksError } = await supabase.rpc(
+        'get_tasks_for_shift',
+        {
+          p_timesheet_entry_id: timesheetEntryId,
+          p_employee_id: employeeId,
+          p_organization_id: organizationId
+        }
+      );
+
+      if (tasksError) {
+        console.error('Error fetching shift tasks:', tasksError);
+        if (showModalEvenIfEmpty) {
+          toast.error(t('errorLoadingTasks') || 'Failed to load tasks');
+        }
+        return;
+      }
+
+      // Show modal if tasks exist OR if explicitly requested (for reopening)
+      if ((tasksData && tasksData.length > 0) || showModalEvenIfEmpty) {
+        setShiftTasks(tasksData || []);
+        setCurrentTimesheetEntryId(timesheetEntryId);
+        setShowShiftTasksModal(true);
+      }
+    } catch (error) {
+      // Log error but don't block user flow
+      console.error('Error fetching shift tasks:', error);
+      if (showModalEvenIfEmpty) {
+        toast.error(t('errorLoadingTasks') || 'Failed to load tasks');
+      }
+    }
+  };
+
+  // Function to manually open tasks modal (for reopening during shift)
+  const handleViewShiftTasks = async () => {
+    if (!currentEntry?.id) {
+      toast.error(t('noActiveShift') || 'No active shift found');
+      return;
+    }
+
+    const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
+    if (!activeOrganizationId) {
+      toast.error(t('selectOrganization') || 'Please select an organization');
+      return;
+    }
+
+    await checkForShiftTasksWithEntry(currentEntry.id, activeOrganizationId, true);
   };
 
   // Fetch employees for manual clock-in (admin/owner only)
@@ -1051,6 +1201,22 @@ const ClockInOutPage: React.FC = () => {
                     )}
                   </div>
                 </div>
+                
+                {/* View Shift Tasks Button - Always show when clocked in */}
+                <Button
+                  onClick={handleViewShiftTasks}
+                  variant="outline"
+                  size="lg"
+                  className="w-full h-14 border-2 border-primary/30 hover:border-primary/50 bg-primary/5 hover:bg-primary/10 text-lg font-semibold rounded-2xl transition-all duration-300"
+                >
+                  <ClipboardList className="mr-3 h-5 w-5" />
+                  {t('viewShiftTasks') || 'View Shift Tasks'}
+                  {shiftTasks.length > 0 && shiftTasks.filter((t: any) => t.is_completed).length > 0 && (
+                    <Badge variant="secondary" className="ms-2">
+                      {shiftTasks.filter((t: any) => t.is_completed).length}/{shiftTasks.length}
+                    </Badge>
+                  )}
+                </Button>
                 
                 <Button
                   onClick={handleClockOut}
@@ -1571,6 +1737,17 @@ const ClockInOutPage: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Shift Tasks Modal */}
+      {currentTimesheetEntryId && (
+        <ShiftTasksModal
+          isOpen={showShiftTasksModal}
+          onClose={() => setShowShiftTasksModal(false)}
+          timesheetEntryId={currentTimesheetEntryId}
+          tasks={shiftTasks}
+          organizationId={(user as any)?.current_organization_id || user?.organization_id || ''}
+        />
+      )}
     </div>
   );
 };

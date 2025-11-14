@@ -27,7 +27,8 @@ import {
   Menu,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ClipboardList
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -122,6 +123,13 @@ const Layout = () => {
       href: '/reports',
       icon: BarChart3,
       description: t('analyticsInsights'),
+      roles: ['admin', 'owner']
+    },
+    {
+      name: t('taskManagement'),
+      href: '/task-management',
+      icon: ClipboardList,
+      description: t('taskManagementDescription'),
       roles: ['admin', 'owner']
     },
     {
