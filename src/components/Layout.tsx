@@ -133,6 +133,13 @@ const Layout = () => {
       roles: ['admin', 'owner']
     },
     {
+      name: t('workRegulations'),
+      href: '/work-regulations',
+      icon: FileText,
+      description: t('workRegulationsDescription'),
+      roles: ['admin', 'employee', 'owner'] // Visible to all, edit only for admin/owner
+    },
+    {
       name: t('profile'),
       href: '/profile',
       icon: User,

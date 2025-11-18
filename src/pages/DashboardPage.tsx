@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -7,10 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Label } from '@/components/ui/label';
 import { 
-  Users, Clock, DollarSign, TrendingUp, Upload, Download, Settings, ShieldAlert, 
-  Activity, BarChart3, Calendar, Timer, Zap, ArrowUpRight, ArrowDownRight
+  Users, Clock, DollarSign, TrendingUp, ShieldAlert, 
+  Activity, BarChart3, Calendar as CalendarIcon, Timer, Zap, 
+  ArrowUpRight, ArrowDownRight, RefreshCw, GitCompare
 } from 'lucide-react';
 import DashboardCharts from '@/components/DashboardCharts';
 import { useDashboardData } from '@/hooks/useDashboardData';
@@ -18,6 +21,13 @@ import PullToRefresh from '@/components/PullToRefresh';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import GlobalSearch from '@/components/GlobalSearch';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subMonths, startOfYear, endOfYear } from 'date-fns';
+import { cn } from '@/lib/utils';
+
+interface DateRange {
+  from: Date;
+  to: Date;
+}
 
 const DashboardPage: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -31,71 +41,154 @@ const DashboardPage: React.FC = () => {
     }
   }, [user, navigate]);
   
-  // All hooks must be called before any conditional returns
-  const [selectedPeriod, setSelectedPeriod] = useState('current');
-  const [selectedMonth, setSelectedMonth] = useState('');
+  // State management
+  const [datePreset, setDatePreset] = useState<string>('current');
+  const [customDateRange, setCustomDateRange] = useState<DateRange | null>(null);
+  const [compareMode, setCompareMode] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Pay period calculation
-  const calculatePayPeriod = (baseDate: Date, offsetMonths: number = 0) => {
-    const targetDate = new Date(baseDate);
-    targetDate.setMonth(targetDate.getMonth() + offsetMonths);
-    const year = targetDate.getFullYear();
-    const month = targetDate.getMonth();
-
-    if (offsetMonths === 0) { // Current period: 1st of month to today
-      const startDate = new Date(year, month, 1);
-      const endDate = new Date(); // Today
-      return { from: startDate, to: endDate };
-    }
-    
-    // Previous or custom periods: Full month
-    const startDate = new Date(year, month, 1);
-    const endDate = new Date(year, month + 1, 0); // Last day of the month
-    return { from: startDate, to: endDate };
-  };
-
-  // Handle month selection
-  const getMonthPeriod = (monthOffset: number) => {
+  // Calculate date ranges based on presets
+  const getDateRangeForPreset = (preset: string): DateRange => {
     const today = new Date();
-    const targetDate = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
-    const endDate = new Date(today.getFullYear(), today.getMonth() + monthOffset + 1, 0);
-    return { from: targetDate, to: endDate };
-  };
-
-  const getPeriodLabel = () => {
-    if (selectedPeriod === 'current') return t('current');
-    if (selectedPeriod === 'previous') return t('previous');
-    if (selectedMonth) {
-      const monthNames = [t('thisMonth'), t('lastMonth'), t('twoMonthsAgo')];
-      const index = Math.abs(parseInt(selectedMonth));
-      return monthNames[index] || t('custom');
+    
+    switch (preset) {
+      case 'today':
+        return { from: startOfDay(today), to: endOfDay(today) };
+      case 'yesterday':
+        const yesterday = subDays(today, 1);
+        return { from: startOfDay(yesterday), to: endOfDay(yesterday) };
+      case 'thisWeek':
+        return { from: startOfWeek(today), to: endOfWeek(today) };
+      case 'lastWeek':
+        const lastWeekStart = startOfWeek(subDays(today, 7));
+        const lastWeekEnd = endOfWeek(subDays(today, 7));
+        return { from: lastWeekStart, to: lastWeekEnd };
+      case 'thisMonth':
+        return { from: startOfMonth(today), to: endOfMonth(today) };
+      case 'lastMonth':
+        const lastMonth = subMonths(today, 1);
+        return { from: startOfMonth(lastMonth), to: endOfMonth(lastMonth) };
+      case 'last7Days':
+        return { from: subDays(today, 6), to: today };
+      case 'last30Days':
+        return { from: subDays(today, 29), to: today };
+      case 'thisYear':
+        return { from: startOfYear(today), to: endOfYear(today) };
+      case 'current':
+        // Current period: 1st of month to today
+        const year = today.getFullYear();
+        const month = today.getMonth();
+        return { from: new Date(year, month, 1), to: today };
+      case 'previous':
+        // Previous month: full month
+        const prevMonth = subMonths(today, 1);
+        return { from: startOfMonth(prevMonth), to: endOfMonth(prevMonth) };
+      default:
+        return { from: startOfMonth(today), to: today };
     }
-    return t('total');
   };
 
-  // Memoize period calculations
-  const currentPeriod = useMemo(() => calculatePayPeriod(new Date()), []);
-  const previousPeriod = useMemo(() => calculatePayPeriod(new Date(), -1), []);
-
-  // Determine active period for data fetching
+  // Determine active date range
   const activePeriod = useMemo(() => {
-    if (selectedPeriod === 'current') return currentPeriod;
-    if (selectedPeriod === 'previous') return previousPeriod;
-    if (selectedPeriod === 'custom' && selectedMonth) {
-      const monthOffset = parseInt(selectedMonth);
-      return getMonthPeriod(monthOffset);
+    if (customDateRange) {
+      return customDateRange;
     }
-    return currentPeriod; // Default to current period
-  }, [selectedPeriod, selectedMonth, currentPeriod, previousPeriod]);
+    return getDateRangeForPreset(datePreset);
+  }, [datePreset, customDateRange]);
 
-  // Fetch data for the active period
-  const { data: activeData, isLoading: activeLoading } = useDashboardData(activePeriod);
-  const { data: previousData } = useDashboardData(previousPeriod);
+  // Calculate previous period for comparison
+  const previousPeriod = useMemo(() => {
+    const daysDiff = Math.ceil((activePeriod.to.getTime() - activePeriod.from.getTime()) / (1000 * 60 * 60 * 24));
+    const prevTo = new Date(activePeriod.from);
+    prevTo.setDate(prevTo.getDate() - 1);
+    const prevFrom = new Date(prevTo);
+    prevFrom.setDate(prevFrom.getDate() - daysDiff);
+    return { from: prevFrom, to: prevTo };
+  }, [activePeriod]);
+
+  // Fetch data with auto-refresh
+  const { 
+    data: activeData, 
+    isLoading: activeLoading,
+    refetch: refetchActive,
+    dataUpdatedAt: activeUpdatedAt
+  } = useDashboardData(activePeriod, true);
+
+  const { 
+    data: previousData,
+    refetch: refetchPrevious
+  } = useDashboardData(previousPeriod, compareMode);
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    if (!compareMode) {
+      const interval = setInterval(() => {
+        refetchActive();
+      }, 30000); // 30 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [refetchActive, compareMode]);
+
+  // Manual refresh handler
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    await Promise.all([
+      refetchActive(),
+      compareMode ? refetchPrevious() : Promise.resolve()
+    ]);
+    setIsRefreshing(false);
+  };
+
+  // Format time ago
+  const getTimeAgo = (timestamp: number) => {
+    const seconds = Math.floor((Date.now() - timestamp) / 1000);
+    if (seconds < 60) return t('justNow') || 'Just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes} ${t('minutesAgo') || 'minutes ago'}`;
+    const hours = Math.floor(minutes / 60);
+    return `${hours} ${t('hoursAgo') || 'hours ago'}`;
+  };
+
+  // Handle preset change
+  const handlePresetChange = (preset: string) => {
+    setDatePreset(preset);
+    setCustomDateRange(null);
+  };
+
+  // Handle custom date range selection
+  const handleCustomDateSelect = (range: { from?: Date; to?: Date } | undefined) => {
+    if (range?.from && range?.to) {
+      setCustomDateRange({ from: range.from, to: range.to });
+      setDatePreset('custom');
+    }
+  };
 
   // Calculate percentage changes
   const getPercentageChange = (current: number, previous: number) => {
     if (!previous || previous === 0) return 0;
     return ((current - previous) / previous) * 100;
+  };
+
+  // Get period label
+  const getPeriodLabel = () => {
+    if (datePreset === 'custom' && customDateRange) {
+      return `${format(customDateRange.from, 'MMM dd')} - ${format(customDateRange.to, 'MMM dd, yyyy')}`;
+    }
+    const presetLabels: Record<string, string> = {
+      today: t('today') || 'Today',
+      yesterday: t('yesterday') || 'Yesterday',
+      thisWeek: t('thisWeek') || 'This Week',
+      lastWeek: t('lastWeek') || 'Last Week',
+      thisMonth: t('thisMonth') || 'This Month',
+      lastMonth: t('lastMonth') || 'Last Month',
+      last7Days: t('last7Days') || 'Last 7 Days',
+      last30Days: t('last30Days') || 'Last 30 Days',
+      thisYear: t('thisYear') || 'This Year',
+      current: t('currentPeriod') || 'Current Period',
+      previous: t('previousPeriod') || 'Previous Period',
+    };
+    return presetLabels[datePreset] || t('custom') || 'Custom';
   };
 
   // Check if user is admin or owner - restrict dashboard access to admins and owners only
@@ -165,7 +258,7 @@ const DashboardPage: React.FC = () => {
       color: 'from-blue-500 to-blue-600',
       bgColor: 'bg-blue-50 dark:bg-blue-950/20',
       textColor: 'text-blue-700 dark:text-blue-400',
-      change: 0, // Employee count doesn't change frequently
+      change: compareMode ? getPercentageChange(activeData?.employeeCount || 0, previousData?.employeeCount || 0) : 0,
     },
     {
       title: `${getPeriodLabel()} ${t('hours')}`,
@@ -175,7 +268,7 @@ const DashboardPage: React.FC = () => {
       color: 'from-green-500 to-green-600',
       bgColor: 'bg-green-50 dark:bg-green-950/20',
       textColor: 'text-green-700 dark:text-green-400',
-      change: getPercentageChange(activeData?.totalHours || 0, previousData?.totalHours || 0),
+      change: compareMode ? getPercentageChange(activeData?.totalHours || 0, previousData?.totalHours || 0) : 0,
     },
     {
       title: `${getPeriodLabel()} ${t('payroll')}`,
@@ -185,7 +278,7 @@ const DashboardPage: React.FC = () => {
       color: 'from-purple-500 to-purple-600',
       bgColor: 'bg-purple-50 dark:bg-purple-950/20',
       textColor: 'text-purple-700 dark:text-purple-400',
-      change: getPercentageChange(activeData?.totalPayroll || 0, previousData?.totalPayroll || 0),
+      change: compareMode ? getPercentageChange(activeData?.totalPayroll || 0, previousData?.totalPayroll || 0) : 0,
     },
     {
       title: `${getPeriodLabel()} ${t('shifts')}`,
@@ -195,12 +288,12 @@ const DashboardPage: React.FC = () => {
       color: 'from-orange-500 to-orange-600',
       bgColor: 'bg-orange-50 dark:bg-orange-950/20',
       textColor: 'text-orange-700 dark:text-orange-400',
-      change: getPercentageChange(activeData?.totalShifts || 0, previousData?.totalShifts || 0),
+      change: compareMode ? getPercentageChange(activeData?.totalShifts || 0, previousData?.totalShifts || 0) : 0,
     }
   ];
 
   return (
-    <PullToRefresh onRefresh={async () => window.location.reload()}>
+    <PullToRefresh onRefresh={handleManualRefresh}>
       <div className="w-full px-3 sm:px-6 lg:px-8 pb-8">
         {/* Hero Header Section */}
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/5 via-primary/3 to-transparent p-6 sm:p-8 mb-8">
@@ -218,48 +311,108 @@ const DashboardPage: React.FC = () => {
                 <p className="text-base sm:text-lg text-muted-foreground max-w-2xl">
                   {t('realTimeInsights')}
                 </p>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
                   <div className="flex items-center gap-1">
-                    <Calendar className="h-4 w-4" />
+                    <CalendarIcon className="h-4 w-4" />
                     <span>{new Date().toLocaleDateString(i18n.language === 'ar' ? 'ar-EG' : 'en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Activity className="h-4 w-4" />
                     <span>{activeData?.employeeCount || 0} {t('activeEmployees')}</span>
                   </div>
+                  {activeUpdatedAt && (
+                    <div className="flex items-center gap-1">
+                      <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+                      <span className="text-xs">
+                        {t('lastUpdated') || 'Last updated'}: {getTimeAgo(activeUpdatedAt)}
+                      </span>
+                    </div>
+                  )}
                 </div>
-          </div>
+              </div>
               
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">
-            <div className="flex items-center gap-2">
-              <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Enhanced Date Range Selection */}
+                  <Select value={datePreset} onValueChange={handlePresetChange}>
                     <SelectTrigger className="w-44 bg-background/80 backdrop-blur-sm border-border/50">
-                  <SelectValue placeholder={t('selectPeriod')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="current">{t('currentPeriod')}</SelectItem>
-                  <SelectItem value="previous">{t('previousPeriod')}</SelectItem>
-                  <SelectItem value="custom">{t('customMonth')}</SelectItem>
-                </SelectContent>
-              </Select>
-              {selectedPeriod === 'custom' && (
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                      <SelectTrigger className="w-40 bg-background/80 backdrop-blur-sm border-border/50">
-                    <SelectValue placeholder={t('selectMonth')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="-2">{t('twoMonthsAgo')}</SelectItem>
-                    <SelectItem value="-1">{t('lastMonth')}</SelectItem>
-                    <SelectItem value="0">{t('thisMonth')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <ThemeToggle />
-              <GlobalSearch />
-              <ProfileAvatar />
-            </div>
+                      <SelectValue placeholder={t('selectPeriod')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="today">{t('today') || 'Today'}</SelectItem>
+                      <SelectItem value="yesterday">{t('yesterday') || 'Yesterday'}</SelectItem>
+                      <SelectItem value="thisWeek">{t('thisWeek') || 'This Week'}</SelectItem>
+                      <SelectItem value="lastWeek">{t('lastWeek') || 'Last Week'}</SelectItem>
+                      <SelectItem value="thisMonth">{t('thisMonth') || 'This Month'}</SelectItem>
+                      <SelectItem value="lastMonth">{t('lastMonth') || 'Last Month'}</SelectItem>
+                      <SelectItem value="last7Days">{t('last7Days') || 'Last 7 Days'}</SelectItem>
+                      <SelectItem value="last30Days">{t('last30Days') || 'Last 30 Days'}</SelectItem>
+                      <SelectItem value="current">{t('currentPeriod') || 'Current Period'}</SelectItem>
+                      <SelectItem value="previous">{t('previousPeriod') || 'Previous Period'}</SelectItem>
+                      <SelectItem value="custom">{t('customRange') || 'Custom Range'}</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {/* Custom Date Range Picker */}
+                  {datePreset === 'custom' && (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-[240px] justify-start text-left font-normal bg-background/80 backdrop-blur-sm border-border/50",
+                            !customDateRange && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {customDateRange ? (
+                            <>
+                              {format(customDateRange.from, 'MMM dd, yyyy')} - {format(customDateRange.to, 'MMM dd, yyyy')}
+                            </>
+                          ) : (
+                            <span>{t('selectDateRange') || 'Select date range'}</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="range"
+                          selected={{ from: customDateRange?.from, to: customDateRange?.to }}
+                          onSelect={handleCustomDateSelect}
+                          numberOfMonths={2}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  )}
+
+                  {/* Comparison Mode Toggle */}
+                  <Button
+                    variant={compareMode ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCompareMode(!compareMode)}
+                    className="bg-background/80 backdrop-blur-sm border-border/50"
+                  >
+                    <GitCompare className="h-4 w-4 mr-2" />
+                    {t('compare') || 'Compare'}
+                  </Button>
+
+                  {/* Manual Refresh Button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleManualRefresh}
+                    disabled={isRefreshing}
+                    className="bg-background/80 backdrop-blur-sm border-border/50"
+                  >
+                    <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <ThemeToggle />
+                  <GlobalSearch />
+                  <ProfileAvatar />
+                </div>
               </div>
             </div>
           </div>
@@ -268,6 +421,60 @@ const DashboardPage: React.FC = () => {
           <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-primary/10 to-transparent rounded-full -translate-y-32 translate-x-32" />
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-secondary/10 to-transparent rounded-full translate-y-24 -translate-x-24" />
         </div>
+
+        {/* Comparison Mode Stats */}
+        {compareMode && previousData && (
+          <div className="mb-8">
+            <Card className="border-2 border-primary/20 bg-gradient-to-br from-card to-card/90">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <GitCompare className="h-5 w-5 text-primary" />
+                  {t('periodComparison') || 'Period Comparison'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {stats.map((stat, index) => {
+                    const currentValue = stat.value;
+                    const previousValue = index === 0 
+                      ? Math.round(previousData?.employeeCount || 0)
+                      : index === 1
+                      ? (previousData?.totalHours?.toFixed(1) || '0.0')
+                      : index === 2
+                      ? `${(previousData?.totalPayroll?.toFixed(0) || '0')} LE`
+                      : Math.round(previousData?.totalShifts || 0);
+                    
+                    return (
+                      <div key={index} className="p-4 rounded-lg border border-border/50 bg-background/50">
+                        <div className="text-sm text-muted-foreground mb-2">{stat.title}</div>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-lg font-bold">{currentValue}</div>
+                            <div className="text-sm text-muted-foreground">{t('current') || 'Current'}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg font-bold text-muted-foreground">{previousValue}</div>
+                            <div className="text-sm text-muted-foreground">{t('previous') || 'Previous'}</div>
+                          </div>
+                        </div>
+                        {stat.change !== 0 && (
+                          <div className={`mt-2 text-xs font-medium flex items-center gap-1 ${
+                            stat.change > 0 
+                              ? 'text-green-600 dark:text-green-400' 
+                              : 'text-red-600 dark:text-red-400'
+                          }`}>
+                            {stat.change > 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                            {Math.abs(stat.change).toFixed(1)}% {t('change') || 'change'}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Enhanced Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
@@ -298,22 +505,22 @@ const DashboardPage: React.FC = () => {
                         {Math.abs(stat.change).toFixed(1)}%
                       </div>
                     )}
-          </div>
-        </div>
+                  </div>
+                </div>
 
                 <div className={`p-3 rounded-2xl ${stat.bgColor} ${stat.textColor} transition-colors duration-300`}>
                   <stat.icon className="h-6 w-6" />
                 </div>
-                </CardHeader>
+              </CardHeader>
               
               <CardContent className="pt-0 relative z-10">
                 <p className="text-sm text-muted-foreground">{stat.description}</p>
-                {stat.change !== 0 && (
+                {stat.change !== 0 && compareMode && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    {t('vsPreviousPeriod')}
+                    {t('vsPreviousPeriod') || 'vs Previous Period'}
                   </p>
                 )}
-                </CardContent>
+              </CardContent>
 
               {/* Animated border */}
               <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-transparent via-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" 
@@ -332,11 +539,11 @@ const DashboardPage: React.FC = () => {
                   {t('quickActions')}
                 </CardTitle>
                 <p className="text-muted-foreground mt-1">{t('streamlineWorkflow')}</p>
-          </div>
+              </div>
               <Badge variant="outline" className="text-xs">
                 4 {t('actions')}
               </Badge>
-        </div>
+            </div>
           </CardHeader>
           <CardContent className="p-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -371,43 +578,11 @@ const DashboardPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Unified Analytics - Replace individual chart components */}
+        {/* Unified Analytics */}
         <DashboardCharts
           timePeriod="month"
           dateRange={activePeriod}
         />
-
-        {/* Welcome Message */}
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-card/90 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold flex items-center gap-2">
-              <Activity className="h-5 w-5 text-primary" />
-              System Status
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-muted-foreground mb-2">
-                  Welcome to ChampTime HRM System. Everything is running smoothly.
-                </p>
-                <div className="flex items-center gap-4 text-sm">
-                  <Badge variant="outline" className="text-green-600 dark:text-green-400 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/20">
-                    <Activity className="h-3 w-3 mr-1" />
-                    System Online
-                  </Badge>
-                  <Badge variant="outline" className="text-primary border-border bg-muted/50">
-                    Last Updated: {new Date().toLocaleTimeString()}
-                  </Badge>
-                </div>
-              </div>
-              <Button variant="outline" onClick={() => navigate('/settings')}>
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </PullToRefresh>
   );

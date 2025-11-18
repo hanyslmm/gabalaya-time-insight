@@ -24,6 +24,7 @@ const MyTimesheetPage = lazy(() => import('@/pages/MyTimesheetPage'));
 const CompanySettingsPage = lazy(() => import('@/pages/CompanySettingsPage'));
 const OrganizationManagement = lazy(() => import('@/components/OrganizationManagement'));
 const TaskManagementPage = lazy(() => import('@/pages/TaskManagementPage'));
+const WorkRegulationsPage = lazy(() => import('@/pages/WorkRegulationsPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -120,6 +121,11 @@ function App() {
                 <Route path="task-management" element={
                   <Suspense fallback={<PageLoader />}>
                     <TaskManagementPage />
+                  </Suspense>
+                } />
+                <Route path="work-regulations" element={
+                  <Suspense fallback={<PageLoader />}>
+                    <WorkRegulationsPage />
                   </Suspense>
                 } />
               </Route>

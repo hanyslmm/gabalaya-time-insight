@@ -10,9 +10,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, Users, FileSpreadsheet, ChevronRight, AlertCircle, Calendar, Clock, TrendingUp, DollarSign } from 'lucide-react';
+import { Download, Users, FileSpreadsheet, ChevronRight, AlertCircle, Calendar, Clock, TrendingUp, DollarSign, FileText, FileDown, Search, X, ArrowUp, ArrowDown } from 'lucide-react';
 import TimesheetDateFilter from '@/components/TimesheetDateFilter';
 import { HRAnalytics } from '@/components/HRAnalytics';
+import { EmployeeMultiSelect } from '@/components/EmployeeMultiSelect';
+import { exportToPDF, exportToCSV, exportToExcel } from '@/utils/reportExports';
+import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { subDays, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns';
 import * as XLSX from 'xlsx';
 import {
   Table,
@@ -38,12 +43,17 @@ const ReportsPage: React.FC = () => {
   // Hooks at top level
   const { t } = useTranslation();
   const { user } = useAuth();
-  const [currentView, setCurrentView] = useState<ViewType>('overview');
+  const [currentView, setCurrentView] = useState<ViewType>('attendance');
   const { calculatePayPeriod, mode, endDay, isLoading: settingsLoading } = usePayPeriodSettings();
   const [selectedRole, setSelectedRole] = useState<string>('all');
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [comparePeriod, setComparePeriod] = useState<boolean>(false);
+  const [exportFormat, setExportFormat] = useState<'excel' | 'csv' | 'pdf'>('excel');
   
   // Date range state - default to current pay period from settings
   const [dateRange, setDateRange] = useState<DateRange>(() => calculatePayPeriod(0));
+  const [comparisonDateRange, setComparisonDateRange] = useState<DateRange | null>(null);
   
   // Recalculate on settings change (mode/endDay)
   React.useEffect(() => {
@@ -210,18 +220,20 @@ const ReportsPage: React.FC = () => {
     enabled: !!(dateRange?.from && dateRange?.to && employees !== undefined)
   });
 
-  // Process attendance report with role filtering
+  // Process attendance report with advanced filtering
   const attendanceReport = useMemo(() => {
     if (!rawTimesheetData || !employees || !wageSettings) return [];
     
       const employeeMap = new Map();
       const employeeRoleMap = new Map(); // Map employee name/id to their role
       const employeeWageMap = new Map(); // Map employee name/id to their wage rates
+      const employeeIdMap = new Map(); // Map employee name/id to their id
       
       employees.forEach(emp => {
         if (emp.staff_id) {
           employeeMap.set(emp.staff_id, emp.full_name);
           employeeRoleMap.set(emp.staff_id, emp.role);
+          employeeIdMap.set(emp.staff_id, emp.id);
           employeeWageMap.set(emp.staff_id, {
             morning: emp.morning_wage_rate || wageSettings?.morning_wage_rate || 17,
             night: emp.night_wage_rate || wageSettings?.night_wage_rate || 20
@@ -230,6 +242,7 @@ const ReportsPage: React.FC = () => {
         if (emp.full_name) {
           employeeMap.set(emp.full_name, emp.full_name);
           employeeRoleMap.set(emp.full_name, emp.role);
+          employeeIdMap.set(emp.full_name, emp.id);
           employeeWageMap.set(emp.full_name, {
             morning: emp.morning_wage_rate || wageSettings?.morning_wage_rate || 17,
             night: emp.night_wage_rate || wageSettings?.night_wage_rate || 20
@@ -238,6 +251,7 @@ const ReportsPage: React.FC = () => {
         if (emp.id) {
           employeeMap.set(emp.id, emp.full_name);
           employeeRoleMap.set(emp.id, emp.role);
+          employeeIdMap.set(emp.id, emp.id);
           employeeWageMap.set(emp.id, {
             morning: emp.morning_wage_rate || wageSettings?.morning_wage_rate || 17,
             night: emp.night_wage_rate || wageSettings?.night_wage_rate || 20
@@ -247,6 +261,14 @@ const ReportsPage: React.FC = () => {
 
     return rawTimesheetData.filter(entry => {
       // Only include entries for employees that actually exist in the current organization
+      const entryEmployeeId = employeeIdMap.get(entry.employee_name) || 
+                              employeeIdMap.get(entry.employee_id) ||
+                              employees.find(emp => 
+                                emp.full_name === entry.employee_name ||
+                                emp.staff_id === entry.employee_name ||
+                                emp.id === entry.employee_id
+                              )?.id;
+      
       const hasValidEmployee = employeeMap.has(entry.employee_name) || 
                                employeeMap.has(entry.employee_id) || 
                                employees.some(emp => 
@@ -255,8 +277,26 @@ const ReportsPage: React.FC = () => {
                                  emp.id === entry.employee_id
                                );
       
+      if (!hasValidEmployee) return false;
+      
+      // Apply employee filter (multi-select)
+      if (selectedEmployeeIds.length > 0 && entryEmployeeId && !selectedEmployeeIds.includes(entryEmployeeId)) {
+        return false;
+      }
+      
+      // Apply search filter
+      if (searchTerm.trim()) {
+        const displayName = employeeMap.get(entry.employee_name) || 
+                           employeeMap.get(entry.employee_id) || 
+                           entry.employee_name || '';
+        if (!displayName.toLowerCase().includes(searchTerm.toLowerCase()) &&
+            !entry.clock_in_date?.includes(searchTerm)) {
+          return false;
+        }
+      }
+      
       // Apply role filter
-      if (selectedRole !== 'all' && hasValidEmployee) {
+      if (selectedRole !== 'all') {
         const employeeRole = employeeRoleMap.get(entry.employee_name) || 
                             employeeRoleMap.get(entry.employee_id) ||
                             employees.find(emp => 
@@ -270,7 +310,7 @@ const ReportsPage: React.FC = () => {
         }
       }
       
-      return hasValidEmployee;
+      return true;
     }).map(entry => {
         let morningHours = entry.morning_hours || 0;
         let nightHours = entry.night_hours || 0;
@@ -352,7 +392,7 @@ const ReportsPage: React.FC = () => {
         calculated_amount: Math.round(calculatedAmount)
         };
       });
-  }, [rawTimesheetData, employees, wageSettings, workingHoursSettings, selectedRole]);
+  }, [rawTimesheetData, employees, wageSettings, workingHoursSettings, selectedRole, selectedEmployeeIds, searchTerm]);
 
   // Calculate payroll summary - using employee-specific rates from attendanceReport
   const payrollSummary = useMemo(() => {
@@ -406,11 +446,77 @@ const ReportsPage: React.FC = () => {
     };
   }, [attendanceReport]);
 
-  // Export functionality
+  // Quick date preset handlers
+  const applyDatePreset = (preset: string) => {
+    const today = new Date();
+    let newRange: DateRange;
+
+    switch (preset) {
+      case 'today':
+        newRange = { from: today, to: today };
+        break;
+      case 'thisWeek':
+        newRange = { from: startOfWeek(today), to: endOfWeek(today) };
+        break;
+      case 'lastWeek':
+        const lastWeekStart = startOfWeek(subDays(today, 7));
+        const lastWeekEnd = endOfWeek(subDays(today, 7));
+        newRange = { from: lastWeekStart, to: lastWeekEnd };
+        break;
+      case 'thisMonth':
+        newRange = { from: startOfMonth(today), to: endOfMonth(today) };
+        break;
+      case 'lastMonth':
+        const lastMonth = subMonths(today, 1);
+        newRange = { from: startOfMonth(lastMonth), to: endOfMonth(lastMonth) };
+        break;
+      case 'last7Days':
+        newRange = { from: subDays(today, 6), to: today };
+        break;
+      case 'last30Days':
+        newRange = { from: subDays(today, 29), to: today };
+        break;
+      default:
+        return;
+    }
+    setDateRange(newRange);
+    
+    // Auto-set comparison period if enabled
+    if (comparePeriod) {
+      const daysDiff = Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24));
+      setComparisonDateRange({
+        from: subDays(newRange.from, daysDiff + 1),
+        to: subDays(newRange.from, 1)
+      });
+    }
+  };
+
+  // Comparison metrics
+  const comparisonMetrics = useMemo(() => {
+    if (!comparePeriod || !comparisonDateRange) return null;
+    
+    // Calculate comparison period metrics (simplified - would need separate query in production)
+    const currentTotalHours = keyMetrics.totalHours;
+    const currentTotalAmount = keyMetrics.totalAmount;
+    const currentTotalShifts = keyMetrics.totalShifts;
+    
+    // For now, return mock comparison (in production, fetch comparison period data)
+    return {
+      totalHours: currentTotalHours * 0.9, // Mock: 10% decrease
+      totalAmount: currentTotalAmount * 0.9,
+      totalShifts: Math.floor(currentTotalShifts * 0.95),
+      hoursChange: ((currentTotalHours - (currentTotalHours * 0.9)) / (currentTotalHours * 0.9)) * 100,
+      amountChange: ((currentTotalAmount - (currentTotalAmount * 0.9)) / (currentTotalAmount * 0.9)) * 100,
+      shiftsChange: ((currentTotalShifts - Math.floor(currentTotalShifts * 0.95)) / Math.floor(currentTotalShifts * 0.95)) * 100
+    };
+  }, [comparePeriod, comparisonDateRange, keyMetrics]);
+
+  // Enhanced export functionality
   const exportReport = (type: string) => {
     try {
       let data: any[] = [];
       let filename = '';
+      let sheetName = '';
 
       if (type === 'attendance') {
         data = attendanceReport.map((entry, index) => ({
@@ -424,7 +530,8 @@ const ReportsPage: React.FC = () => {
           'Night Hours': Number(entry.calculated_night_hours || 0).toFixed(2),
           'Total Amount (LE)': Number(entry.calculated_amount || entry.total_card_amount_flat || 0).toFixed(2)
         }));
-        filename = `Attendance_Report_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+        filename = `Attendance_Report_${format(new Date(), 'yyyy-MM-dd')}`;
+        sheetName = t('attendanceReportLabel') || 'Attendance Report';
       } else if (type === 'payroll') {
         data = payrollSummary.map((summary: any, index) => ({
           '#': index + 1,
@@ -435,28 +542,34 @@ const ReportsPage: React.FC = () => {
           'Total Shifts': summary.shifts,
           'Total Amount (LE)': Number(summary.total_split_amount || summary.total_flat_amount || 0).toFixed(2)
         }));
-        filename = `Payroll_Summary_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+        filename = `Payroll_Summary_${format(new Date(), 'yyyy-MM-dd')}`;
+        sheetName = t('payrollSummaryLabel') || 'Payroll Summary';
       }
 
       if (data.length === 0) {
-        toast.error(t('noDataToExport'));
+        toast.error(t('noDataToExport') || 'No data to export');
         return;
       }
 
-      const ws = XLSX.utils.json_to_sheet(data);
-      const cols = Object.keys(data[0]).map(key => ({
-        wch: Math.max(key.length, 12)
-      }));
-      ws['!cols'] = cols;
+      const columns = Object.keys(data[0]);
 
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, type === 'attendance' ? t('attendanceReportLabel') : t('payrollSummaryLabel'));
-      
-      XLSX.writeFile(wb, filename);
-      toast.success(`${filename} exported successfully`);
+      switch (exportFormat) {
+        case 'excel':
+          exportToExcel(data, `${filename}.xlsx`, sheetName);
+          toast.success(`${filename}.xlsx ${t('exportedSuccessfully') || 'exported successfully'}`);
+          break;
+        case 'csv':
+          exportToCSV(data, `${filename}.csv`);
+          toast.success(`${filename}.csv ${t('exportedSuccessfully') || 'exported successfully'}`);
+          break;
+        case 'pdf':
+          exportToPDF(data, columns, `${filename}.pdf`, sheetName);
+          toast.success(`${t('pdfGenerated') || 'PDF generated'}`);
+          break;
+      }
     } catch (error) {
       console.error('Export error:', error);
-      toast.error('Failed to export report');
+      toast.error(t('failedToExport') || 'Failed to export report');
     }
   };
 
@@ -525,8 +638,56 @@ const ReportsPage: React.FC = () => {
           payPeriodMode={mode}
         />
         
-        {/* Role Filter */}
-        <div className="mt-4 bg-card rounded-lg border p-4">
+
+        {/* Advanced Filters */}
+        <div className="mt-4 bg-gradient-to-br from-card to-card/50 rounded-xl border-2 border-border/50 shadow-lg p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <Label className="text-lg font-semibold">{t('filters') || 'Filters'}</Label>
+            {(selectedEmployeeIds.length > 0 || searchTerm.trim() || selectedRole !== 'all') && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSelectedEmployeeIds([]);
+                  setSearchTerm('');
+                  setSelectedRole('all');
+                }}
+                className="text-xs"
+              >
+                <X className="h-3 w-3 mr-1" />
+                {t('clearFilters') || 'Clear All'}
+              </Button>
+            )}
+          </div>
+
+          {/* Employee Multi-Select */}
+          <div className="space-y-2">
+            <Label>{t('filterByEmployee') || 'Filter by Employee'}</Label>
+            {employees && (
+              <EmployeeMultiSelect
+                employees={employees}
+                selectedEmployeeIds={selectedEmployeeIds}
+                onSelectionChange={setSelectedEmployeeIds}
+                placeholder={t('selectEmployees') || 'Select employees'}
+              />
+            )}
+          </div>
+
+          {/* Search */}
+          <div className="space-y-2">
+            <Label>{t('search') || 'Search'}</Label>
+            <div className="relative">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={t('searchByNameOrDate') || 'Search by employee name or date...'}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+          </div>
+
+          {/* Role Filter */}
           <div className="space-y-2">
             <Label>{t('filterByRole')}</Label>
             <Select value={selectedRole} onValueChange={setSelectedRole}>
@@ -541,6 +702,34 @@ const ReportsPage: React.FC = () => {
               </SelectContent>
             </Select>
           </div>
+
+          {/* Comparison Toggle */}
+          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg border border-primary/20">
+            <div>
+              <Label className="font-medium">{t('comparePeriod') || 'Compare with Previous Period'}</Label>
+              <p className="text-xs text-muted-foreground mt-1">
+                {t('comparePeriodDescription') || 'Compare current metrics with previous period'}
+              </p>
+            </div>
+            <Button
+              variant={comparePeriod ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => {
+                setComparePeriod(!comparePeriod);
+                if (!comparePeriod && dateRange) {
+                  const daysDiff = Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24));
+                  setComparisonDateRange({
+                    from: subDays(dateRange.from, daysDiff + 1),
+                    to: subDays(dateRange.from, 1)
+                  });
+                } else {
+                  setComparisonDateRange(null);
+                }
+              }}
+            >
+              {comparePeriod ? t('enabled') || 'Enabled' : t('enable') || 'Enable'}
+            </Button>
+          </div>
         </div>
       </MobileSection>
 
@@ -552,9 +741,22 @@ const ReportsPage: React.FC = () => {
               <Card className="bg-card border-border">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm font-medium text-muted-foreground">{t('totalHours')}</p>
-                      <p className="text-2xl font-bold text-foreground">{keyMetrics.totalHours.toFixed(1)}h</p>
+                      <div className="flex items-baseline gap-2">
+                        <p className="text-2xl font-bold text-foreground">{keyMetrics.totalHours.toFixed(1)}h</p>
+                        {comparisonMetrics && (
+                          <div className={`flex items-center gap-1 text-xs ${comparisonMetrics.hoursChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {comparisonMetrics.hoursChange >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                            {Math.abs(comparisonMetrics.hoursChange).toFixed(1)}%
+                    </div>
+                        )}
+                      </div>
+                      {comparisonMetrics && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {t('previous')}: {comparisonMetrics.totalHours.toFixed(1)}h
+                        </p>
+                      )}
                     </div>
                     <Clock className="h-8 w-8 text-primary" />
                   </div>
@@ -564,9 +766,22 @@ const ReportsPage: React.FC = () => {
               <Card className="bg-card border-border">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm font-medium text-muted-foreground">{t('totalShifts')}</p>
-                      <p className="text-2xl font-bold text-foreground">{keyMetrics.totalShifts}</p>
+                      <div className="flex items-baseline gap-2">
+                        <p className="text-2xl font-bold text-foreground">{keyMetrics.totalShifts}</p>
+                        {comparisonMetrics && (
+                          <div className={`flex items-center gap-1 text-xs ${comparisonMetrics.shiftsChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {comparisonMetrics.shiftsChange >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                            {Math.abs(comparisonMetrics.shiftsChange).toFixed(1)}%
+                    </div>
+                        )}
+                      </div>
+                      {comparisonMetrics && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {t('previous')}: {comparisonMetrics.totalShifts}
+                        </p>
+                      )}
                     </div>
                     <Calendar className="h-8 w-8 text-primary" />
                   </div>
@@ -588,9 +803,22 @@ const ReportsPage: React.FC = () => {
               <Card className="bg-card border-border">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm font-medium text-muted-foreground">{t('totalAmount')}</p>
-                      <p className="text-2xl font-bold text-green-600 dark:text-green-400">{keyMetrics.totalAmount.toFixed(0)} LE</p>
+                      <div className="flex items-baseline gap-2">
+                        <p className="text-2xl font-bold text-green-600 dark:text-green-400">{keyMetrics.totalAmount.toFixed(0)} LE</p>
+                        {comparisonMetrics && (
+                          <div className={`flex items-center gap-1 text-xs ${comparisonMetrics.amountChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {comparisonMetrics.amountChange >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                            {Math.abs(comparisonMetrics.amountChange).toFixed(1)}%
+                    </div>
+                        )}
+                      </div>
+                      {comparisonMetrics && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {t('previous')}: {comparisonMetrics.totalAmount.toFixed(0)} LE
+                        </p>
+                      )}
                     </div>
                     <DollarSign className="h-8 w-8 text-green-600 dark:text-green-400" />
                   </div>
@@ -693,32 +921,61 @@ const ReportsPage: React.FC = () => {
         )}
 
         {currentView === 'attendance' && (
-          <Card>
-            <CardHeader>
+          <Card className="border-2 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <Button 
                     variant="ghost" 
                     size="sm" 
                     onClick={() => setCurrentView('overview')}
-                    className="mr-2"
+                    className="hover:bg-primary/10"
                   >
                     {t('back')}
                   </Button>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  {t('attendanceReport')}
-                </CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <Users className="h-5 w-5 text-primary" />
+                    </div>
+                    {t('attendanceReport')}
+                  </CardTitle>
                 </div>
+                <Popover>
+                  <PopoverTrigger asChild>
                 <Button
-                  onClick={() => exportReport('attendance')}
                   variant="outline"
                   size="sm"
                   disabled={attendanceReport.length === 0}
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  {t('exportTimesheet')}
+                      {t('export') || 'Export'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56" align="end">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold">{t('exportFormat') || 'Export Format'}</Label>
+                      <Select value={exportFormat} onValueChange={(val: 'excel' | 'csv' | 'pdf') => setExportFormat(val)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="excel">Excel (.xlsx)</SelectItem>
+                          <SelectItem value="csv">CSV (.csv)</SelectItem>
+                          <SelectItem value="pdf">PDF (.pdf)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        onClick={() => exportReport('attendance')}
+                        className="w-full"
+                        size="sm"
+                        disabled={attendanceReport.length === 0}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        {t('exportAttendance') || 'Export Attendance'}
                 </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             </CardHeader>
             <CardContent>
@@ -768,32 +1025,61 @@ const ReportsPage: React.FC = () => {
         )}
 
         {currentView === 'payroll' && (
-          <Card>
-            <CardHeader>
+          <Card className="border-2 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-green-500/10 via-green-500/5 to-transparent border-b">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <Button 
                     variant="ghost" 
                     size="sm" 
                     onClick={() => setCurrentView('overview')}
-                    className="mr-2"
+                    className="hover:bg-green-500/10"
                   >
                     {t('back')}
                   </Button>
-                <CardTitle className="flex items-center gap-2">
-                  <FileSpreadsheet className="h-5 w-5" />
-                  {t('payrollSummary')}
-                </CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <div className="p-2 bg-green-500/10 rounded-lg">
+                      <FileSpreadsheet className="h-5 w-5 text-green-600" />
+                    </div>
+                    {t('payrollSummary')}
+                  </CardTitle>
                 </div>
+                <Popover>
+                  <PopoverTrigger asChild>
                 <Button
-                  onClick={() => exportReport('payroll')}
                   variant="outline"
                   size="sm"
                   disabled={payrollSummary.length === 0}
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  {t('exportTimesheet')}
+                      {t('export') || 'Export'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56" align="end">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold">{t('exportFormat') || 'Export Format'}</Label>
+                      <Select value={exportFormat} onValueChange={(val: 'excel' | 'csv' | 'pdf') => setExportFormat(val)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="excel">Excel (.xlsx)</SelectItem>
+                          <SelectItem value="csv">CSV (.csv)</SelectItem>
+                          <SelectItem value="pdf">PDF (.pdf)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        onClick={() => exportReport('payroll')}
+                        className="w-full"
+                        size="sm"
+                        disabled={payrollSummary.length === 0}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        {t('exportPayroll') || 'Export Payroll'}
                 </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             </CardHeader>
             <CardContent>

@@ -26,9 +26,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Plus, Edit, Trash2, Users, User, ClipboardList, Save, X, TrendingUp, Download, CheckCircle2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, User, ClipboardList, Save, X, TrendingUp, Download, CheckCircle2, Calendar, Clock, ArrowUp, ArrowDown, Search, Filter } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 
 interface Task {
   id: string;
@@ -76,6 +79,44 @@ interface TaskPerformanceData {
   shifts_completed_all_tasks: number;
 }
 
+interface Round {
+  id: string;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  organization_id: string;
+  created_at: string;
+}
+
+interface RoundTask {
+  id: string;
+  round_id: string;
+  task_id: string;
+  display_order: number;
+}
+
+interface RoundAssignment {
+  id: string;
+  round_id: string;
+  assignment_type: 'role' | 'user';
+  role_name: string | null;
+  employee_id: string | null;
+  is_active: boolean;
+}
+
+interface RoundSchedule {
+  id: string;
+  round_assignment_id: string;
+  day_of_week: number; // 0=Sunday, 1=Monday, ..., 6=Saturday
+}
+
+interface RoundDateOverride {
+  id: string;
+  round_assignment_id: string;
+  override_date: string; // DATE format
+  is_active: boolean;
+}
+
 const TaskManagementPage: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -104,6 +145,31 @@ const TaskManagementPage: React.FC = () => {
 
   // Delete confirmation
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+
+  // Rounds state
+  const [showRoundForm, setShowRoundForm] = useState(false);
+  const [editingRound, setEditingRound] = useState<Round | null>(null);
+  const [roundName, setRoundName] = useState('');
+  const [roundDescription, setRoundDescription] = useState('');
+  const [roundIsActive, setRoundIsActive] = useState(true);
+  const [selectedRoundForTasks, setSelectedRoundForTasks] = useState<Round | null>(null);
+  const [selectedTasksForRound, setSelectedTasksForRound] = useState<string[]>([]);
+  const [roundToDelete, setRoundToDelete] = useState<Round | null>(null);
+
+  // Round assignment state
+  const [selectedRoundForAssignment, setSelectedRoundForAssignment] = useState<Round | null>(null);
+  const [roundAssignmentType, setRoundAssignmentType] = useState<'role' | 'user'>('role');
+  const [selectedRoundRole, setSelectedRoundRole] = useState<string>('');
+  const [selectedRoundEmployee, setSelectedRoundEmployee] = useState<string>('');
+  const [selectedRoundEmployees, setSelectedRoundEmployees] = useState<string[]>([]); // For multi-select
+  const [selectedDays, setSelectedDays] = useState<number[]>([]); // 0-6 for Sunday-Saturday
+  const [selectedAssignmentForOverride, setSelectedAssignmentForOverride] = useState<RoundAssignment | null>(null);
+  const [overrideDate, setOverrideDate] = useState<Date | undefined>(undefined);
+
+  // Filters & Search state
+  const [roundSearchTerm, setRoundSearchTerm] = useState('');
+  const [roundStatusFilter, setRoundStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [roundSortBy, setRoundSortBy] = useState<'name' | 'created' | 'tasks'>('created');
 
   // Fetch tasks
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
@@ -395,6 +461,486 @@ const TaskManagementPage: React.FC = () => {
     }
   });
 
+  // Fetch rounds
+  const { data: rounds = [], isLoading: roundsLoading } = useQuery<Round[]>({
+    queryKey: ['rounds', activeOrganizationId],
+    enabled: !!activeOrganizationId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('rounds')
+        .select('*')
+        .eq('organization_id', activeOrganizationId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
+  // Fetch round tasks
+  const { data: roundTasks = [] } = useQuery<RoundTask[]>({
+    queryKey: ['round-tasks', activeOrganizationId],
+    enabled: !!activeOrganizationId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('round_tasks')
+        .select('*')
+        .eq('organization_id', activeOrganizationId);
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
+  // Fetch round assignments
+  const { data: roundAssignments = [] } = useQuery<RoundAssignment[]>({
+    queryKey: ['round-assignments', activeOrganizationId],
+    enabled: !!activeOrganizationId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('round_assignments')
+        .select('*')
+        .eq('organization_id', activeOrganizationId);
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
+  // Fetch round schedules
+  const { data: roundSchedules = [] } = useQuery<RoundSchedule[]>({
+    queryKey: ['round-schedules', activeOrganizationId],
+    enabled: !!activeOrganizationId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('round_schedules')
+        .select('*')
+        .eq('organization_id', activeOrganizationId);
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
+  // Fetch round date overrides
+  const { data: roundDateOverrides = [] } = useQuery<RoundDateOverride[]>({
+    queryKey: ['round-date-overrides', activeOrganizationId],
+    enabled: !!activeOrganizationId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('round_date_overrides')
+        .select('*')
+        .eq('organization_id', activeOrganizationId)
+        .eq('is_active', true);
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
+  // Create/Update round mutation
+  const roundMutation = useMutation({
+    mutationFn: async () => {
+      if (!roundName.trim()) {
+        throw new Error(t('roundNameRequired') || 'Round name is required');
+      }
+
+      if (editingRound) {
+        const { error } = await supabase
+          .from('rounds')
+          .update({
+            name: roundName.trim(),
+            description: roundDescription.trim() || null,
+            is_active: roundIsActive,
+          })
+          .eq('id', editingRound.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('rounds')
+          .insert({
+            organization_id: activeOrganizationId,
+            name: roundName.trim(),
+            description: roundDescription.trim() || null,
+            is_active: roundIsActive,
+          });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rounds', activeOrganizationId] });
+      resetRoundForm();
+      toast.success(editingRound ? (t('roundUpdated') || 'Round updated') : (t('roundCreated') || 'Round created'));
+    },
+    onError: (error: any) => {
+      toast.error(error.message || t('errorSavingRound') || 'Failed to save round');
+    }
+  });
+
+  // Delete round mutation
+  const deleteRoundMutation = useMutation({
+    mutationFn: async (roundId: string) => {
+      const { error } = await supabase
+        .from('rounds')
+        .delete()
+        .eq('id', roundId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rounds', activeOrganizationId] });
+      queryClient.invalidateQueries({ queryKey: ['round-tasks', activeOrganizationId] });
+      queryClient.invalidateQueries({ queryKey: ['round-assignments', activeOrganizationId] });
+      setRoundToDelete(null);
+      toast.success(t('roundDeleted') || 'Round deleted');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || t('errorDeletingRound') || 'Failed to delete round');
+    }
+  });
+
+  // Add tasks to round mutation
+  const addTasksToRoundMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedRoundForTasks || selectedTasksForRound.length === 0) {
+        throw new Error(t('selectTasks') || 'Please select tasks');
+      }
+
+      // Get current max display_order for this round
+      const existingTasks = getRoundTasks(selectedRoundForTasks.id);
+      const maxOrder = existingTasks.length > 0 
+        ? Math.max(...existingTasks.map(rt => rt.display_order))
+        : -1;
+
+      const tasksToAdd = selectedTasksForRound.map((taskId, index) => ({
+        organization_id: activeOrganizationId,
+        round_id: selectedRoundForTasks.id,
+        task_id: taskId,
+        display_order: maxOrder + index + 1,
+      }));
+
+      const { error } = await supabase
+        .from('round_tasks')
+        .upsert(tasksToAdd, { onConflict: 'round_id,task_id' });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['round-tasks', activeOrganizationId] });
+      setSelectedTasksForRound([]);
+      toast.success(t('taskAddedToRound') || 'Task added to round');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || t('errorAddingTaskToRound') || 'Failed to add task to round');
+    }
+  });
+
+  // Remove task from round mutation
+  const removeTaskFromRoundMutation = useMutation({
+    mutationFn: async (roundTaskId: string) => {
+      const { error } = await supabase
+        .from('round_tasks')
+        .delete()
+        .eq('id', roundTaskId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['round-tasks', activeOrganizationId] });
+      toast.success(t('taskRemovedFromRound') || 'Task removed from round');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || t('errorRemovingTaskFromRound') || 'Failed to remove task from round');
+    }
+  });
+
+  // Assign round mutation
+  const assignRoundMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedRoundForAssignment || selectedDays.length === 0) {
+        throw new Error(t('selectRoundAndAssignment') || 'Please select a round and assignment type');
+      }
+
+      if (roundAssignmentType === 'role' && !selectedRoundRole) {
+        throw new Error(t('selectRole') || 'Please select a role');
+      }
+      if (roundAssignmentType === 'user' && selectedRoundEmployees.length === 0) {
+        throw new Error(t('selectAtLeastOneEmployee') || 'Please select at least one employee');
+      }
+
+      if (roundAssignmentType === 'role') {
+        // Single assignment for role
+        const { data: assignment, error: assignmentError } = await supabase
+          .from('round_assignments')
+          .insert({
+            organization_id: activeOrganizationId,
+            round_id: selectedRoundForAssignment.id,
+            assignment_type: 'role',
+            role_name: selectedRoundRole,
+            employee_id: null,
+            is_active: true,
+          })
+          .select()
+          .single();
+
+        if (assignmentError) throw assignmentError;
+
+        // Create schedules
+        const schedules = selectedDays.map(day => ({
+          organization_id: activeOrganizationId,
+          round_assignment_id: assignment.id,
+          day_of_week: day,
+        }));
+
+        const { error: scheduleError } = await supabase
+          .from('round_schedules')
+          .insert(schedules);
+
+        if (scheduleError) throw scheduleError;
+      } else {
+        // Multiple assignments for users
+        const assignments = selectedRoundEmployees.map(employeeId => ({
+          organization_id: activeOrganizationId,
+          round_id: selectedRoundForAssignment.id,
+          assignment_type: 'user',
+          role_name: null,
+          employee_id: employeeId,
+          is_active: true,
+        }));
+
+        const { data: createdAssignments, error: assignmentError } = await supabase
+          .from('round_assignments')
+          .insert(assignments)
+          .select();
+
+        if (assignmentError) throw assignmentError;
+
+        // Create schedules for each assignment
+        const allSchedules = createdAssignments.flatMap(assignment =>
+          selectedDays.map(day => ({
+            organization_id: activeOrganizationId,
+            round_assignment_id: assignment.id,
+            day_of_week: day,
+          }))
+        );
+
+        const { error: scheduleError } = await supabase
+          .from('round_schedules')
+          .insert(allSchedules);
+
+        if (scheduleError) throw scheduleError;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['round-assignments', activeOrganizationId] });
+      queryClient.invalidateQueries({ queryKey: ['round-schedules', activeOrganizationId] });
+      setSelectedRoundForAssignment(null);
+      setSelectedDays([]);
+      setSelectedRoundRole('');
+      setSelectedRoundEmployee('');
+      setSelectedRoundEmployees([]);
+      toast.success(t('roundAssigned') || 'Round assigned successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || t('errorAssigningRound') || 'Failed to assign round');
+    }
+  });
+
+  // Add date override mutation
+  const addDateOverrideMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedAssignmentForOverride || !overrideDate) {
+        throw new Error(t('selectDate') || 'Please select a date');
+      }
+
+      const { error } = await supabase
+        .from('round_date_overrides')
+        .insert({
+          organization_id: activeOrganizationId,
+          round_assignment_id: selectedAssignmentForOverride.id,
+          override_date: format(overrideDate, 'yyyy-MM-dd'),
+          is_active: true,
+        });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['round-date-overrides', activeOrganizationId] });
+      setOverrideDate(undefined);
+      setSelectedAssignmentForOverride(null);
+      toast.success(t('dateOverrideAdded') || 'Date override added');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || t('errorAddingDateOverride') || 'Failed to add date override');
+    }
+  });
+
+  // Remove date override mutation
+  const removeDateOverrideMutation = useMutation({
+    mutationFn: async (overrideId: string) => {
+      const { error } = await supabase
+        .from('round_date_overrides')
+        .delete()
+        .eq('id', overrideId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['round-date-overrides', activeOrganizationId] });
+      toast.success(t('dateOverrideRemoved') || 'Date override removed');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || t('errorRemovingDateOverride') || 'Failed to remove date override');
+    }
+  });
+
+  // Helper functions
+  const resetRoundForm = () => {
+    setShowRoundForm(false);
+    setEditingRound(null);
+    setRoundName('');
+    setRoundDescription('');
+    setRoundIsActive(true);
+  };
+
+  const handleAddRound = () => {
+    setEditingRound(null);
+    setRoundName('');
+    setRoundDescription('');
+    setRoundIsActive(true);
+    setShowRoundForm(true);
+  };
+
+  const handleEditRound = (round: Round) => {
+    setEditingRound(round);
+    setRoundName(round.name);
+    setRoundDescription(round.description || '');
+    setRoundIsActive(round.is_active);
+    setShowRoundForm(true);
+  };
+
+  const getRoundTasks = (roundId: string) => {
+    return roundTasks
+      .filter(rt => rt.round_id === roundId)
+      .sort((a, b) => a.display_order - b.display_order);
+  };
+
+  const getRoundAssignments = (roundId: string) => {
+    return roundAssignments.filter(ra => ra.round_id === roundId && ra.is_active);
+  };
+
+  const getAssignmentSchedules = (assignmentId: string) => {
+    return roundSchedules.filter(rs => rs.round_assignment_id === assignmentId);
+  };
+
+  const getAssignmentOverrides = (assignmentId: string) => {
+    return roundDateOverrides.filter(rdo => rdo.round_assignment_id === assignmentId);
+  };
+
+  const dayNames = [
+    t('sunday') || 'Sunday',
+    t('monday') || 'Monday',
+    t('tuesday') || 'Tuesday',
+    t('wednesday') || 'Wednesday',
+    t('thursday') || 'Thursday',
+    t('friday') || 'Friday',
+    t('saturday') || 'Saturday',
+  ];
+
+  // Update task order mutation
+  const updateTaskOrderMutation = useMutation({
+    mutationFn: async ({ roundTaskId, newOrder }: { roundTaskId: string; newOrder: number }) => {
+      const { error } = await supabase
+        .from('round_tasks')
+        .update({ display_order: newOrder })
+        .eq('id', roundTaskId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['round-tasks', activeOrganizationId] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || t('errorUpdatingTaskOrder') || 'Failed to update task order');
+    }
+  });
+
+  const handleMoveTask = async (roundTaskId: string, direction: 'up' | 'down', roundId: string) => {
+    const tasksInRound = getRoundTasks(roundId);
+    const currentIndex = tasksInRound.findIndex(rt => rt.id === roundTaskId);
+    
+    if (currentIndex === -1) return;
+    
+    if (direction === 'up' && currentIndex === 0) return;
+    if (direction === 'down' && currentIndex === tasksInRound.length - 1) return;
+    
+    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    const targetTask = tasksInRound[newIndex];
+    const currentTask = tasksInRound[currentIndex];
+    
+    // Swap orders
+    await Promise.all([
+      updateTaskOrderMutation.mutateAsync({ roundTaskId: currentTask.id, newOrder: targetTask.display_order }),
+      updateTaskOrderMutation.mutateAsync({ roundTaskId: targetTask.id, newOrder: currentTask.display_order }),
+    ]);
+  };
+
+  // Filtered and sorted rounds
+  const filteredRounds = useMemo(() => {
+    let filtered = rounds.filter(round => {
+      const matchesSearch = !roundSearchTerm || 
+        round.name.toLowerCase().includes(roundSearchTerm.toLowerCase()) ||
+        (round.description && round.description.toLowerCase().includes(roundSearchTerm.toLowerCase()));
+      
+      const matchesStatus = roundStatusFilter === 'all' || 
+        (roundStatusFilter === 'active' && round.is_active) ||
+        (roundStatusFilter === 'inactive' && !round.is_active);
+      
+      return matchesSearch && matchesStatus;
+    });
+
+    // Sort
+    filtered.sort((a, b) => {
+      if (roundSortBy === 'name') {
+        return a.name.localeCompare(b.name);
+      } else if (roundSortBy === 'tasks') {
+        const aTasks = getRoundTasks(a.id).length;
+        const bTasks = getRoundTasks(b.id).length;
+        return bTasks - aTasks;
+      } else { // created
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+    });
+
+    return filtered;
+  }, [rounds, roundSearchTerm, roundStatusFilter, roundSortBy, roundTasks]);
+
+  // Round statistics
+  const roundStatistics = useMemo(() => {
+    const stats = rounds.map(round => {
+      const tasksInRound = getRoundTasks(round.id);
+      const assignments = getRoundAssignments(round.id);
+      const totalAssignments = assignments.length;
+      
+      // Count employees assigned
+      const employeeAssignments = assignments.filter(a => a.assignment_type === 'user');
+      const roleAssignments = assignments.filter(a => a.assignment_type === 'role');
+      
+      // Get employees from role assignments
+      const roleNames = roleAssignments.map(a => a.role_name).filter(Boolean) as string[];
+      const employeesInRoles = employees.filter(e => roleNames.includes(e.role)).length;
+      
+      const totalEmployees = employeeAssignments.length + employeesInRoles;
+      
+      return {
+        round_id: round.id,
+        round_name: round.name,
+        task_count: tasksInRound.length,
+        total_assignments: totalAssignments,
+        total_employees: totalEmployees,
+        is_active: round.is_active,
+      };
+    });
+
+    return {
+      total_rounds: stats.length,
+      active_rounds: stats.filter(s => s.is_active).length,
+      total_tasks_in_rounds: stats.reduce((sum, s) => sum + s.task_count, 0),
+      total_assignments: stats.reduce((sum, s) => sum + s.total_assignments, 0),
+      total_employees_assigned: stats.reduce((sum, s) => sum + s.total_employees, 0),
+      round_details: stats,
+    };
+  }, [rounds, roundTasks, roundAssignments, employees]);
+
   // Calculate summary statistics for performance
   const summaryStats = useMemo(() => {
     if (performanceData.length === 0) {
@@ -530,6 +1076,10 @@ const TaskManagementPage: React.FC = () => {
           <TabsTrigger value="performance">
             <TrendingUp className="h-4 w-4 me-2" />
             {t('taskPerformance') || 'Performance'}
+          </TabsTrigger>
+          <TabsTrigger value="rounds">
+            <Clock className="h-4 w-4 me-2" />
+            {t('rounds') || 'Rounds'}
           </TabsTrigger>
         </TabsList>
 
@@ -981,7 +1531,667 @@ const TaskManagementPage: React.FC = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Rounds Tab */}
+        <TabsContent value="rounds" className="space-y-4">
+          {/* Round Statistics */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {t('totalRounds') || 'Total Rounds'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{roundStatistics.total_rounds}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {roundStatistics.active_rounds} {t('active') || 'active'}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {t('totalTasksInRounds') || 'Tasks in Rounds'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{roundStatistics.total_tasks_in_rounds}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t('acrossAllRounds') || 'across all rounds'}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {t('totalAssignments') || 'Total Assignments'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{roundStatistics.total_assignments}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t('roundAssignments') || 'round assignments'}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {t('employeesAssigned') || 'Employees Assigned'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{roundStatistics.total_employees_assigned}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t('acrossAllRounds') || 'across all rounds'}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {t('averageTasksPerRound') || 'Avg Tasks/Round'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {roundStatistics.total_rounds > 0 
+                    ? (roundStatistics.total_tasks_in_rounds / roundStatistics.total_rounds).toFixed(1)
+                    : '0'}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t('tasksPerRound') || 'tasks per round'}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Filters & Search */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Filter className="h-4 w-4" />
+                {t('filters') || 'Filters'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>{t('search') || 'Search'}</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder={t('searchRounds') || 'Search rounds...'}
+                      value={roundSearchTerm}
+                      onChange={(e) => setRoundSearchTerm(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>{t('status') || 'Status'}</Label>
+                  <Select value={roundStatusFilter} onValueChange={(value: 'all' | 'active' | 'inactive') => setRoundStatusFilter(value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t('all') || 'All'}</SelectItem>
+                      <SelectItem value="active">{t('active') || 'Active'}</SelectItem>
+                      <SelectItem value="inactive">{t('inactive') || 'Inactive'}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>{t('sortBy') || 'Sort By'}</Label>
+                  <Select value={roundSortBy} onValueChange={(value: 'name' | 'created' | 'tasks') => setRoundSortBy(value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="created">{t('dateCreated') || 'Date Created'}</SelectItem>
+                      <SelectItem value="name">{t('name') || 'Name'}</SelectItem>
+                      <SelectItem value="tasks">{t('taskCount') || 'Task Count'}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>{t('rounds') || 'Rounds'}</CardTitle>
+                <Button onClick={handleAddRound} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  {t('addRound') || 'Add Round'}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {roundsLoading ? (
+                <p className="text-muted-foreground">{t('loading') || 'Loading...'}</p>
+              ) : filteredRounds.length === 0 ? (
+                <p className="text-muted-foreground">
+                  {roundSearchTerm || roundStatusFilter !== 'all' 
+                    ? t('noRoundsMatchFilters') || 'No rounds match the filters'
+                    : t('noRoundsFound') || 'No rounds found. Create your first round!'}
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t('name') || 'Name'}</TableHead>
+                      <TableHead>{t('description') || 'Description'}</TableHead>
+                      <TableHead>{t('roundTasks') || 'Tasks'}</TableHead>
+                      <TableHead>{t('assignments') || 'Assignments'}</TableHead>
+                      <TableHead>{t('status') || 'Status'}</TableHead>
+                      <TableHead>{t('actions') || 'Actions'}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredRounds.map((round) => {
+                      const roundTasksList = getRoundTasks(round.id);
+                      const assignments = getRoundAssignments(round.id);
+                      return (
+                        <TableRow key={round.id}>
+                          <TableCell className="font-medium">{round.name}</TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {round.description || '-'}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">{roundTasksList.length} {t('tasks') || 'tasks'}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{assignments.length} {t('assignments') || 'assignments'}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={round.is_active ? 'default' : 'secondary'}>
+                              {round.is_active ? (t('active') || 'Active') : (t('inactive') || 'Inactive')}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedRoundForTasks(round);
+                                  setSelectedTasksForRound([]);
+                                }}
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditRound(round)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setRoundToDelete(round)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Add Tasks to Round */}
+          {selectedRoundForTasks && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>{t('addTasksToRound') || 'Add Tasks to Round'}: {selectedRoundForTasks.name}</CardTitle>
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedRoundForTasks(null)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>{t('selectTasks') || 'Select Tasks'}</Label>
+                  <div className="space-y-2 max-h-60 overflow-y-auto border rounded-lg p-4">
+                    {tasks.filter(t => t.is_active).map((task) => {
+                      const isInRound = roundTasks.some(rt => rt.round_id === selectedRoundForTasks.id && rt.task_id === task.id);
+                      return (
+                        <div key={task.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`task-${task.id}`}
+                            checked={selectedTasksForRound.includes(task.id) || isInRound}
+                            disabled={isInRound}
+                            onCheckedChange={(checked) => {
+                              if (checked && !isInRound) {
+                                setSelectedTasksForRound([...selectedTasksForRound, task.id]);
+                              } else if (!checked) {
+                                setSelectedTasksForRound(selectedTasksForRound.filter(id => id !== task.id));
+                              }
+                            }}
+                          />
+                          <Label htmlFor={`task-${task.id}`} className="flex-1 cursor-pointer">
+                            {task.name}
+                            {isInRound && <Badge variant="secondary" className="ms-2 text-xs">{t('alreadyAdded') || 'Added'}</Badge>}
+                          </Label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <Button
+                  onClick={() => addTasksToRoundMutation.mutate()}
+                  disabled={selectedTasksForRound.length === 0 || addTasksToRoundMutation.isPending}
+                  className="w-full"
+                >
+                  {addTasksToRoundMutation.isPending ? (t('saving') || 'Saving...') : (t('addTasksToRound') || 'Add Tasks to Round')}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Round Tasks List */}
+          {selectedRoundForTasks && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('tasksInRound') || 'Tasks in Round'}: {selectedRoundForTasks.name}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {getRoundTasks(selectedRoundForTasks.id).length === 0 ? (
+                  <p className="text-muted-foreground">{t('noTasksInRound') || 'No tasks in this round'}</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12">{t('order') || 'Order'}</TableHead>
+                        <TableHead>{t('task') || 'Task'}</TableHead>
+                        <TableHead>{t('actions') || 'Actions'}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {getRoundTasks(selectedRoundForTasks.id).map((rt, index) => {
+                        const task = tasks.find(t => t.id === rt.task_id);
+                        const tasksInRound = getRoundTasks(selectedRoundForTasks.id);
+                        return (
+                          <TableRow key={rt.id}>
+                            <TableCell>
+                              <div className="flex flex-col gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0"
+                                  disabled={index === 0}
+                                  onClick={() => handleMoveTask(rt.id, 'up', selectedRoundForTasks.id)}
+                                >
+                                  <ArrowUp className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0"
+                                  disabled={index === tasksInRound.length - 1}
+                                  onClick={() => handleMoveTask(rt.id, 'down', selectedRoundForTasks.id)}
+                                >
+                                  <ArrowDown className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-muted-foreground">#{index + 1}</span>
+                                <span>{task?.name || 'Unknown'}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeTaskFromRoundMutation.mutate(rt.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Assign Round */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('assignRound') || 'Assign Round'}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>{t('selectRound') || 'Select Round'}</Label>
+                <Select
+                  value={selectedRoundForAssignment?.id || ''}
+                  onValueChange={(value) => {
+                    const round = rounds.find(r => r.id === value);
+                    setSelectedRoundForAssignment(round || null);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('selectRound') || 'Select a round'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {rounds.filter(r => r.is_active).map((round) => (
+                      <SelectItem key={round.id} value={round.id}>
+                        {round.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>{t('assignmentType') || 'Assignment Type'}</Label>
+                <Select value={roundAssignmentType} onValueChange={(value: 'role' | 'user') => setRoundAssignmentType(value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="role">{t('assignRoundToRole') || 'Assign to Role'}</SelectItem>
+                    <SelectItem value="user">{t('assignRoundToUser') || 'Assign to User'}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {roundAssignmentType === 'role' && (
+                <div className="space-y-2">
+                  <Label>{t('selectRole') || 'Select Role'}</Label>
+                  <Select value={selectedRoundRole} onValueChange={setSelectedRoundRole}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('selectRole') || 'Select a role'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {roles.map((role) => (
+                        <SelectItem key={role.name} value={role.name}>
+                          {role.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {roundAssignmentType === 'user' && (
+                <div className="space-y-2">
+                  <Label>{t('selectEmployees') || 'Select Employees'}</Label>
+                  <div className="space-y-2 max-h-60 overflow-y-auto border rounded-lg p-4">
+                    {employees.map((employee) => {
+                      const isSelected = selectedRoundEmployees.includes(employee.id);
+                      return (
+                        <div key={employee.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`employee-${employee.id}`}
+                            checked={isSelected}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedRoundEmployees([...selectedRoundEmployees, employee.id]);
+                              } else {
+                                setSelectedRoundEmployees(selectedRoundEmployees.filter(id => id !== employee.id));
+                              }
+                            }}
+                          />
+                          <Label htmlFor={`employee-${employee.id}`} className="flex-1 cursor-pointer">
+                            {employee.full_name} ({employee.staff_id})
+                          </Label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {selectedRoundEmployees.length > 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      {selectedRoundEmployees.length} {selectedRoundEmployees.length === 1 ? t('employeeSelected') || 'employee selected' : t('employeesSelected') || 'employees selected'}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>{t('daySchedule') || 'Day Schedule'}</Label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {dayNames.map((dayName, index) => (
+                    <div key={index} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`day-${index}`}
+                        checked={selectedDays.includes(index)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedDays([...selectedDays, index]);
+                          } else {
+                            setSelectedDays(selectedDays.filter(d => d !== index));
+                          }
+                        }}
+                      />
+                      <Label htmlFor={`day-${index}`} className="cursor-pointer text-sm">
+                        {dayName}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <Button
+                onClick={() => assignRoundMutation.mutate()}
+                disabled={!selectedRoundForAssignment || selectedDays.length === 0 || 
+                  (roundAssignmentType === 'role' && !selectedRoundRole) ||
+                  (roundAssignmentType === 'user' && selectedRoundEmployees.length === 0)}
+                className="w-full"
+              >
+                {t('assignRound') || 'Assign Round'}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Round Assignments List */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('roundAssignments') || 'Round Assignments'}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {roundAssignments.filter(ra => ra.is_active).length === 0 ? (
+                <p className="text-muted-foreground">{t('noRoundAssignments') || 'No round assignments'}</p>
+              ) : (
+                <div className="space-y-4">
+                  {rounds.map((round) => {
+                    const assignments = getRoundAssignments(round.id);
+                    if (assignments.length === 0) return null;
+                    return (
+                      <div key={round.id} className="border rounded-lg p-4 space-y-2">
+                        <h4 className="font-medium">{round.name}</h4>
+                        {assignments.map((assignment) => {
+                          const schedules = getAssignmentSchedules(assignment.id);
+                          const overrides = getAssignmentOverrides(assignment.id);
+                          const assignmentName = assignment.assignment_type === 'role'
+                            ? assignment.role_name
+                            : employees.find(e => e.id === assignment.employee_id)?.full_name || 'Unknown';
+                          return (
+                            <div key={assignment.id} className="bg-muted/50 rounded p-3 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <Badge variant={assignment.assignment_type === 'role' ? 'secondary' : 'outline'}>
+                                    {assignment.assignment_type === 'role' ? t('role') || 'Role' : t('user') || 'User'}
+                                  </Badge>
+                                  <span className="ms-2 font-medium">{assignmentName}</span>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setSelectedAssignmentForOverride(assignment)}
+                                >
+                                  <Calendar className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                {schedules.length > 0 ? (
+                                  <div>
+                                    <span className="font-medium">{t('daySchedule') || 'Days'}: </span>
+                                    {schedules.map(s => dayNames[s.day_of_week]).join(', ')}
+                                  </div>
+                                ) : (
+                                  <span>{t('noDaySchedule') || 'No day schedule set'}</span>
+                                )}
+                              </div>
+                              {overrides.length > 0 && (
+                                <div className="text-sm text-muted-foreground">
+                                  <span className="font-medium">{t('dateOverrides') || 'Date Overrides'}: </span>
+                                  {overrides.map(o => format(new Date(o.override_date), 'MMM dd, yyyy')).join(', ')}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Date Override Dialog */}
+          {selectedAssignmentForOverride && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>{t('addDateOverride') || 'Add Date Override'}</CardTitle>
+                  <Button variant="ghost" size="sm" onClick={() => {
+                    setSelectedAssignmentForOverride(null);
+                    setOverrideDate(undefined);
+                  }}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>{t('selectDate') || 'Select Date'}</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left font-normal">
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {overrideDate ? format(overrideDate, 'PPP') : <span>{t('selectDate') || 'Pick a date'}</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <CalendarComponent
+                        mode="single"
+                        selected={overrideDate}
+                        onSelect={setOverrideDate}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <Button
+                  onClick={() => addDateOverrideMutation.mutate()}
+                  disabled={!overrideDate || addDateOverrideMutation.isPending}
+                  className="w-full"
+                >
+                  {addDateOverrideMutation.isPending ? (t('saving') || 'Saving...') : (t('addDateOverride') || 'Add Date Override')}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
       </Tabs>
+
+      {/* Round Form Dialog */}
+      {showRoundForm && (
+        <Card className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <CardContent className="w-full max-w-md p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <CardTitle>{editingRound ? (t('editRound') || 'Edit Round') : (t('addRound') || 'Add Round')}</CardTitle>
+              <Button variant="ghost" size="sm" onClick={resetRoundForm}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="round-name">{t('roundName') || 'Round Name'} *</Label>
+                <Input
+                  id="round-name"
+                  value={roundName}
+                  onChange={(e) => setRoundName(e.target.value)}
+                  placeholder={t('enterRoundName') || 'Enter round name'}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="round-description">{t('roundDescription') || 'Round Description'}</Label>
+                <Textarea
+                  id="round-description"
+                  value={roundDescription}
+                  onChange={(e) => setRoundDescription(e.target.value)}
+                  placeholder={t('enterRoundDescription') || 'Enter round description (optional)'}
+                  rows={3}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="round-active">{t('active') || 'Active'}</Label>
+                <Switch
+                  id="round-active"
+                  checked={roundIsActive}
+                  onCheckedChange={setRoundIsActive}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => roundMutation.mutate()}
+                  disabled={roundMutation.isPending}
+                  className="flex-1"
+                >
+                  <Save className="h-4 w-4 me-2" />
+                  {roundMutation.isPending ? (t('saving') || 'Saving...') : (t('save') || 'Save')}
+                </Button>
+                <Button variant="outline" onClick={resetRoundForm} className="flex-1">
+                  {t('cancel') || 'Cancel'}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Delete Round Confirmation Dialog */}
+      <AlertDialog open={!!roundToDelete} onOpenChange={(open) => !open && setRoundToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('deleteRound') || 'Delete Round'}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('deleteRoundConfirmation') || 'Are you sure you want to delete this round? This will also remove all assignments and schedules.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('cancel') || 'Cancel'}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => roundToDelete && deleteRoundMutation.mutate(roundToDelete.id)}
+              className="bg-destructive text-destructive-foreground"
+            >
+              {t('delete') || 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Task Form Dialog */}
       {showTaskForm && (

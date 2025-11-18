@@ -313,11 +313,12 @@ const SettingsPage: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <h4 className="font-medium">{t('version')}</h4>
-                  <p className="text-sm text-muted-foreground">2.10.0</p>
+                  <p className="text-sm text-muted-foreground">2.11.0</p>
                 </div>
                 <div>
                   <h4 className="font-medium">{t('recentUpdates')}</h4>
                   <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-5">
+                    <li>📝 Work Regulations Editor: Enhanced editor with character limits, improved text editing experience, focus preservation, and better UX for adding/editing items and sections</li>
                     <li>📋 Shift Task Management: Complete task management system with role/user assignments, task completion tracking, and performance reporting. Includes modal for employees to view and complete tasks during shifts.</li>
                     <li>{t('i18nRtlIncrement')}</li>
                     <li>🔧 ProfilePage Fix: Fixed admin/owner profile loading with robust fallback mechanism and improved error handling</li>
