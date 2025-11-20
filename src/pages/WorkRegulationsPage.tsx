@@ -37,6 +37,8 @@ const WorkRegulationsPage: React.FC = () => {
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
   const [content, setContent] = useState('');
+  // Snapshot passed to the editor to avoid frequent re-mounts on parent updates
+  const [editorInitialContent, setEditorInitialContent] = useState('');
   const [isActive, setIsActive] = useState(true);
 
   const isAdminOrOwner = user?.role === 'admin' || user?.role === 'owner';
@@ -109,11 +111,13 @@ const WorkRegulationsPage: React.FC = () => {
       setTitle(regulation.title);
       setSubtitle(regulation.subtitle || '');
       setContent(regulation.content);
+      setEditorInitialContent(regulation.content);
       setIsActive(regulation.is_active);
     } else {
       setTitle('');
       setSubtitle('');
       setContent('');
+      setEditorInitialContent('');
       setIsActive(true);
     }
     setIsEditing(true);
@@ -268,7 +272,7 @@ const WorkRegulationsPage: React.FC = () => {
                 </div>
                 <div className="border-2 rounded-xl p-6 bg-gradient-to-br from-background to-muted/20 shadow-inner">
                   <WorkRegulationEditor
-                    content={content}
+                    content={editorInitialContent}
                     onChange={handleContentChange}
                   />
                 </div>

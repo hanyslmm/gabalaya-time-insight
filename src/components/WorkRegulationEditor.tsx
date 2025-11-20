@@ -672,5 +672,8 @@ const WorkRegulationEditor: React.FC<WorkRegulationEditorProps> = ({ content, on
   );
 };
 
-export default WorkRegulationEditor;
+// Memoize to avoid unnecessary re-renders when parent updates unrelated state
+export default React.memo(WorkRegulationEditor, (prev, next) => {
+  return prev.content === next.content && prev.onChange === next.onChange;
+});
 
