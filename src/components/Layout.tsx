@@ -383,7 +383,7 @@ const Layout = () => {
             sidebarCollapsed && "lg:hidden"
           )}>
             <div className="text-xs text-muted-foreground text-center">
-              {`v${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'}`}
+              v2.11.0
             </div>
           </div>
         </div>
