@@ -196,29 +196,44 @@ const WorkRegulationEditor: React.FC<WorkRegulationEditorProps> = ({ content, on
   const [sections, setSections] = useState<RegulationSection[]>([]);
 
   const [isInitialized, setIsInitialized] = useState(false);
-  const [lastContentHash, setLastContentHash] = useState<string>('');
+  const lastContentRef = useRef<string>('');
+  const isInternalUpdateRef = useRef<boolean>(false);
+  const onChangeRef = useRef(onChange);
+  
+  // Keep onChange ref updated
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   // Parse content when it changes externally (e.g., when editing starts)
   // Only parse when content actually changes from external source, not from our own updates
   useEffect(() => {
     const contentHash = content || '';
-    // Only re-parse if content hash changed AND we're initialized
-    // This prevents re-parsing when we're updating content ourselves
-    if (contentHash !== lastContentHash) {
+    
+    // Skip if this is an internal update (we're the ones changing content)
+    if (isInternalUpdateRef.current) {
+      isInternalUpdateRef.current = false;
+      lastContentRef.current = contentHash;
+      return;
+    }
+    
+    // Only re-parse if content hash changed from external source
+    if (contentHash !== lastContentRef.current) {
+      // Parse content (either initial or when content changes externally)
+      if (content) {
+        const parsed = parseHTMLToSections(content);
+        setSections(parsed.length > 0 ? parsed : [{ id: 'section-1', title: '', items: [] }]);
+      } else {
+        setSections([{ id: 'section-1', title: '', items: [] }]);
+      }
+      
       if (!isInitialized) {
-        // Initial parse
-        if (content) {
-          const parsed = parseHTMLToSections(content);
-          setSections(parsed.length > 0 ? parsed : [{ id: 'section-1', title: '', items: [] }]);
-        } else {
-          setSections([{ id: 'section-1', title: '', items: [] }]);
-        }
         setIsInitialized(true);
       }
-      // Update hash but don't re-parse if already initialized (to preserve empty items)
-      setLastContentHash(contentHash);
+      
+      lastContentRef.current = contentHash;
     }
-  }, [content, lastContentHash, isInitialized]);
+  }, [content, isInitialized]);
 
   // Convert sections to HTML when sections change (but skip initial parse)
   // Use debouncing to prevent excessive updates, but don't interfere with typing
@@ -227,16 +242,19 @@ const WorkRegulationEditor: React.FC<WorkRegulationEditorProps> = ({ content, on
     
     const timeoutId = setTimeout(() => {
       const html = convertSectionsToHTML(sections);
+      // Normalize HTML for comparison (remove extra whitespace)
+      const normalizedHtml = html.replace(/\s+/g, ' ').trim();
+      const normalizedContent = (content || '').replace(/\s+/g, ' ').trim();
+      
       // Only call onChange if HTML actually changed to avoid infinite loops
-      // Also check if sections have empty items that need to be preserved
-      const hasEmptyItems = sections.some(s => s.items.some(item => !item.text.trim()));
-      if (html !== content || hasEmptyItems) {
-        onChange(html);
+      if (normalizedHtml !== normalizedContent) {
+        isInternalUpdateRef.current = true;
+        onChangeRef.current(html);
       }
-    }, 500); // Increased debounce to 500ms to avoid interfering with typing
+    }, 500); // Debounce to 500ms to avoid interfering with typing
     
     return () => clearTimeout(timeoutId);
-  }, [sections, onChange, isInitialized, content]);
+  }, [sections, isInitialized, content]);
 
   const addSection = useCallback(() => {
     setSections(prevSections => [...prevSections, { id: `section-${Date.now()}`, title: '', items: [] }]);

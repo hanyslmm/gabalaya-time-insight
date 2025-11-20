@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -129,6 +129,11 @@ const WorkRegulationsPage: React.FC = () => {
     }
   };
 
+  // Memoize onChange handler to prevent unnecessary re-renders
+  const handleContentChange = useCallback((htmlContent: string) => {
+    setContent(htmlContent);
+  }, []);
+
   if (isLoading) {
     return (
       <MobilePageWrapper>
@@ -247,7 +252,7 @@ const WorkRegulationsPage: React.FC = () => {
                 <div className="border-2 rounded-xl p-6 bg-gradient-to-br from-background to-muted/20 shadow-inner">
                   <WorkRegulationEditor
                     content={content}
-                    onChange={(htmlContent) => setContent(htmlContent)}
+                    onChange={handleContentChange}
                   />
                 </div>
                 <div className="flex items-start gap-2 p-3 bg-primary/5 rounded-lg border border-primary/20">
