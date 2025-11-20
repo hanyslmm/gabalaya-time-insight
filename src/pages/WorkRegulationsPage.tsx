@@ -47,18 +47,24 @@ const WorkRegulationsPage: React.FC = () => {
   const { data: regulation, isLoading } = useQuery<WorkRegulation | null>({
     queryKey: ['work-regulations', activeOrganizationId],
     enabled: !!activeOrganizationId,
-    queryFn: async () => {
-      const { data, error } = await supabase
+    queryFn: async (): Promise<WorkRegulation | null> => {
+      // Use untyped Supabase call to avoid table name type constraints
+      let query = (supabase as any)
         .from('work_regulations')
         .select('*')
-        .eq('organization_id', activeOrganizationId)
-        .eq('is_active', true)
-        .maybeSingle();
+        .eq('organization_id', activeOrganizationId);
+
+      // Employees view only active; admins/owners can fetch regardless of active state
+      if (!isAdminOrOwner) {
+        query = query.eq('is_active', true);
+      }
+
+      const { data, error } = await query.maybeSingle();
       
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
         throw error;
       }
-      return data || null;
+      return (data as WorkRegulation | null) || null;
     }
   });
 
@@ -71,7 +77,7 @@ const WorkRegulationsPage: React.FC = () => {
 
       if (regulation) {
         // Update existing
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('work_regulations')
           .update({
             title: title.trim(),
@@ -79,12 +85,13 @@ const WorkRegulationsPage: React.FC = () => {
             content: content.trim(),
             is_active: isActive,
             updated_at: new Date().toISOString(),
+            updated_by: user?.id || null,
           })
           .eq('id', regulation.id);
         if (error) throw error;
       } else {
         // Create new
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('work_regulations')
           .insert({
             organization_id: activeOrganizationId,
@@ -92,6 +99,7 @@ const WorkRegulationsPage: React.FC = () => {
             subtitle: subtitle.trim() || null,
             content: content.trim(),
             is_active: isActive,
+            created_by: user?.id || null,
           });
         if (error) throw error;
       }
