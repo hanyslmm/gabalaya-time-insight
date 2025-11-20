@@ -134,6 +134,23 @@ const WorkRegulationsPage: React.FC = () => {
     setContent(htmlContent);
   }, []);
 
+  // Add keyboard shortcut for saving (Ctrl+S or Cmd+S)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if in edit mode and Ctrl+S or Cmd+S is pressed
+      if (isEditing && (e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        // Only save if we have valid data
+        if (title.trim() && content.trim() && !updateMutation.isPending) {
+          updateMutation.mutate();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isEditing, title, content, updateMutation]);
+
   if (isLoading) {
     return (
       <MobilePageWrapper>
@@ -150,18 +167,18 @@ const WorkRegulationsPage: React.FC = () => {
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-primary/10 rounded-lg">
-              <FileText className="h-6 w-6 text-primary" />
+            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+              <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold">{t('workRegulations') || 'Work Regulations'}</h1>
-              <p className="text-sm text-muted-foreground mt-1">
+              <h1 className="text-2xl md:text-3xl font-bold text-blue-900 dark:text-blue-100">{t('workRegulations') || 'Work Regulations'}</h1>
+              <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
                 {t('workRegulationsDescription') || 'View and manage organization work regulations'}
               </p>
             </div>
           </div>
           {isAdminOrOwner && !isEditing && (
-            <Button onClick={handleEdit} className="gap-2">
+            <Button onClick={handleEdit} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
               <Edit className="h-4 w-4" />
               {regulation ? (t('edit') || 'Edit') : (t('create') || 'Create')}
             </Button>
@@ -276,10 +293,15 @@ const WorkRegulationsPage: React.FC = () => {
                 <Button
                   onClick={() => updateMutation.mutate()}
                   disabled={updateMutation.isPending || !title.trim() || !content.trim()}
-                  className="flex-1 gap-2 h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-shadow"
+                  className="flex-1 gap-2 h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-shadow relative"
                 >
                   <Save className="h-5 w-5" />
-                  {updateMutation.isPending ? (t('saving') || 'Saving...') : (t('save') || 'Save')}
+                  <span className="flex items-center gap-2">
+                    {updateMutation.isPending ? (t('saving') || 'Saving...') : (t('save') || 'Save')}
+                    <kbd className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-mono bg-muted rounded">
+                      <span className="text-xs">⌘</span>S
+                    </kbd>
+                  </span>
                 </Button>
                 <Button 
                   variant="outline" 
@@ -296,29 +318,29 @@ const WorkRegulationsPage: React.FC = () => {
           /* View Mode */
           <>
             {regulation ? (
-              <Card className="overflow-hidden border-2 shadow-lg">
-                <CardHeader className="bg-gradient-to-r from-primary/20 via-primary/10 to-primary/5 pb-6">
-                  <div className="space-y-2">
-                    <CardTitle className="text-3xl md:text-4xl font-bold text-center">
+              <Card className="overflow-hidden border border-border shadow-lg bg-white dark:bg-background">
+                <CardHeader className="bg-gradient-to-r from-blue-50 via-blue-100/50 to-blue-50 dark:from-blue-950/30 dark:via-blue-900/20 dark:to-blue-950/30 border-b border-blue-200/50 dark:border-blue-800/30 pb-6">
+                  <div className="space-y-3">
+                    <CardTitle className="text-3xl md:text-4xl font-bold text-center text-blue-900 dark:text-blue-100">
                       {regulation.title}
                     </CardTitle>
                     {regulation.subtitle && (
-                      <p className="text-lg md:text-xl text-center text-muted-foreground font-medium">
+                      <p className="text-lg md:text-xl text-center text-blue-700 dark:text-blue-300 font-medium">
                         {regulation.subtitle}
                       </p>
                     )}
                   </div>
                 </CardHeader>
-                <CardContent className="p-6 md:p-8">
+                <CardContent className="p-6 md:p-8 bg-white dark:bg-background">
                   <div 
-                    className="prose prose-lg dark:prose-invert max-w-none work-regulations-content"
+                    className="work-regulations-content prose prose-lg max-w-none"
                     dangerouslySetInnerHTML={{ __html: regulation.content }}
                     style={{
                       direction: 'rtl',
                       textAlign: 'right',
                     }}
                   />
-                  <div className="mt-8 pt-6 border-t text-center text-sm text-muted-foreground">
+                  <div className="mt-8 pt-6 border-t border-border text-center text-sm text-muted-foreground">
                     <p>© {new Date().getFullYear()} {t('allRightsReserved') || 'All rights reserved'}.</p>
                   </div>
                 </CardContent>

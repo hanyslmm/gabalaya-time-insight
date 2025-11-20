@@ -1388,84 +1388,57 @@ All colors MUST be HSL.
       box-shadow: 0 0 0 4px hsl(var(--primary) / 0.1);
     }
   }
-  
-  /* Work Regulations Content Styling */
-  .work-regulations-content {
-    direction: rtl;
-    text-align: right;
-    line-height: 1.8;
-    color: hsl(var(--foreground));
-  }
-  
-  .work-regulations-content h2 {
-    font-size: 1.5rem;
-    font-weight: 700;
-    margin-top: 2rem;
-    margin-bottom: 1rem;
-    color: hsl(var(--primary));
-    border-bottom: 2px solid hsl(var(--primary) / 0.2);
-    padding-bottom: 0.5rem;
-  }
-  
-  .work-regulations-content h3 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin-top: 1.5rem;
-    margin-bottom: 0.75rem;
-    color: hsl(var(--primary) / 0.9);
-  }
-  
-  .work-regulations-content ul {
-    list-style-type: none;
-    padding-right: 0;
-    margin: 1rem 0;
-  }
-  
-  .work-regulations-content li {
-    margin: 0.75rem 0;
-    padding-right: 1.5rem;
-    position: relative;
-  }
-  
-  .work-regulations-content li::before {
-    content: "•";
-    position: absolute;
-    right: 0;
-    color: hsl(var(--primary));
-    font-weight: bold;
-    font-size: 1.2rem;
-  }
-  
-  .work-regulations-content ul ul {
-    margin-right: 1.5rem;
-    margin-top: 0.5rem;
-  }
-  
-  .work-regulations-content ul ul li::before {
-    content: "○";
-    font-size: 0.9rem;
-  }
-  
-  .work-regulations-content strong {
-    font-weight: 600;
-    color: hsl(var(--foreground));
-  }
-  
-  .work-regulations-content .footer-note {
-    margin-top: 3rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid hsl(var(--border));
-    text-align: center;
-    font-size: 0.875rem;
-    color: hsl(var(--muted-foreground));
-  }
-  
-  /* Dark mode adjustments */
-  .dark .work-regulations-content h2 {
-    border-bottom-color: hsl(var(--primary) / 0.3);
-  }
-  
-  .dark .work-regulations-content .footer-note {
-    border-top-color: hsl(var(--border) / 0.5);
-  }
+}
+
+/* Work Regulations Content Styling - Blue Theme */
+.work-regulations-content {
+  @apply text-foreground;
+  direction: rtl;
+  text-align: right;
+  line-height: 1.8;
+  color: #1e293b;
+}
+
+.dark .work-regulations-content {
+  color: #e2e8f0;
+}
+
+.work-regulations-content h2 {
+  @apply text-2xl font-bold mt-8 mb-4 text-blue-900 dark:text-blue-100;
+  border-bottom: 2px solid #3b82f6;
+  padding-bottom: 0.5rem;
+}
+
+.dark .work-regulations-content h2 {
+  border-bottom-color: #60a5fa;
+}
+
+.work-regulations-content h2:first-child {
+  @apply mt-0;
+}
+
+.work-regulations-content ul {
+  @apply list-disc list-outside space-y-3 mb-6;
+  padding-right: 1.5rem;
+  padding-left: 0;
+}
+
+.work-regulations-content li {
+  @apply text-base leading-relaxed;
+  margin-bottom: 0.75rem;
+}
+
+.work-regulations-content li strong {
+  @apply font-semibold text-blue-800 dark:text-blue-200;
+}
+
+.work-regulations-content ul ul {
+  @apply mt-2 mb-2;
+  padding-right: 2rem;
+  margin-top: 0.5rem;
+}
+
+.work-regulations-content ul ul li {
+  @apply text-sm;
+  list-style-type: circle;
 }

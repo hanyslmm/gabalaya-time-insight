@@ -47,6 +47,6 @@ i18n.on('languageChanged', (lng) => {
   } catch (error) {
     console.error('Failed to save language preference:', error);
   }
-});
+  });
 
 export default i18n;

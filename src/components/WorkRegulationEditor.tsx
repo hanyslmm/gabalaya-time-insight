@@ -193,68 +193,68 @@ const escapeHTML = (text: string): string => {
 
 const WorkRegulationEditor: React.FC<WorkRegulationEditorProps> = ({ content, onChange }) => {
   const { t } = useTranslation();
-  const [sections, setSections] = useState<RegulationSection[]>([]);
+  
+  // Initialize sections from content only once
+  const [sections, setSections] = useState<RegulationSection[]>(() => {
+    if (content) {
+      const parsed = parseHTMLToSections(content);
+      return parsed.length > 0 ? parsed : [{ id: 'section-1', title: '', items: [] }];
+    }
+    return [{ id: 'section-1', title: '', items: [] }];
+  });
 
-  const [isInitialized, setIsInitialized] = useState(false);
-  const lastContentRef = useRef<string>('');
-  const isInternalUpdateRef = useRef<boolean>(false);
+  const isInitialMount = useRef(true);
+  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSentContentRef = useRef<string>(content || '');
   const onChangeRef = useRef(onChange);
   
   // Keep onChange ref updated
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
-
-  // Parse content when it changes externally (e.g., when editing starts)
-  // Only parse when content actually changes from external source, not from our own updates
+  
+  // Parse content ONLY on initial mount or when content changes from parent
   useEffect(() => {
-    const contentHash = content || '';
-    
-    // Skip if this is an internal update (we're the ones changing content)
-    if (isInternalUpdateRef.current) {
-      isInternalUpdateRef.current = false;
-      lastContentRef.current = contentHash;
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
       return;
     }
     
-    // Only re-parse if content hash changed from external source
-    if (contentHash !== lastContentRef.current) {
-      // Parse content (either initial or when content changes externally)
-      if (content) {
-        const parsed = parseHTMLToSections(content);
-        setSections(parsed.length > 0 ? parsed : [{ id: 'section-1', title: '', items: [] }]);
-      } else {
-        setSections([{ id: 'section-1', title: '', items: [] }]);
-      }
-      
-      if (!isInitialized) {
-        setIsInitialized(true);
-      }
-      
-      lastContentRef.current = contentHash;
+    // Check if content changed from parent (not from our own updates)
+    const contentHash = content || '';
+    if (contentHash && contentHash !== lastSentContentRef.current) {
+      // Content changed from parent, re-parse it
+      const parsed = parseHTMLToSections(content);
+      setSections(parsed.length > 0 ? parsed : [{ id: 'section-1', title: '', items: [] }]);
+      lastSentContentRef.current = contentHash;
     }
-  }, [content, isInitialized]);
+  }, [content]);
 
-  // Convert sections to HTML when sections change (but skip initial parse)
-  // Use debouncing to prevent excessive updates, but don't interfere with typing
+  // Convert sections to HTML when sections change - with strict debouncing
   useEffect(() => {
-    if (!isInitialized || sections.length === 0) return;
+    // Clear any pending timeout
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current);
+    }
     
-    const timeoutId = setTimeout(() => {
+    // Debounce the conversion to prevent rapid updates
+    updateTimeoutRef.current = setTimeout(() => {
       const html = convertSectionsToHTML(sections);
-      // Normalize HTML for comparison (remove extra whitespace)
-      const normalizedHtml = html.replace(/\s+/g, ' ').trim();
-      const normalizedContent = (content || '').replace(/\s+/g, ' ').trim();
       
-      // Only call onChange if HTML actually changed to avoid infinite loops
-      if (normalizedHtml !== normalizedContent) {
-        isInternalUpdateRef.current = true;
+      // Only call onChange if content actually changed
+      if (html !== lastSentContentRef.current) {
+        lastSentContentRef.current = html;
         onChangeRef.current(html);
       }
-    }, 500); // Debounce to 500ms to avoid interfering with typing
+    }, 1500); // 1.5 second debounce to prevent rapid-fire updates
     
-    return () => clearTimeout(timeoutId);
-  }, [sections, isInitialized, content]);
+    return () => {
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+        updateTimeoutRef.current = null;
+      }
+    };
+  }, [sections]);
 
   const addSection = useCallback(() => {
     setSections(prevSections => [...prevSections, { id: `section-${Date.now()}`, title: '', items: [] }]);
@@ -393,81 +393,6 @@ const WorkRegulationEditor: React.FC<WorkRegulationEditorProps> = ({ content, on
   const MAX_ITEM_TEXT = 1000;
   const MAX_SUBITEM_TEXT = 500;
 
-  // Auto-resize textarea component - optimized to preserve focus
-  const AutoResizeTextarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement> & { value: string; maxLength?: number }>(
-    ({ value, className, maxLength, onChange, ...props }, ref) => {
-      const textareaRef = useRef<HTMLTextAreaElement>(null);
-      const combinedRef = (ref || textareaRef) as React.MutableRefObject<HTMLTextAreaElement>;
-      
-      // Resize function that preserves cursor position
-      const resizeTextarea = React.useCallback((textarea: HTMLTextAreaElement, preserveCursor = false) => {
-        if (!textarea) return;
-        
-        const scrollTop = textarea.scrollTop;
-        const selectionStart = textarea.selectionStart;
-        const selectionEnd = textarea.selectionEnd;
-        const isFocused = document.activeElement === textarea;
-        
-        textarea.style.height = 'auto';
-        const scrollHeight = textarea.scrollHeight;
-        const newHeight = Math.max(scrollHeight, 80);
-        textarea.style.height = `${newHeight}px`;
-        
-        // Restore scroll position
-        textarea.scrollTop = scrollTop;
-        
-        // Restore cursor position if focused and preserveCursor is true
-        if (preserveCursor && isFocused) {
-          requestAnimationFrame(() => {
-            if (document.activeElement === textarea) {
-              textarea.setSelectionRange(selectionStart, selectionEnd);
-            }
-          });
-        }
-      }, []);
-      
-      // Only resize when value changes and textarea is NOT focused
-      useEffect(() => {
-        const textarea = combinedRef.current;
-        if (textarea && document.activeElement !== textarea) {
-          resizeTextarea(textarea, false);
-        }
-      }, [value, resizeTextarea]);
-      
-      const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        const textarea = e.currentTarget;
-        
-        // Resize immediately while preserving cursor
-        resizeTextarea(textarea, true);
-        
-        // Call original onChange
-        if (onChange) {
-          onChange(e);
-        }
-      };
-      
-      const handleBlur = () => {
-        const textarea = combinedRef.current;
-        if (textarea) {
-          resizeTextarea(textarea, false);
-        }
-      };
-      
-      return (
-        <Textarea
-          ref={combinedRef}
-          value={value}
-          maxLength={maxLength}
-          className={className}
-          onChange={handleChange}
-          onBlur={handleBlur}
-          {...props}
-        />
-      );
-    }
-  );
-  AutoResizeTextarea.displayName = 'AutoResizeTextarea';
-
   return (
     <div className="space-y-6">
       {sections.map((section, sectionIndex) => (
@@ -532,6 +457,7 @@ const WorkRegulationEditor: React.FC<WorkRegulationEditorProps> = ({ content, on
                     "text-lg font-semibold h-12 border-2 focus:border-primary/50 transition-colors",
                     section.title.length >= MAX_SECTION_TITLE * 0.9 && "border-amber-500/50"
                   )}
+                  style={{ direction: 'rtl', textAlign: 'right' }}
                   maxLength={MAX_SECTION_TITLE}
                 />
                 <div className="flex items-center justify-between">
@@ -579,7 +505,8 @@ const WorkRegulationEditor: React.FC<WorkRegulationEditorProps> = ({ content, on
                   </div>
                   <div className="flex-1 space-y-2">
                     <div className="relative">
-                      <AutoResizeTextarea
+                      <Textarea
+                        key={`item-textarea-${item.id}`}
                         value={item.text}
                         onChange={(e) => {
                           const newValue = e.target.value;
@@ -610,7 +537,7 @@ const WorkRegulationEditor: React.FC<WorkRegulationEditorProps> = ({ content, on
                           "focus-visible:ring-2 focus-visible:ring-primary/20",
                           item.text.length >= MAX_ITEM_TEXT * 0.9 && "border-amber-500/50"
                         )}
-                        style={{ minHeight: '100px' }}
+                        style={{ minHeight: '100px', direction: 'rtl', textAlign: 'right' }}
                         maxLength={MAX_ITEM_TEXT}
                       />
                       <div className="absolute bottom-2 right-2 flex items-center gap-2 pointer-events-none z-0">
@@ -654,7 +581,8 @@ const WorkRegulationEditor: React.FC<WorkRegulationEditorProps> = ({ content, on
                     {item.subItems.map((subItem) => (
                       <div key={subItem.id} className="flex items-start gap-2 p-3 bg-background rounded-lg border-2 border-border/50 hover:border-primary/30 transition-all">
                         <div className="flex-1 relative">
-                          <AutoResizeTextarea
+                          <Textarea
+                            key={`subitem-textarea-${subItem.id}`}
                             value={subItem.text}
                             onChange={(e) => {
                               const newValue = e.target.value;
@@ -668,7 +596,7 @@ const WorkRegulationEditor: React.FC<WorkRegulationEditorProps> = ({ content, on
                               "focus-visible:ring-2 focus-visible:ring-primary/20",
                               subItem.text.length >= MAX_SUBITEM_TEXT * 0.9 && "border-amber-500/50"
                             )}
-                            style={{ minHeight: '80px' }}
+                            style={{ minHeight: '80px', direction: 'rtl', textAlign: 'right' }}
                             maxLength={MAX_SUBITEM_TEXT}
                           />
                           {subItem.text && (

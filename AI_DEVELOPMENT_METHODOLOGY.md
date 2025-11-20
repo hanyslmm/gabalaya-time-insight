@@ -780,7 +780,7 @@ Sprint close protocol:
 
 ---
 
-**Last Updated**: January 2025 - v2.8.0 Sprint  
+**Last Updated**: January 2025 - v2.10.0 Sprint  
 **Project**: Gabalaya Time Insight System  
 **Developed through**: Systematic debugging and incremental development methodology
 
@@ -947,6 +947,162 @@ Sprint close protocol:
 4. Preserve transforms needed for positioning (translate) while disabling others (scale)
 5. Test hover/active states in both themes
 6. Verify click/touch interactions on all device types
+```
+
+---
+
+### Sprint: Shift Task Management System (v2.10.0)
+
+**Key Insights:**
+
+#### 1. **Row Level Security (RLS) Policy Design for Custom Authentication**
+- **Issue**: RLS policies failed with "User not authenticated" errors when using custom authentication (not Supabase Auth)
+- **Root Cause**: RLS policies checking `auth.jwt() ->> 'username'` don't work when app uses custom JWT tokens stored in localStorage
+- **Lesson**: When using custom authentication, RLS policies that depend on `auth.jwt()` will fail. Two approaches:
+  - **Option A**: Use permissive RLS policies (`USING (true) WITH CHECK (true)`) and enforce security at application level
+  - **Option B**: Use SECURITY DEFINER functions that bypass RLS but validate permissions inside the function
+- **Pattern**: For custom auth systems:
+  ```sql
+  -- Permissive RLS (security at app level)
+  CREATE POLICY "Allow all operations"
+  ON table_name
+  FOR ALL
+  USING (true)
+  WITH CHECK (true);
+  
+  -- OR use SECURITY DEFINER functions
+  CREATE FUNCTION function_name(...)
+  SECURITY DEFINER
+  AS $$
+  -- Validate permissions here
+  -- Then perform operations
+  $$;
+  ```
+- **Best Practice**: 
+  - Document which tables use permissive RLS vs strict RLS
+  - Ensure application-level security is comprehensive
+  - Use SECURITY DEFINER functions for complex operations that need to bypass RLS
+  - Always test RLS policies with actual user accounts, not just admin
+
+#### 2. **RLS Policy Syntax - Separate Policies for Each Operation**
+- **Issue**: Attempted to create single policy with `FOR SELECT, UPDATE, DELETE` - PostgreSQL doesn't support this syntax
+- **Root Cause**: PostgreSQL RLS requires separate policies for each operation type
+- **Lesson**: Create individual policies for SELECT, INSERT, UPDATE, DELETE operations
+- **Pattern**:
+  ```sql
+  -- WRONG - Doesn't work
+  CREATE POLICY "policy_name"
+  ON table_name
+  FOR SELECT, UPDATE, DELETE  -- ❌ Syntax error
+  
+  -- CORRECT - Separate policies
+  CREATE POLICY "policy_select" ON table_name FOR SELECT USING (...);
+  CREATE POLICY "policy_update" ON table_name FOR UPDATE USING (...) WITH CHECK (...);
+  CREATE POLICY "policy_delete" ON table_name FOR DELETE USING (...);
+  CREATE POLICY "policy_insert" ON table_name FOR INSERT WITH CHECK (...);
+  ```
+- **Best Practice**: Always create separate policies for each operation type, even if they have identical logic
+
+#### 3. **INSERT Operations in RLS Policies - WITH CHECK Clause**
+- **Issue**: INSERT operations failed with RLS violations even when USING clause allowed access
+- **Root Cause**: For INSERT, PostgreSQL uses `WITH CHECK` clause, not `USING`. During INSERT, the row doesn't exist yet, so `USING` can't reference `table.column`
+- **Lesson**: For INSERT policies:
+  - `WITH CHECK` validates the NEW row being inserted
+  - Can reference column values directly (e.g., `tasks.organization_id` refers to the value being inserted)
+  - `USING` clause is ignored for INSERT operations
+- **Pattern**:
+  ```sql
+  -- For INSERT, use WITH CHECK
+  CREATE POLICY "Allow insert"
+  ON tasks
+  FOR INSERT
+  WITH CHECK (
+    -- Check the organization_id being inserted
+    organization_id = (SELECT current_organization_id FROM admin_users WHERE ...)
+  );
+  
+  -- For SELECT/UPDATE/DELETE, use USING
+  CREATE POLICY "Allow select"
+  ON tasks
+  FOR SELECT
+  USING (
+    -- Check existing row's organization_id
+    organization_id = (SELECT current_organization_id FROM admin_users WHERE ...)
+  );
+  ```
+- **Best Practice**: Always include both `USING` and `WITH CHECK` for UPDATE operations, and `WITH CHECK` for INSERT
+
+#### 4. **Database Function Design for Employee vs Admin Operations**
+- **Issue**: Functions checking for admin users failed when employees tried to complete tasks
+- **Root Cause**: Functions assumed all users exist in `admin_users` table, but employees don't
+- **Lesson**: Design functions to handle both admin users and employees gracefully:
+  - Make admin user lookup optional (can be NULL)
+  - Use `COALESCE` to handle missing JWT claims
+  - Don't require admin_users table membership for basic operations
+- **Pattern**:
+  ```sql
+  -- Get username (might be NULL for employees)
+  v_username := COALESCE(
+    auth.jwt() ->> 'username'::text,
+    current_setting('request.jwt.claims', true)::json ->> 'username'
+  );
+  
+  -- Try to get admin user ID (optional)
+  IF v_username IS NOT NULL THEN
+    SELECT id INTO v_user_id
+    FROM admin_users
+    WHERE username = v_username
+    LIMIT 1;
+  END IF;
+  
+  -- v_user_id can be NULL for employees - that's OK
+  INSERT INTO table (..., completed_by)
+  VALUES (..., v_user_id);  -- NULL is acceptable
+  ```
+- **Best Practice**: Design functions to work for all user types, not just admins. Use optional foreign keys where appropriate.
+
+#### 5. **Testing RLS Policies - Disable/Enable Strategy**
+- **Success**: Temporarily disabling RLS helped identify that the issue was policy-related, not data-related
+- **Pattern**: When debugging RLS issues:
+  1. Temporarily disable RLS: `ALTER TABLE table_name DISABLE ROW LEVEL SECURITY;`
+  2. Test if operation works without RLS
+  3. If it works, the issue is RLS policy, not data/function
+  4. Re-enable RLS: `ALTER TABLE table_name ENABLE ROW LEVEL SECURITY;`
+  5. Fix the policy and test again
+- **Best Practice**: Use RLS disable/enable as a debugging tool to isolate policy issues from data issues
+
+#### 6. **Migration File Organization**
+- **Success**: Created separate migration files for each fix, allowing incremental testing
+- **Pattern**: 
+  - `20250115000000_create_tables.sql` - Initial schema
+  - `20250115000001_create_functions.sql` - Functions
+  - `20250115000002_fix_rls_policy.sql` - RLS fixes
+  - `20250115000003_fix_functions.sql` - Function fixes
+- **Best Practice**: Keep migrations small and focused. One concern per migration file makes debugging easier.
+
+**Updated Database Development Pattern:**
+```
+1. Design schema with organization-scoping from the start
+2. Create tables with RLS enabled
+3. Test INSERT operations first (most common failure point)
+4. Use permissive RLS for custom auth systems, enforce security at app level
+5. Create separate policies for each operation type (SELECT, INSERT, UPDATE, DELETE)
+6. Design functions to handle both admin and employee users
+7. Test with actual user accounts, not just admin
+8. Use RLS disable/enable as debugging tool
+9. Document which tables use permissive vs strict RLS
+```
+
+**Updated RLS Policy Checklist:**
+```
+□ RLS enabled on all tables
+□ Separate policies for SELECT, INSERT, UPDATE, DELETE
+□ INSERT policies use WITH CHECK (not USING)
+□ UPDATE policies have both USING and WITH CHECK
+□ Policies tested with actual user accounts
+□ Functions handle both admin and employee users
+□ Documented which tables use permissive RLS
+□ Application-level security enforced for permissive RLS tables
 ```
 
 ---
