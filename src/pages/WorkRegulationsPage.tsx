@@ -8,9 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { Save, X, Edit, FileText, Shield, Info } from 'lucide-react';
+import { Save, X, Edit, FileText, Info, RefreshCw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import MobilePageWrapper from '@/components/MobilePageWrapper';
 import WorkRegulationEditor from '@/components/WorkRegulationEditor';
@@ -39,34 +38,31 @@ const WorkRegulationsPage: React.FC = () => {
   const [content, setContent] = useState('');
   // Snapshot passed to the editor to avoid frequent re-mounts on parent updates
   const [editorInitialContent, setEditorInitialContent] = useState('');
-  const [isActive, setIsActive] = useState(true);
 
   const isAdminOrOwner = user?.role === 'admin' || user?.role === 'owner';
 
-  // Fetch work regulations
-  const { data: regulation, isLoading } = useQuery<WorkRegulation | null>({
+  // Fetch work regulations (including inactive for admins/owners)
+  const { data: regulation, isLoading, error: regulationError, refetch: refetchRegulation } = useQuery<WorkRegulation | null>({
     queryKey: ['work-regulations', activeOrganizationId],
     enabled: !!activeOrganizationId,
     queryFn: async (): Promise<WorkRegulation | null> => {
       // Use untyped Supabase call to avoid table name type constraints
-      let query = (supabase as any)
+      const query = (supabase as any)
         .from('work_regulations')
         .select('*')
         .eq('organization_id', activeOrganizationId);
-
-      // Employees view only active; admins/owners can fetch regardless of active state
-      if (!isAdminOrOwner) {
-        query = query.eq('is_active', true);
-      }
-
+      
+      // All users can view regulations (read-only for non-admins)
       const { data, error } = await query.maybeSingle();
       
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
         throw error;
       }
+      
       return (data as WorkRegulation | null) || null;
     }
   });
+
 
   // Update regulation mutation
   const updateMutation = useMutation({
@@ -83,7 +79,6 @@ const WorkRegulationsPage: React.FC = () => {
             title: title.trim(),
             subtitle: subtitle.trim() || null,
             content: content.trim(),
-            is_active: isActive,
             updated_at: new Date().toISOString(),
             updated_by: user?.id || null,
           })
@@ -98,7 +93,7 @@ const WorkRegulationsPage: React.FC = () => {
             title: title.trim(),
             subtitle: subtitle.trim() || null,
             content: content.trim(),
-            is_active: isActive,
+            is_active: true, // Always active
             created_by: user?.id || null,
           });
         if (error) throw error;
@@ -114,19 +109,18 @@ const WorkRegulationsPage: React.FC = () => {
     }
   });
 
+
   const handleEdit = () => {
     if (regulation) {
       setTitle(regulation.title);
       setSubtitle(regulation.subtitle || '');
       setContent(regulation.content);
       setEditorInitialContent(regulation.content);
-      setIsActive(regulation.is_active);
     } else {
       setTitle('');
       setSubtitle('');
       setContent('');
       setEditorInitialContent('');
-      setIsActive(true);
     }
     setIsEditing(true);
   };
@@ -137,7 +131,6 @@ const WorkRegulationsPage: React.FC = () => {
       setTitle(regulation.title);
       setSubtitle(regulation.subtitle || '');
       setContent(regulation.content);
-      setIsActive(regulation.is_active);
     }
   };
 
@@ -173,6 +166,7 @@ const WorkRegulationsPage: React.FC = () => {
     );
   }
 
+
   return (
     <MobilePageWrapper>
       <div className="container mx-auto p-4 md:p-6 space-y-6">
@@ -190,10 +184,23 @@ const WorkRegulationsPage: React.FC = () => {
             </div>
           </div>
           {isAdminOrOwner && !isEditing && (
-            <Button onClick={handleEdit} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
-              <Edit className="h-4 w-4" />
-              {regulation ? (t('edit') || 'Edit') : (t('create') || 'Create')}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button 
+                onClick={() => {
+                  queryClient.invalidateQueries({ queryKey: ['work-regulations', activeOrganizationId] });
+                  refetchRegulation();
+                }}
+                variant="outline"
+                className="gap-2"
+                title="Refresh regulations"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+              <Button onClick={handleEdit} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
+                <Edit className="h-4 w-4" />
+                {regulation ? (t('edit') || 'Edit') : (t('create') || 'Create')}
+              </Button>
+            </div>
           )}
         </div>
 
@@ -292,15 +299,6 @@ const WorkRegulationsPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                <Label htmlFor="active">{t('active') || 'Active'}</Label>
-                <Switch
-                  id="active"
-                  checked={isActive}
-                  onCheckedChange={setIsActive}
-                />
-              </div>
-
               <div className="flex gap-3 pt-6 border-t-2">
                 <Button
                   onClick={() => updateMutation.mutate()}
@@ -327,7 +325,7 @@ const WorkRegulationsPage: React.FC = () => {
             </CardContent>
           </Card>
         ) : (
-          /* View Mode */
+          /* View Mode - Read-only for all users */
           <>
             {regulation ? (
               <Card className="overflow-hidden border border-border shadow-lg bg-white dark:bg-background">
@@ -370,12 +368,30 @@ const WorkRegulationsPage: React.FC = () => {
                         ? t('noWorkRegulationsAdmin') || 'No work regulations have been created yet. Click "Create" to add one.'
                         : t('noWorkRegulationsEmployee') || 'No work regulations are available at this time.'}
                     </p>
+                    {isAdminOrOwner && regulationError && (
+                      <p className="text-sm text-red-600 dark:text-red-400 mt-2">
+                        Error: {regulationError.message || 'Failed to load regulations'}
+                      </p>
+                    )}
                   </div>
                   {isAdminOrOwner && (
-                    <Button onClick={handleEdit} className="gap-2 mt-4">
-                      <FileText className="h-4 w-4" />
-                      {t('create') || 'Create'}
-                    </Button>
+                    <div className="flex gap-2 mt-4">
+                      <Button 
+                        onClick={() => {
+                          queryClient.invalidateQueries({ queryKey: ['work-regulations', activeOrganizationId] });
+                          refetchRegulation();
+                        }}
+                        variant="outline"
+                        className="gap-2"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        {t('refresh') || 'Refresh'}
+                      </Button>
+                      <Button onClick={handleEdit} className="gap-2">
+                        <FileText className="h-4 w-4" />
+                        {t('create') || 'Create'}
+                      </Button>
+                    </div>
                   )}
                 </CardContent>
               </Card>
