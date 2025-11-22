@@ -313,7 +313,7 @@ const SettingsPage: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <h4 className="font-medium">{t('version')}</h4>
-                  <p className="text-sm text-muted-foreground">2.11.0</p>
+                  <p className="text-sm text-muted-foreground">2.12.0</p>
                 </div>
                 <div>
                   <h4 className="font-medium">{t('recentUpdates')}</h4>
