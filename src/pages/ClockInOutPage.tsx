@@ -84,9 +84,9 @@ const ClockInOutPage: React.FC = () => {
   // Bulk clock-out
   const [bulkClockOutOpen, setBulkClockOutOpen] = useState(false);
   const [bulkLoading, setBulkLoading] = useState(false);
-  
+
   // Manual clock-in state for admin/owner
-  const [employees, setEmployees] = useState<Array<{id: string, full_name: string, staff_id: string}>>([]);
+  const [employees, setEmployees] = useState<Array<{ id: string, full_name: string, staff_id: string }>>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('');
   const [manualClockInLoading, setManualClockInLoading] = useState(false);
   const [employeeSearchTerm, setEmployeeSearchTerm] = useState('');
@@ -95,10 +95,10 @@ const ClockInOutPage: React.FC = () => {
   const [shiftTasks, setShiftTasks] = useState<any[]>([]);
   const [currentTimesheetEntryId, setCurrentTimesheetEntryId] = useState<string | null>(null);
   const [showShiftTasksModal, setShowShiftTasksModal] = useState(false);
-  
+
   // Points adjustment dialog state
   const [pointsDialogOpen, setPointsDialogOpen] = useState(false);
-  const [selectedEmployeeForPoints, setSelectedEmployeeForPoints] = useState<{id: string; name: string} | null>(null);
+  const [selectedEmployeeForPoints, setSelectedEmployeeForPoints] = useState<{ id: string; name: string } | null>(null);
 
   // Ref for polling interval (for optimized polling strategy)
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -125,24 +125,24 @@ const ClockInOutPage: React.FC = () => {
           .from('company_settings')
           .select('motivational_message')
           .single();
-        
+
         if (settingsData?.motivational_message) {
           setMotivationalMessage(settingsData.motivational_message);
         }
       } catch (error) {
         console.warn('Could not fetch motivational message:', error);
       }
-      
+
       try {
         // Validate timezone
         const validation = await validateTimezone();
         setCompanyTimezone(validation.timezone);
-        
+
         if (!validation.isValid) {
           console.warn(`Timezone issue: ${validation.message}`);
           setInitializationError(`Timezone issue: ${validation.message}`);
         }
-        
+
         const abbr = await getTimezoneAbbreviation();
         setTimezoneAbbr(abbr);
       } catch (error) {
@@ -150,7 +150,7 @@ const ClockInOutPage: React.FC = () => {
         setTimezoneAbbr('UTC+2'); // Fallback
       }
     };
-    
+
     fetchInitialData();
   }, []);
 
@@ -190,24 +190,32 @@ const ClockInOutPage: React.FC = () => {
     }
   }, []);
 
+  // Extract stable user primitives for dependency arrays
+  const userId = user?.id;
+  const userOrgId = user?.organization_id;
+  const userCurrentOrgId = (user as any)?.current_organization_id;
+  const userRole = user?.role;
+  const userUsername = user?.username;
+  const userFullName = user?.full_name;
+
   // Fetch team status (other employees' clock-in status)
   const fetchTeamStatus = useCallback(async () => {
-    if (!user) return;
+    if (!userId) return;
 
     try {
       // Get the active organization ID
-      const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
+      const activeOrganizationId = userCurrentOrgId || userOrgId;
       console.log('fetchTeamStatus: Active organization ID:', activeOrganizationId);
-      
+
       // Fetch employees for the active organization only
       let employeesQuery = supabase
         .from('employees')
         .select('staff_id, full_name, role');
-      
+
       if (activeOrganizationId) {
         employeesQuery = employeesQuery.eq('organization_id', activeOrganizationId);
       }
-      
+
       const { data: employeesData, error: employeesError } = await employeesQuery;
       console.log('fetchTeamStatus: Found employees:', employeesData?.length || 0, employeesData);
 
@@ -225,18 +233,18 @@ const ClockInOutPage: React.FC = () => {
 
       // Fetch active timesheet entries for employees in the active organization
       const today = await getTodayInCompanyTimezone();
-      
+
       // First, get employee IDs for the active organization
       const employeeIds = (employeesData || []).map(emp => emp.staff_id);
       console.log('fetchTeamStatus: Employee IDs to filter by:', employeeIds);
-      
+
       // Build query to get ACTIVE timesheet entries (like Employee Monitor)
       // Show entries from today OR any active entries (clock_out_time is null)
       let timesheetQuery = supabase
         .from('timesheet_entries')
         .select('*')
         .or(`clock_in_date.eq.${today},clock_out_time.is.null`);
-      
+
       // Filter by employee names/staff_ids from the active organization
       // Also include full_name variations for case-insensitive matching
       if (employeeIds.length > 0) {
@@ -251,12 +259,12 @@ const ClockInOutPage: React.FC = () => {
         console.log('fetchTeamStatus: Timesheet filter (case-insensitive):', employeeNameFilters);
         timesheetQuery = timesheetQuery.or(employeeNameFilters);
       }
-      
+
       const { data: timesheetData, error: timesheetError } = await timesheetQuery
         .order('clock_in_time', { ascending: false });
-      
+
       console.log('fetchTeamStatus: Found timesheet entries:', timesheetData?.length || 0, timesheetData);
-      
+
       // Debug: Log the actual employee names in the timesheet entries
       if (timesheetData && timesheetData.length > 0) {
         console.log('fetchTeamStatus: Timesheet entry employee names:', timesheetData.map(entry => entry.employee_name));
@@ -268,14 +276,14 @@ const ClockInOutPage: React.FC = () => {
           organization_id: entry.organization_id
         })));
       }
-      
+
       // Debug: Check if Maryam's timesheet entry exists directly (active entries) - case insensitive
       const { data: maryamEntries, error: maryamError } = await supabase
         .from('timesheet_entries')
         .select('*')
         .or(`employee_name.ilike.maryam,employee_name.ilike.Maryam`)
         .or(`clock_in_date.eq.${today},clock_out_time.is.null`);
-      
+
       console.log('fetchTeamStatus: Direct Maryam query result (case-insensitive):', maryamEntries?.length || 0, maryamEntries);
       if (maryamError) {
         console.log('fetchTeamStatus: Maryam query error:', maryamError);
@@ -289,13 +297,13 @@ const ClockInOutPage: React.FC = () => {
       // Process team member statuses
       const statusMap = new Map<string, TeamMemberStatus>();
       const currentTime = await getCurrentCompanyTime();
-      
+
       timesheetData?.forEach(entry => {
         // Improved logic: Check for active entry (null, undefined, or empty string)
-        const isActive = entry.clock_out_time === null || 
-                         entry.clock_out_time === undefined ||
-                         entry.clock_out_time === '';
-        
+        const isActive = entry.clock_out_time === null ||
+          entry.clock_out_time === undefined ||
+          entry.clock_out_time === '';
+
         // Calculate duration - DB stores Cairo local time
         let duration = 0;
         if (isActive) {
@@ -310,13 +318,13 @@ const ClockInOutPage: React.FC = () => {
 
         // Map employee ID/name to display name
         let displayName = entry.employee_name;
-        
+
         if (employeeMap.has(entry.employee_name)) {
           displayName = employeeMap.get(entry.employee_name);
         } else if (entry.employee_id && employeeMap.has(entry.employee_id)) {
           displayName = employeeMap.get(entry.employee_id);
         } else {
-          const foundEmployee = (employeesData || []).find(emp => 
+          const foundEmployee = (employeesData || []).find(emp =>
             emp.staff_id === entry.employee_name || emp.full_name === entry.employee_name
           );
           if (foundEmployee) {
@@ -325,7 +333,7 @@ const ClockInOutPage: React.FC = () => {
         }
 
         // Skip current user from team status
-        if (displayName === user?.full_name || entry.employee_name === user?.username) {
+        if (displayName === userFullName || entry.employee_name === userUsername) {
           return;
         }
 
@@ -351,51 +359,51 @@ const ClockInOutPage: React.FC = () => {
     } catch (error) {
       console.warn('Error fetching team status:', error);
     }
-  }, [user]);
+  }, [userId, userOrgId, userCurrentOrgId, userUsername, userFullName]);
 
   // Fetch today's clock-in/out entries
   const fetchTodayEntries = useCallback(async () => {
-    console.log('fetchTodayEntries: Starting, user:', user?.username);
-    
-    if (!user) {
+    console.log('fetchTodayEntries: Starting, user:', userUsername);
+
+    if (!userId) {
       console.log('fetchTodayEntries: No user, setting loading to false');
       setLoading(false);
       return;
     }
-    
+
     try {
       console.log('fetchTodayEntries: Getting today in company timezone...');
       const today = await getTodayInCompanyTimezone();
       console.log('fetchTodayEntries: Today is:', today);
-      
+
       // First, get the employee record to find identifiers (id and staff_id)
       const { data: employeeData } = await supabase
         .from('employees')
         .select('id, staff_id, full_name')
-        .or(`staff_id.eq.${user.username},full_name.eq.${user.full_name}`)
+        .or(`staff_id.eq.${userUsername},full_name.eq.${userFullName}`)
         .limit(1);
 
       // Build identifiers for timesheet lookup (cover staff_id/full_name/username)
       const userIdentifiers: string[] = [];
-      if (user.username) userIdentifiers.push(user.username);
-      if (user.full_name) userIdentifiers.push(user.full_name);
+      if (userUsername) userIdentifiers.push(userUsername);
+      if (userFullName) userIdentifiers.push(userFullName);
       if (employeeData && employeeData.length > 0 && employeeData[0].staff_id) {
         userIdentifiers.push(employeeData[0].staff_id);
       }
 
       // Filter out null/undefined values
       const validIdentifiers = userIdentifiers.filter(id => id && id.trim() !== '');
-      
+
 
       // Build OR query for all possible identifiers (including employee_id)
       let orQuery = validIdentifiers.map(id => `employee_name.eq.${id}`).join(',');
-      
+
       // Add employee_id to the search if we found the employee record
       if (employeeData && employeeData.length > 0) {
         const employeeId = employeeData[0].id;
         orQuery += `,employee_id.eq.${employeeId}`;
       }
-      
+
       // Fetch today's entries for the history list
       const todayPromise = supabase
         .from('timesheet_entries')
@@ -431,7 +439,7 @@ const ClockInOutPage: React.FC = () => {
         : (data?.find(entry => entry.clock_out_time === null || entry.clock_out_time === undefined || entry.clock_out_time === '') || null);
       console.log('fetchTodayEntries: Active entry:', activeEntry?.id || 'none');
       setCurrentEntry(activeEntry || null);
-      
+
     } catch (error) {
       console.error("fetchTodayEntries: Error fetching today's entries:", error);
       setInitializationError("Error loading your timesheet data. Please refresh the page.");
@@ -439,7 +447,7 @@ const ClockInOutPage: React.FC = () => {
       console.log('fetchTodayEntries: Setting loading to false');
       setLoading(false);
     }
-  }, [user]);
+  }, [userId, userUsername, userFullName]);
 
   // Update current time and worked hours every second with error handling
   useEffect(() => {
@@ -449,7 +457,7 @@ const ClockInOutPage: React.FC = () => {
         const companyNow = await getCurrentCompanyTime();
         setCurrentTime(utcNow);
         setCompanyTime(companyNow);
-        
+
         // Calculate worked hours if clocked in
         if (currentEntry) {
           // DB stores Cairo local time, calculate duration directly (same as team activity)
@@ -476,9 +484,9 @@ const ClockInOutPage: React.FC = () => {
 
   // Main initialization effect with optimized Realtime-First + Polling Fallback strategy
   useEffect(() => {
-    console.log('ClockInOutPage: useEffect triggered, user:', user?.username);
-    
-    if (!user) {
+    console.log('ClockInOutPage: useEffect triggered, user:', userUsername);
+
+    if (!userId) {
       console.log('ClockInOutPage: No user found, setting loading to false');
       setLoading(false);
       return;
@@ -486,8 +494,8 @@ const ClockInOutPage: React.FC = () => {
 
     const initializeData = async () => {
       try {
-        console.log('ClockInOutPage: Initializing data for user:', user.username);
-        
+        console.log('ClockInOutPage: Initializing data for user:', userUsername);
+
         // Test database connection first
         const { data: testData, error: testError } = await supabase.from('company_settings').select('id').limit(1);
         if (testError) {
@@ -496,17 +504,17 @@ const ClockInOutPage: React.FC = () => {
         } else {
           console.log('ClockInOutPage: Database connection successful');
         }
-        
+
         // Fetch today's entries (this will set loading to false)
         console.log('ClockInOutPage: Fetching today\'s entries...');
         await fetchTodayEntries();
-        
+
         // Fetch team status (non-blocking)
         console.log('ClockInOutPage: Fetching team status...');
         fetchTeamStatus().catch(error => {
           console.warn('ClockInOutPage: Could not fetch team status:', error);
         });
-        
+
       } catch (error) {
         console.error('ClockInOutPage: Error initializing data:', error);
         setInitializationError('Failed to initialize page data. Please refresh.');
@@ -515,11 +523,11 @@ const ClockInOutPage: React.FC = () => {
     };
 
     initializeData();
-    
+
     if (USE_OPTIMIZED_POLLING) {
       // ⚡ OPTIMIZED STRATEGY: Realtime-First with Polling Fallback
       console.log('🚀 ClockInOutPage: Using optimized Realtime-First strategy');
-      
+
       // Helper to start polling
       const startPolling = () => {
         if (pollingIntervalRef.current) return; // Already polling
@@ -530,7 +538,7 @@ const ClockInOutPage: React.FC = () => {
           });
         }, 30000);
       };
-      
+
       // Helper to stop polling
       const stopPolling = () => {
         if (pollingIntervalRef.current) {
@@ -539,10 +547,10 @@ const ClockInOutPage: React.FC = () => {
           pollingIntervalRef.current = null;
         }
       };
-      
+
       // Start with polling (while Realtime connects)
       startPolling();
-      
+
       // Set up Realtime subscription
       try {
         const channel = supabase
@@ -552,13 +560,13 @@ const ClockInOutPage: React.FC = () => {
             { event: '*', schema: 'public', table: 'timesheet_entries' },
             (payload) => {
               console.log('⚡ ClockInOutPage: Realtime event received:', payload.eventType);
-              fetchTeamStatus().catch(() => {});
-              fetchTodayEntries().catch(() => {});
+              fetchTeamStatus().catch(() => { });
+              fetchTodayEntries().catch(() => { });
             }
           )
           .subscribe((status) => {
             console.log('📡 ClockInOutPage: Realtime subscription status:', status);
-            
+
             if (status === 'SUBSCRIBED') {
               // Realtime connected - stop polling
               console.log('✅ ClockInOutPage: Realtime SUBSCRIBED - switching to Realtime mode');
@@ -569,7 +577,7 @@ const ClockInOutPage: React.FC = () => {
               startPolling();
             }
           });
-        
+
         return () => {
           console.log('🧹 ClockInOutPage: Cleanup - removing Realtime subscription and polling');
           stopPolling();
@@ -587,22 +595,22 @@ const ClockInOutPage: React.FC = () => {
     } else {
       // 🔄 LEGACY STRATEGY: Polling + Realtime (both active)
       console.log('🔄 ClockInOutPage: Using legacy polling + Realtime strategy');
-      
+
       // Set up interval to refresh team status every 30 seconds
       const interval = setInterval(() => {
         fetchTeamStatus().catch(error => {
           console.warn('ClockInOutPage: Could not refresh team status:', error);
         });
       }, 30000);
-      
+
       return () => clearInterval(interval);
     }
-  }, [user, fetchTodayEntries, fetchTeamStatus]);
+  }, [userId, userUsername, fetchTodayEntries, fetchTeamStatus]);
 
   // Realtime updates: only used when USE_OPTIMIZED_POLLING is FALSE
   useEffect(() => {
     if (USE_OPTIMIZED_POLLING) return; // Skip if using optimized strategy
-    
+
     if (!user) return;
     try {
       const channel = supabase
@@ -611,8 +619,8 @@ const ClockInOutPage: React.FC = () => {
           'postgres_changes',
           { event: '*', schema: 'public', table: 'timesheet_entries' },
           () => {
-            fetchTeamStatus().catch(() => {});
-            fetchTodayEntries().catch(() => {});
+            fetchTeamStatus().catch(() => { });
+            fetchTodayEntries().catch(() => { });
           }
         )
         .subscribe();
@@ -665,7 +673,7 @@ const ClockInOutPage: React.FC = () => {
         // If the error is about already being clocked in, handle the sync issue
         if (error.message.toLowerCase().includes('already') || error.message.toLowerCase().includes('clocked in')) {
           toast.info('⚠️ Sync issue detected. Fixing your clock-in status...');
-          
+
           try {
             // Call the fix function to force clock out any orphaned entries
             const { data: fixData, error: fixError } = await supabase.functions.invoke('fix-clock-in-issues', {
@@ -699,7 +707,7 @@ const ClockInOutPage: React.FC = () => {
             await fetchTodayEntries();
             await fetchTeamStatus();
             toast.success('🎉 Clocked in successfully!');
-            
+
             // Check for shift tasks (non-blocking)
             if (retryData?.id) {
               setTimeout(async () => {
@@ -724,11 +732,11 @@ const ClockInOutPage: React.FC = () => {
         }
         throw new Error(error.message);
       }
-      
+
       await fetchTodayEntries();
       await fetchTeamStatus(); // Refresh team status after clock in
       toast.success('Clocked in successfully!');
-      
+
       // Check for shift tasks (non-blocking) - AFTER successful clock-in
       // Use the timesheet entry ID from clock_in response if available
       if (clockInData?.id) {
@@ -870,23 +878,23 @@ const ClockInOutPage: React.FC = () => {
 
     try {
       const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
-      
+
       let employeesQuery = supabase
         .from('employees')
         .select('id, staff_id, full_name')
         .order('full_name');
-      
+
       if (activeOrganizationId) {
         employeesQuery = employeesQuery.eq('organization_id', activeOrganizationId);
       }
-      
+
       const { data: employeesData, error } = await employeesQuery;
-      
+
       if (error) {
         console.warn('Could not fetch employees for manual clock-in:', error);
         return;
       }
-      
+
       setEmployees(employeesData || []);
     } catch (error) {
       console.warn('Error fetching employees:', error);
@@ -936,11 +944,11 @@ const ClockInOutPage: React.FC = () => {
       if (error) {
         throw new Error(error.message);
       }
-      
+
       // Refresh data
       await fetchTodayEntries();
       await fetchTeamStatus();
-      
+
       toast.success(`✅ Successfully clocked in ${employee.full_name}`);
       setSelectedEmployee(''); // Reset selection
     } catch (error: any) {
@@ -974,7 +982,7 @@ const ClockInOutPage: React.FC = () => {
       });
 
       if (error) throw new Error(error.message);
-      
+
       await fetchTodayEntries();
       await fetchTeamStatus(); // Refresh team status after clock out
       toast.success('Clocked out successfully!');
@@ -1222,13 +1230,12 @@ const ClockInOutPage: React.FC = () => {
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               </Button>
             </div>
-            
+
             <div className="relative mb-6">
-              <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center shadow-2xl transition-all duration-500 ${
-                currentEntry 
-                  ? 'bg-gradient-to-br from-success to-success/80 animate-pulse' 
+              <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center shadow-2xl transition-all duration-500 ${currentEntry
+                  ? 'bg-gradient-to-br from-success to-success/80 animate-pulse'
                   : 'bg-gradient-to-br from-primary to-primary/80'
-              }`}>
+                }`}>
                 <Clock className="h-10 w-10 text-white" />
               </div>
               {currentEntry && (
@@ -1290,7 +1297,7 @@ const ClockInOutPage: React.FC = () => {
                     )}
                   </div>
                 </div>
-                
+
                 {/* View Shift Tasks Button - Always show when clocked in */}
                 <Button
                   onClick={handleViewShiftTasks}
@@ -1306,7 +1313,7 @@ const ClockInOutPage: React.FC = () => {
                     </Badge>
                   )}
                 </Button>
-                
+
                 <Button
                   onClick={handleClockOut}
                   disabled={actionLoading}
@@ -1343,7 +1350,7 @@ const ClockInOutPage: React.FC = () => {
                     )}
                   </div>
                 </div>
-                
+
                 <Button
                   onClick={handleClockIn}
                   disabled={actionLoading}
@@ -1410,7 +1417,7 @@ const ClockInOutPage: React.FC = () => {
               {currentEntry && (
                 <div className="pt-2 border-t">
                   <div>Entry ID: {currentEntry.id}</div>
-                                      <div>Clock In: {currentEntry.clock_in_date} {formatCompanyTimeAMPM(currentEntry.clock_in_date, currentEntry.clock_in_time)}</div>
+                  <div>Clock In: {currentEntry.clock_in_date} {formatCompanyTimeAMPM(currentEntry.clock_in_date, currentEntry.clock_in_time)}</div>
                   <div>Employee Name: {currentEntry.employee_name}</div>
                   <div>Clock In Location: {currentEntry.clock_in_location || 'N/A'}</div>
                 </div>
@@ -1462,7 +1469,7 @@ const ClockInOutPage: React.FC = () => {
               </div>
             </div>
           </CardHeader>
-          
+
           {showTeamStatus && (
             <CardContent className="px-6 pb-6 animate-fade-in">
               {teamStatus.length === 0 ? (
@@ -1480,8 +1487,8 @@ const ClockInOutPage: React.FC = () => {
               ) : (
                 <div className="space-y-3">
                   {teamStatus.map((member, index) => (
-                    <div 
-                      key={index} 
+                    <div
+                      key={index}
                       className="bg-gradient-to-r from-success/5 to-primary/5 rounded-2xl p-4 border border-success/10 hover:shadow-md transition-all duration-200 animate-fade-in"
                       style={{ animationDelay: `${index * 100}ms` }}
                     >
@@ -1562,92 +1569,92 @@ const ClockInOutPage: React.FC = () => {
                   <Shield className="h-5 w-5 text-orange-600" />
                 </div>
                 <div>
-                   <CardTitle className="text-lg font-bold text-orange-800 dark:text-orange-200">
-                     {t('manualClockIn')}
-                   </CardTitle>
-                   <p className="text-sm text-orange-600 dark:text-orange-300">
-                     {t('startEmployeeShiftsManually')}
-                   </p>
-                 </div>
+                  <CardTitle className="text-lg font-bold text-orange-800 dark:text-orange-200">
+                    {t('manualClockIn')}
+                  </CardTitle>
+                  <p className="text-sm text-orange-600 dark:text-orange-300">
+                    {t('startEmployeeShiftsManually')}
+                  </p>
+                </div>
               </div>
             </CardHeader>
-            
+
             <CardContent className="px-6 pb-6">
               <div className="space-y-4">
                 <div className="bg-gradient-to-r from-orange-100/50 to-amber-100/50 dark:from-orange-900/20 dark:to-amber-900/20 rounded-2xl p-4 border border-orange-200/50 dark:border-orange-800/50">
                   <div className="flex items-center space-x-2 mb-3">
-                     <UserPlus className="h-4 w-4 text-orange-600" />
-                     <span className="text-sm font-medium text-orange-800 dark:text-orange-200">
-                       {t('selectEmployee')}
-                     </span>
-                   </div>
-                  
+                    <UserPlus className="h-4 w-4 text-orange-600" />
+                    <span className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                      {t('selectEmployee')}
+                    </span>
+                  </div>
+
                   <div className="space-y-3">
-                     <Select 
-                        value={selectedEmployee} 
-                        onValueChange={(value) => {
-                          setSelectedEmployee(value);
-                          setEmployeeSearchTerm(''); // Clear search when employee is selected
-                        }}
-                      >
-                        <SelectTrigger className="w-full bg-background/80 border-border">
-                          <SelectValue placeholder={t('searchAndSelectEmployee')} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <div className="p-2 border-b">
-                            <input
-                              type="text"
-                              placeholder={t('searchEmployees')}
-                              value={employeeSearchTerm}
-                              onChange={(e) => setEmployeeSearchTerm(e.target.value)}
-                              className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                            />
-                          </div>
-                          {employees
-                            .filter((employee) => 
-                              employee.full_name.toLowerCase().includes(employeeSearchTerm.toLowerCase()) ||
-                              employee.staff_id.toLowerCase().includes(employeeSearchTerm.toLowerCase())
-                            )
-                            .map((employee) => (
-                              <SelectItem key={employee.id} value={employee.id}>
-                                <div className="flex items-center space-x-2">
-                                  <ProfileAvatar employeeName={employee.full_name} size="sm" />
-                                  <span>{employee.full_name}</span>
-                                  <Badge variant="outline" className="text-xs">
-                                    {employee.staff_id}
-                                  </Badge>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          {employees.filter((employee) => 
+                    <Select
+                      value={selectedEmployee}
+                      onValueChange={(value) => {
+                        setSelectedEmployee(value);
+                        setEmployeeSearchTerm(''); // Clear search when employee is selected
+                      }}
+                    >
+                      <SelectTrigger className="w-full bg-background/80 border-border">
+                        <SelectValue placeholder={t('searchAndSelectEmployee')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <div className="p-2 border-b">
+                          <input
+                            type="text"
+                            placeholder={t('searchEmployees')}
+                            value={employeeSearchTerm}
+                            onChange={(e) => setEmployeeSearchTerm(e.target.value)}
+                            className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        </div>
+                        {employees
+                          .filter((employee) =>
                             employee.full_name.toLowerCase().includes(employeeSearchTerm.toLowerCase()) ||
                             employee.staff_id.toLowerCase().includes(employeeSearchTerm.toLowerCase())
-                          ).length === 0 && employeeSearchTerm && (
+                          )
+                          .map((employee) => (
+                            <SelectItem key={employee.id} value={employee.id}>
+                              <div className="flex items-center space-x-2">
+                                <ProfileAvatar employeeName={employee.full_name} size="sm" />
+                                <span>{employee.full_name}</span>
+                                <Badge variant="outline" className="text-xs">
+                                  {employee.staff_id}
+                                </Badge>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        {employees.filter((employee) =>
+                          employee.full_name.toLowerCase().includes(employeeSearchTerm.toLowerCase()) ||
+                          employee.staff_id.toLowerCase().includes(employeeSearchTerm.toLowerCase())
+                        ).length === 0 && employeeSearchTerm && (
                             <div className="p-3 text-center text-sm text-muted-foreground">
                               {t('noEmployeesFoundMatching')} "{employeeSearchTerm}"
                             </div>
                           )}
-                        </SelectContent>
-                      </Select>
-                     
-                     <Button
-                       onClick={handleManualClockIn}
-                       disabled={!selectedEmployee || manualClockInLoading}
-                       className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-                     >
-                       {manualClockInLoading ? (
-                         <>
-                           <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                           {t('clockingIn')}...
-                         </>
-                       ) : (
-                         <>
-                           <UserPlus className="mr-2 h-4 w-4" />
-                           {t('startEmployeeShift')}
-                         </>
-                       )}
-                     </Button>
-                   </div>
+                      </SelectContent>
+                    </Select>
+
+                    <Button
+                      onClick={handleManualClockIn}
+                      disabled={!selectedEmployee || manualClockInLoading}
+                      className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                    >
+                      {manualClockInLoading ? (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                          {t('clockingIn')}...
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus className="mr-2 h-4 w-4" />
+                          {t('startEmployeeShift')}
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -1669,7 +1676,7 @@ const ClockInOutPage: React.FC = () => {
               </div>
             </div>
           </CardHeader>
-          
+
           <CardContent className="px-6 pb-6">
             {todayEntries.length === 0 ? (
               <div className="text-center py-8">
@@ -1686,8 +1693,8 @@ const ClockInOutPage: React.FC = () => {
             ) : (
               <div className="space-y-4">
                 {todayEntries.map((entry, index) => (
-                  <div 
-                    key={entry.id} 
+                  <div
+                    key={entry.id}
                     className="bg-gradient-to-r from-muted/10 to-muted/5 rounded-2xl p-4 border border-border/20 hover:shadow-md transition-all duration-200 animate-fade-in"
                     style={{ animationDelay: `${index * 100}ms` }}
                   >
@@ -1702,7 +1709,7 @@ const ClockInOutPage: React.FC = () => {
                             <p className="text-lg font-bold text-success">{formatCompanyTimeAMPM(entry.clock_in_date, entry.clock_in_time)}</p>
                           </div>
                         </div>
-                        
+
                         {entry.clock_out_time && (
                           <div className="flex items-center space-x-3">
                             <div className="w-8 h-8 bg-destructive/10 rounded-lg flex items-center justify-center">
@@ -1715,7 +1722,7 @@ const ClockInOutPage: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      
+
                       <div className="text-right">
                         {entry.total_hours !== null ? (
                           <div className="space-y-1">
@@ -1733,7 +1740,7 @@ const ClockInOutPage: React.FC = () => {
                     </div>
                   </div>
                 ))}
-                
+
                 {/* Daily Summary */}
                 {todayEntries.length > 0 && (
                   <Separator className="my-4" />
@@ -1883,7 +1890,7 @@ const ClockInOutPage: React.FC = () => {
 // Helper component for employee points badge
 const EmployeePointsBadge: React.FC<{ employeeId: string }> = ({ employeeId }) => {
   const { data: pointsData } = useEmployeePoints(employeeId);
-  
+
   if (!pointsData || !pointsData.isPointsSystemActive) {
     return null;
   }
@@ -1904,7 +1911,7 @@ const EmployeePointsBadge: React.FC<{ employeeId: string }> = ({ employeeId }) =
 
   return (
     <div className="flex items-center gap-2 mt-1">
-      <Badge 
+      <Badge
         className={cn(
           "text-xs font-bold px-2 py-0.5",
           getPointsBadgeColor(pointsData.totalPoints)
