@@ -10,11 +10,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Download, Users, FileSpreadsheet, ChevronRight, AlertCircle, Calendar, Clock, TrendingUp, DollarSign, FileText, FileDown, Search, X, ArrowUp, ArrowDown } from 'lucide-react';
 import TimesheetDateFilter from '@/components/TimesheetDateFilter';
 import { HRAnalytics } from '@/components/HRAnalytics';
 import { EmployeeMultiSelect } from '@/components/EmployeeMultiSelect';
-import { exportToPDF, exportToCSV, exportToExcel } from '@/utils/reportExports';
+import { exportToPDF, exportToCSV, exportToExcel, exportAttendanceReportToExcel } from '@/utils/reportExports';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { subDays, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from 'date-fns';
@@ -50,6 +51,9 @@ const ReportsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [comparePeriod, setComparePeriod] = useState<boolean>(false);
   const [exportFormat, setExportFormat] = useState<'excel' | 'csv' | 'pdf'>('excel');
+  const [showExportDialog, setShowExportDialog] = useState<boolean>(false);
+  const [maxWorkingHours, setMaxWorkingHours] = useState<number>(6);
+  const [highlightLongShifts, setHighlightLongShifts] = useState<boolean>(true);
   
   // Date range state - default to current pay period from settings
   const [dateRange, setDateRange] = useState<DateRange>(() => calculatePayPeriod(0));
@@ -139,6 +143,30 @@ const ReportsPage: React.FC = () => {
         .limit(1)
         .maybeSingle();
       return data;
+    }
+  });
+
+  // Query 2.6: Points System Status and Organization Name
+  const { data: pointsSystemData } = useQuery({
+    queryKey: ['points-system-status', activeOrganizationId],
+    enabled: !!activeOrganizationId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('organizations')
+        .select('is_points_system_active, point_value, name')
+        .eq('id', activeOrganizationId)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching points system status:', error);
+        return { isPointsSystemActive: false, pointValue: 5, organizationName: '' };
+      }
+      
+      return {
+        isPointsSystemActive: (data as any)?.is_points_system_active || false,
+        pointValue: Number((data as any)?.point_value) || 5,
+        organizationName: (data as any)?.name || ''
+      };
     }
   });
 
@@ -382,14 +410,22 @@ const ReportsPage: React.FC = () => {
         }
       }
 
+        // Get employee-specific wage rates for export
+        const employeeWages = employeeWageMap.get(entry.employee_name) || 
+                             employeeWageMap.get(entry.employee_id) || 
+                             employeeWageMap.get(displayName) || 
+                             { morning: wageSettings?.morning_wage_rate || 17, night: wageSettings?.night_wage_rate || 20 };
+
         return {
           ...entry,
           display_name: displayName,
           total_hours: morningHours + nightHours, // Use calculated total (morning + night) for consistency
           calculated_morning_hours: Math.max(0, morningHours),
           calculated_night_hours: Math.max(0, nightHours),
-        total_card_amount_flat: Math.round(calculatedAmount),
-        calculated_amount: Math.round(calculatedAmount)
+          total_card_amount_flat: Math.round(calculatedAmount),
+          calculated_amount: Math.round(calculatedAmount),
+          morning_wage_rate: employeeWages.morning,
+          night_wage_rate: employeeWages.night
         };
       });
   }, [rawTimesheetData, employees, wageSettings, workingHoursSettings, selectedRole, selectedEmployeeIds, searchTerm]);
@@ -511,6 +547,41 @@ const ReportsPage: React.FC = () => {
     };
   }, [comparePeriod, comparisonDateRange, keyMetrics]);
 
+  // Handle attendance export with configuration
+  const handleAttendanceExport = () => {
+    const isPointsActive = pointsSystemData?.isPointsSystemActive || false;
+    const pointValue = pointsSystemData?.pointValue || 5;
+    const organizationName = pointsSystemData?.organizationName || '';
+    const filename = `Attendance_Report_${format(new Date(), 'yyyy-MM-dd')}`;
+    
+    // Append organization name to filename if available
+    let finalFilename = filename;
+    if (organizationName) {
+      // Sanitize organization name for filename (remove special characters)
+      const sanitizedOrgName = organizationName.replace(/[^a-zA-Z0-9]/g, '_');
+      finalFilename = `Attendance_Report_${sanitizedOrgName}_${format(new Date(), 'yyyy-MM-dd')}`;
+    }
+    
+    const maxHours = highlightLongShifts ? maxWorkingHours : 999; // Disable highlighting if unchecked
+    
+    exportAttendanceReportToExcel(
+      attendanceReport,
+      `${finalFilename}.xlsx`,
+      dateRange,
+      activeOrganizationId,
+      isPointsActive,
+      pointValue,
+      maxHours,
+      organizationName
+    ).then(() => {
+      toast.success(`${finalFilename}.xlsx ${t('exportedSuccessfully') || 'exported successfully'}`);
+      setShowExportDialog(false);
+    }).catch((error) => {
+      console.error('Export error:', error);
+      toast.error(t('failedToExport') || 'Failed to export report');
+    });
+  };
+
   // Enhanced export functionality
   const exportReport = (type: string) => {
     try {
@@ -555,8 +626,13 @@ const ReportsPage: React.FC = () => {
 
       switch (exportFormat) {
         case 'excel':
-          exportToExcel(data, `${filename}.xlsx`, sheetName);
-          toast.success(`${filename}.xlsx ${t('exportedSuccessfully') || 'exported successfully'}`);
+          if (type === 'attendance') {
+            // Show dialog for attendance export configuration
+            setShowExportDialog(true);
+          } else {
+            exportToExcel(data, `${filename}.xlsx`, sheetName);
+            toast.success(`${filename}.xlsx ${t('exportedSuccessfully') || 'exported successfully'}`);
+          }
           break;
         case 'csv':
           exportToCSV(data, `${filename}.csv`);
@@ -1137,6 +1213,60 @@ const ReportsPage: React.FC = () => {
                     </div>
         )}
       </MobileSection>
+
+      {/* Export Configuration Dialog */}
+      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('exportAttendance') || 'Export Attendance Report'}</DialogTitle>
+            <DialogDescription>
+              Configure export settings for the attendance report
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="highlightLongShifts"
+                  checked={highlightLongShifts}
+                  onChange={(e) => setHighlightLongShifts(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="highlightLongShifts" className="cursor-pointer">
+                  Highlight shifts exceeding working hours threshold
+                </Label>
+              </div>
+              {highlightLongShifts && (
+                <div className="ml-6 space-y-2">
+                  <Label htmlFor="maxWorkingHours">Maximum Working Hours (hours)</Label>
+                  <Input
+                    id="maxWorkingHours"
+                    type="number"
+                    min="1"
+                    max="24"
+                    step="0.5"
+                    value={maxWorkingHours}
+                    onChange={(e) => setMaxWorkingHours(parseFloat(e.target.value) || 6)}
+                    className="w-full"
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Shifts exceeding {maxWorkingHours} hours will be highlighted in yellow
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowExportDialog(false)}>
+              {t('cancel') || 'Cancel'}
+            </Button>
+            <Button onClick={handleAttendanceExport}>
+              {t('export') || 'Export'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MobilePageWrapper>
   );
 };

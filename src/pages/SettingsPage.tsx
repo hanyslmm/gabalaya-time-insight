@@ -313,11 +313,12 @@ const SettingsPage: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <h4 className="font-medium">{t('version')}</h4>
-                  <p className="text-sm text-muted-foreground">3.0.0</p>
+                  <p className="text-sm text-muted-foreground">3.1.0</p>
                 </div>
                 <div>
                   <h4 className="font-medium">{t('recentUpdates')}</h4>
                   <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-5">
+                    <li>📊 Enhanced Attendance Report Export v3.1: Complete redesign of Excel exports with payroll-style grouping by employee, separate morning/night wage rate columns for audit clarity, AM/PM time formatting, organization name and payroll period headers, configurable highlighting for shifts exceeding working hours threshold, and integrated Points System data (points earned, point value, cash tips) when enabled.</li>
                     <li>🏆 Champions Points System v3.0: Complete gamified points system with customizable levels, monetary rewards (1 Point = 5 EGP), budget management, points catalog, timesheet linking, and employee engagement features. Includes simplified level management with inline editing.</li>
                     <li>📝 Work Regulations Editor: Enhanced editor with character limits, improved text editing experience, focus preservation, and better UX for adding/editing items and sections</li>
                     <li>📋 Shift Task Management: Complete task management system with role/user assignments, task completion tracking, and performance reporting. Includes modal for employees to view and complete tasks during shifts.</li>
