@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,6 +23,9 @@ import PointsAdjustmentDialog from '@/components/PointsAdjustmentDialog';
 import EmployeePointsCard from '@/components/EmployeePointsCard';
 import { useEmployeePoints } from '@/hooks/useEmployeePoints';
 import { cn } from '@/lib/utils';
+
+// Feature flag for optimized polling strategy
+const USE_OPTIMIZED_POLLING = true;
 
 // Defines the structure for a clock-in/out entry
 interface ClockEntry {
@@ -96,6 +99,9 @@ const ClockInOutPage: React.FC = () => {
   // Points adjustment dialog state
   const [pointsDialogOpen, setPointsDialogOpen] = useState(false);
   const [selectedEmployeeForPoints, setSelectedEmployeeForPoints] = useState<{id: string; name: string} | null>(null);
+
+  // Ref for polling interval (for optimized polling strategy)
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Simplified loading timeout - just one timeout to prevent infinite loading
   useEffect(() => {
@@ -468,7 +474,7 @@ const ClockInOutPage: React.FC = () => {
     return () => clearInterval(timer);
   }, [currentEntry]);
 
-  // Main initialization effect - simplified
+  // Main initialization effect with optimized Realtime-First + Polling Fallback strategy
   useEffect(() => {
     console.log('ClockInOutPage: useEffect triggered, user:', user?.username);
     
@@ -510,22 +516,97 @@ const ClockInOutPage: React.FC = () => {
 
     initializeData();
     
-    // Set up interval to refresh team status every 30 seconds
-    const interval = setInterval(() => {
-      fetchTeamStatus().catch(error => {
-        console.warn('ClockInOutPage: Could not refresh team status:', error);
-      });
-    }, 30000);
-    
-    return () => clearInterval(interval);
+    if (USE_OPTIMIZED_POLLING) {
+      // ⚡ OPTIMIZED STRATEGY: Realtime-First with Polling Fallback
+      console.log('🚀 ClockInOutPage: Using optimized Realtime-First strategy');
+      
+      // Helper to start polling
+      const startPolling = () => {
+        if (pollingIntervalRef.current) return; // Already polling
+        console.log('🔌 ClockInOutPage: Starting polling fallback mode (30s interval)');
+        pollingIntervalRef.current = setInterval(() => {
+          fetchTeamStatus().catch(error => {
+            console.warn('ClockInOutPage: Polling - Could not refresh team status:', error);
+          });
+        }, 30000);
+      };
+      
+      // Helper to stop polling
+      const stopPolling = () => {
+        if (pollingIntervalRef.current) {
+          console.log('⚡ ClockInOutPage: Stopping polling - Realtime mode active');
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+      };
+      
+      // Start with polling (while Realtime connects)
+      startPolling();
+      
+      // Set up Realtime subscription
+      try {
+        const channel = supabase
+          .channel('timesheet_entries_changes')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'timesheet_entries' },
+            (payload) => {
+              console.log('⚡ ClockInOutPage: Realtime event received:', payload.eventType);
+              fetchTeamStatus().catch(() => {});
+              fetchTodayEntries().catch(() => {});
+            }
+          )
+          .subscribe((status) => {
+            console.log('📡 ClockInOutPage: Realtime subscription status:', status);
+            
+            if (status === 'SUBSCRIBED') {
+              // Realtime connected - stop polling
+              console.log('✅ ClockInOutPage: Realtime SUBSCRIBED - switching to Realtime mode');
+              stopPolling();
+            } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+              // Realtime failed - fallback to polling
+              console.warn('❌ ClockInOutPage: Realtime failed with status:', status, '- switching to polling fallback');
+              startPolling();
+            }
+          });
+        
+        return () => {
+          console.log('🧹 ClockInOutPage: Cleanup - removing Realtime subscription and polling');
+          stopPolling();
+          try {
+            supabase.removeChannel(channel);
+          } catch {
+            // ignore
+          }
+        };
+      } catch (error) {
+        console.error('ClockInOutPage: Realtime setup failed:', error);
+        // Keep polling as fallback
+        return () => stopPolling();
+      }
+    } else {
+      // 🔄 LEGACY STRATEGY: Polling + Realtime (both active)
+      console.log('🔄 ClockInOutPage: Using legacy polling + Realtime strategy');
+      
+      // Set up interval to refresh team status every 30 seconds
+      const interval = setInterval(() => {
+        fetchTeamStatus().catch(error => {
+          console.warn('ClockInOutPage: Could not refresh team status:', error);
+        });
+      }, 30000);
+      
+      return () => clearInterval(interval);
+    }
   }, [user, fetchTodayEntries, fetchTeamStatus]);
 
-  // Realtime updates: refresh team status on timesheet changes
+  // Realtime updates: only used when USE_OPTIMIZED_POLLING is FALSE
   useEffect(() => {
+    if (USE_OPTIMIZED_POLLING) return; // Skip if using optimized strategy
+    
     if (!user) return;
     try {
       const channel = supabase
-        .channel('timesheet_entries_changes')
+        .channel('timesheet_entries_changes_legacy')
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'timesheet_entries' },
