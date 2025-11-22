@@ -115,11 +115,14 @@ const OrganizationSwitcher: React.FC = () => {
       await refreshUser();
       
       // Then invalidate and refetch all organization-dependent queries
+      // Use broad invalidation to catch all variations
       queryClient.invalidateQueries({ queryKey: ['current-org-name'] });
       queryClient.invalidateQueries({ queryKey: ['available-organizations'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard-data'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-data'] }); // Invalidates all dashboard-data queries
+      queryClient.invalidateQueries({ queryKey: ['dashboard-charts'] }); // Invalidates all dashboard-charts queries
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       queryClient.invalidateQueries({ queryKey: ['timesheet-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheets'] });
       queryClient.invalidateQueries({ queryKey: ['company-settings'] });
       
       toast.success('Organization switched successfully');

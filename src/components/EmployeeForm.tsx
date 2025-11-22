@@ -17,12 +17,15 @@ import { z } from 'zod';
 import ProfileAvatar from './ProfileAvatar';
 import { Eye, EyeOff, Lock, DollarSign, UserX, Trash2, AlertTriangle, Calendar } from 'lucide-react';
 import { TERMINATION_REASONS } from '@/constants/terminationReasons';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface Employee {
   id?: string;
   staff_id: string;
   full_name: string;
   role: string;
+  permission_level?: string;
   hiring_date: string;
   email?: string;
   phone_number?: string;
@@ -30,6 +33,18 @@ interface Employee {
   night_wage_rate?: number;
   is_admin_user?: boolean;
   organization_id?: string;
+}
+
+interface Role {
+  id: string;
+  name: string;
+}
+
+interface RoleWage {
+  role_id: string;
+  role_name: string;
+  morning_wage_rate: number;
+  night_wage_rate: number;
 }
 
 interface EmployeeFormProps {
@@ -40,7 +55,7 @@ interface EmployeeFormProps {
 const employeeSchema = z.object({
   staff_id: z.string().min(1, 'Staff ID is required').max(50, 'Staff ID must be less than 50 characters'),
   full_name: z.string().min(2, 'Full name must be at least 2 characters').max(100, 'Full name must be less than 100 characters'),
-  role: z.string().min(1, 'Role is required'),
+  permission_level: z.enum(['employee', 'admin', 'owner']),
   hiring_date: z.string().min(1, 'Hiring date is required'),
   email: z.union([z.string().email('Invalid email format'), z.literal(''), z.undefined()]).optional(),
   phone_number: z.union([z.string(), z.literal(''), z.undefined()]).optional(),
@@ -55,6 +70,7 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
     staff_id: '',
     full_name: '',
     role: '',
+    permission_level: 'employee',
     hiring_date: '',
     email: '',
     phone_number: '',
@@ -62,9 +78,12 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   
-  // Wage rates state
-  const [morningRate, setMorningRate] = useState(17.00);
-  const [nightRate, setNightRate] = useState(20.00);
+  // Permission level and roles state
+  const [permissionLevel, setPermissionLevel] = useState<string>('employee');
+  const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([]);
+  
+  // Per-role wage rates state
+  const [roleWages, setRoleWages] = useState<Record<string, RoleWage>>({});
   
   // Password change state
   const [passwordData, setPasswordData] = useState({
@@ -87,14 +106,48 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
   
   const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
   
+  // Fetch default wage settings for the organization
+  const { data: wageSettings } = useQuery({
+    queryKey: ['wage-settings', activeOrganizationId],
+    enabled: !!activeOrganizationId,
+    queryFn: async () => {
+      if (!activeOrganizationId) return null;
+      
+      const { data, error } = await supabase
+        .from('wage_settings')
+        .select('morning_wage_rate, night_wage_rate')
+        .eq('organization_id', activeOrganizationId)
+        .maybeSingle();
+      
+      if (error) {
+        console.error('Failed to fetch wage settings:', error);
+        // Return defaults if error
+        return { morning_wage_rate: 17.00, night_wage_rate: 20.00 };
+      }
+      
+      // If no org-specific settings, try global default
+      if (!data) {
+        const { data: globalData } = await supabase
+          .from('wage_settings')
+          .select('morning_wage_rate, night_wage_rate')
+          .is('organization_id', null)
+          .maybeSingle();
+        
+        return globalData || { morning_wage_rate: 17.00, night_wage_rate: 20.00 };
+      }
+      
+      return data || { morning_wage_rate: 17.00, night_wage_rate: 20.00 };
+    }
+  });
+
   // Fetch roles from database
-  const { data: rolesData = [] } = useQuery({
+  const { data: rolesData = [] } = useQuery<Role[]>({
     queryKey: ['employee-roles', activeOrganizationId],
     enabled: !!activeOrganizationId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('employee_roles')
-        .select('name')
+        .select('id, name')
         .eq('organization_id', activeOrganizationId)
         .order('name');
       
@@ -105,30 +158,111 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
       return data || [];
     }
   });
-  
-  const availableRoles = [
-    ...rolesData.map((r: any) => r.name),
-    'Employee',
-    'admin',
-    'owner'
-  ].filter((role, index, self) => self.indexOf(role) === index);
+
+  // Fetch employee's current roles and wages
+  const { data: employeeRolesData } = useQuery({
+    queryKey: ['employee-roles-assignments', employee?.id],
+    enabled: !!employee?.id,
+    queryFn: async () => {
+      if (!employee?.id) return null;
+      
+      // Try RPC function first, fallback to direct query
+      try {
+        const { data, error } = await supabase
+          .rpc('get_employee_active_roles', { p_employee_id: employee.id });
+        
+        if (!error && data) {
+          return data;
+        }
+      } catch (e) {
+        console.log('RPC function not available, using direct query');
+      }
+      
+      // Fallback: direct query
+      const { data: assignments, error: assignError } = await supabase
+        .from('employee_role_assignments')
+        .select(`
+          role_id,
+          employee_roles!inner(id, name),
+          employee_role_wages(morning_wage_rate, night_wage_rate)
+        `)
+        .eq('employee_id', employee.id)
+        .eq('is_active', true);
+      
+      if (assignError) {
+        console.error('Failed to fetch employee roles:', assignError);
+        return null;
+      }
+      
+      // Transform the data to match expected format
+      return (assignments || []).map((a: any) => ({
+        role_id: a.role_id,
+        role_name: a.employee_roles?.name || '',
+        morning_wage_rate: a.employee_role_wages?.[0]?.morning_wage_rate || 0,
+        night_wage_rate: a.employee_role_wages?.[0]?.night_wage_rate || 0
+      }));
+    }
+  });
 
   useEffect(() => {
     if (employee) {
       setFormData({
         ...employee,
         email: employee.email || '',
-        phone_number: employee.phone_number || ''
+        phone_number: employee.phone_number || '',
+        permission_level: (employee as any).permission_level || 'employee'
       });
-      setMorningRate(employee.morning_wage_rate || 17.00);
-      setNightRate(employee.night_wage_rate || 20.00);
+      setPermissionLevel((employee as any).permission_level || 'employee');
     }
   }, [employee]);
+
+  // Update selected roles and wages when employee roles data is loaded
+  useEffect(() => {
+    if (employeeRolesData && Array.isArray(employeeRolesData)) {
+      const roleIds = employeeRolesData.map((r: any) => r.role_id);
+      setSelectedRoleIds(roleIds);
+      
+      const wages: Record<string, RoleWage> = {};
+      employeeRolesData.forEach((r: any) => {
+        wages[r.role_id] = {
+          role_id: r.role_id,
+          role_name: r.role_name,
+          morning_wage_rate: r.morning_wage_rate || 0,
+          night_wage_rate: r.night_wage_rate || 0
+        };
+      });
+      setRoleWages(wages);
+    }
+  }, [employeeRolesData]);
+
+  // Initialize role wages for newly selected roles with default wage rates
+  useEffect(() => {
+    const defaultMorningRate = wageSettings?.morning_wage_rate || 17.00;
+    const defaultNightRate = wageSettings?.night_wage_rate || 20.00;
+    
+    selectedRoleIds.forEach(roleId => {
+      if (!roleWages[roleId] && rolesData) {
+        const role = rolesData.find(r => r.id === roleId);
+        if (role) {
+          setRoleWages(prev => ({
+            ...prev,
+            [roleId]: {
+              role_id: roleId,
+              role_name: role.name,
+              morning_wage_rate: defaultMorningRate,
+              night_wage_rate: defaultNightRate
+            }
+          }));
+        }
+      }
+    });
+  }, [selectedRoleIds, rolesData, wageSettings]);
 
   const validateForm = () => {
     try {
       const cleanFormData = {
         ...formData,
+        permission_level: permissionLevel,
         email: formData.email?.trim() || undefined,
         phone_number: formData.phone_number?.trim() || undefined
       };
@@ -140,6 +274,12 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
       }
 
       employeeSchema.parse(cleanFormData);
+      
+      if (selectedRoleIds.length === 0) {
+        setErrors(prev => ({ ...prev, roles: 'At least one role must be selected' }));
+        return false;
+      }
+      
       setErrors({});
       return true;
     } catch (error) {
@@ -167,40 +307,79 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
 
       const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
 
+      let employeeId: string;
+
       if (employee?.id) {
-        const { error } = await supabase
+        // Update existing employee
+        const { data: updatedEmployee, error } = await supabase
           .from('employees')
           .update({ 
             staff_id: cleanData.staff_id,
             full_name: cleanData.full_name,
-            role: cleanData.role,
+            permission_level: permissionLevel,
             hiring_date: cleanData.hiring_date,
             email: cleanData.email || null,
             phone_number: cleanData.phone_number || null,
             organization_id: activeOrganizationId
           })
-          .eq('id', employee.id);
+          .eq('id', employee.id)
+          .select('id')
+          .single();
         
         if (error) throw error;
+        employeeId = updatedEmployee.id;
       } else {
-        const { error } = await supabase
+        // Create new employee
+        const { data: newEmployee, error } = await supabase
           .from('employees')
           .insert({ 
             staff_id: cleanData.staff_id,
             full_name: cleanData.full_name,
-            role: cleanData.role,
+            permission_level: permissionLevel,
+            role: 'Employee', // Keep for backward compatibility
             hiring_date: cleanData.hiring_date,
             email: cleanData.email || null,
             phone_number: cleanData.phone_number || null,
             organization_id: activeOrganizationId
-          });
+          })
+          .select('id')
+          .single();
         
         if (error) throw error;
+        employeeId = newEmployee.id;
+      }
+
+      // Update role assignments
+      if (selectedRoleIds.length > 0) {
+        // First, deactivate all existing assignments (if updating)
+        if (employee?.id) {
+          await supabase
+            .from('employee_role_assignments')
+            .update({ is_active: false })
+            .eq('employee_id', employeeId);
+        }
+
+        // Then, create/activate new assignments
+        const assignments = selectedRoleIds.map(roleId => ({
+          employee_id: employeeId,
+          role_id: roleId,
+          is_active: true
+        }));
+
+        const { error: assignError } = await supabase
+          .from('employee_role_assignments')
+          .upsert(assignments, { 
+            onConflict: 'employee_id,role_id',
+            ignoreDuplicates: false
+          });
+        
+        if (assignError) throw assignError;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['employee-roles-assignments'] });
       toast.success(employee ? t('employeeUpdated') : t('employeeAdded'));
       if (!employee) onClose(); // Only close if creating new employee
     },
@@ -209,55 +388,28 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
     }
   });
 
-  // Wage rates mutation
+  // Wage rates mutation (per-role)
   const wageRatesMutation = useMutation({
     mutationFn: async () => {
       if (!employee?.id) throw new Error('Employee ID required');
       
-      if ((employee as any).is_admin_user) {
-        const { data: existingEmployee } = await supabase
-          .from('employees')
-          .select('*')
-          .eq('staff_id', employee.staff_id)
-          .maybeSingle();
+      // Update wage rates for each role
+      const wageUpdates = Object.values(roleWages).map(wage => ({
+        employee_id: employee.id,
+        role_id: wage.role_id,
+        morning_wage_rate: wage.morning_wage_rate,
+        night_wage_rate: wage.night_wage_rate
+      }));
 
-        if (existingEmployee) {
-          const { error } = await supabase
-            .from('employees')
-            .update({
-              morning_wage_rate: morningRate,
-              night_wage_rate: nightRate
-            })
-            .eq('staff_id', employee.staff_id);
-          if (error) throw error;
-        } else {
-          const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
-          const { error } = await supabase
-            .from('employees')
-            .insert({
-              staff_id: employee.staff_id,
-              full_name: employee.full_name,
-              role: 'Employee',
-              hiring_date: new Date().toISOString().split('T')[0],
-              morning_wage_rate: morningRate,
-              night_wage_rate: nightRate,
-              organization_id: activeOrganizationId
-            });
-          if (error) throw error;
-        }
-      } else {
-        const { error } = await supabase
-          .from('employees')
-          .update({
-            morning_wage_rate: morningRate,
-            night_wage_rate: nightRate
-          })
-          .eq('id', employee.id);
-        if (error) throw error;
-      }
+      const { error } = await supabase
+        .from('employee_role_wages')
+        .upsert(wageUpdates, { onConflict: 'employee_id,role_id' });
+      
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['employee-roles-assignments'] });
       toast.success('Wage rates updated successfully');
     },
     onError: (error: any) => {
@@ -382,7 +534,51 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
       toast.error('Please save employee info first');
       return;
     }
+    if (selectedRoleIds.length === 0) {
+      toast.error('Please assign at least one role first');
+      return;
+    }
     wageRatesMutation.mutate();
+  };
+
+  const handleRoleToggle = (roleId: string) => {
+    const defaultMorningRate = wageSettings?.morning_wage_rate || 17.00;
+    const defaultNightRate = wageSettings?.night_wage_rate || 20.00;
+    
+    setSelectedRoleIds(prev => {
+      if (prev.includes(roleId)) {
+        // Remove role
+        const newWages = { ...roleWages };
+        delete newWages[roleId];
+        setRoleWages(newWages);
+        return prev.filter(id => id !== roleId);
+      } else {
+        // Add role with default wage rates
+        const role = rolesData.find(r => r.id === roleId);
+        if (role) {
+          setRoleWages(prev => ({
+            ...prev,
+            [roleId]: {
+              role_id: roleId,
+              role_name: role.name,
+              morning_wage_rate: defaultMorningRate,
+              night_wage_rate: defaultNightRate
+            }
+          }));
+        }
+        return [...prev, roleId];
+      }
+    });
+  };
+
+  const handleRoleWageChange = (roleId: string, field: 'morning_wage_rate' | 'night_wage_rate', value: number) => {
+    setRoleWages(prev => ({
+      ...prev,
+      [roleId]: {
+        ...prev[roleId],
+        [field]: value
+      }
+    }));
   };
 
   const handlePasswordChange = (e: React.FormEvent) => {
@@ -482,20 +678,19 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="role">{t('role')} *</Label>
-                      <Select value={formData.role} onValueChange={(value) => handleInputChange('role', value)}>
-                        <SelectTrigger className={errors.role ? 'border-red-500' : ''}>
-                          <SelectValue placeholder="Select a role" />
+                      <Label htmlFor="permission_level">Permission Level *</Label>
+                      <Select value={permissionLevel} onValueChange={setPermissionLevel}>
+                        <SelectTrigger className={errors.permission_level ? 'border-red-500' : ''}>
+                          <SelectValue placeholder="Select permission level" />
                         </SelectTrigger>
                         <SelectContent>
-                          {availableRoles.map((role) => (
-                            <SelectItem key={role} value={role}>
-                              {role}
-                            </SelectItem>
-                          ))}
+                          <SelectItem value="employee">Employee</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="owner">Owner</SelectItem>
                         </SelectContent>
                       </Select>
-                      {errors.role && <p className="text-sm text-red-500">{errors.role}</p>}
+                      {errors.permission_level && <p className="text-sm text-red-500">{errors.permission_level}</p>}
+                      <p className="text-xs text-muted-foreground">Controls access and permissions</p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="hiring_date">{t('hiringDate')} *</Label>
@@ -508,6 +703,33 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
                       />
                       {errors.hiring_date && <p className="text-sm text-red-500">{errors.hiring_date}</p>}
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Roles *</Label>
+                    <div className="border rounded-md p-4 space-y-2 max-h-48 overflow-y-auto">
+                      {rolesData.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No roles available. Please create roles first.</p>
+                      ) : (
+                        rolesData.map((role) => (
+                          <div key={role.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`role-${role.id}`}
+                              checked={selectedRoleIds.includes(role.id)}
+                              onCheckedChange={() => handleRoleToggle(role.id)}
+                            />
+                            <Label
+                              htmlFor={`role-${role.id}`}
+                              className="text-sm font-normal cursor-pointer flex-1"
+                            >
+                              {role.name}
+                            </Label>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    {errors.roles && <p className="text-sm text-red-500">{errors.roles}</p>}
+                    <p className="text-xs text-muted-foreground">Select one or more job roles for this employee</p>
                   </div>
 
                   <div className="space-y-2">
@@ -551,35 +773,59 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
               {/* Wage Rates Tab */}
               <TabsContent value="wages" className="space-y-4 mt-4">
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="morning-rate">Morning Wage Rate (LE/hr)</Label>
-                    <Input
-                      id="morning-rate"
-                      type="number"
-                      step="0.01"
-                      value={morningRate}
-                      onChange={(e) => setMorningRate(parseFloat(e.target.value) || 0)}
-                      className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="night-rate">Night Wage Rate (LE/hr)</Label>
-                    <Input
-                      id="night-rate"
-                      type="number"
-                      step="0.01"
-                      value={nightRate}
-                      onChange={(e) => setNightRate(parseFloat(e.target.value) || 0)}
-                      className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                  </div>
+                  {selectedRoleIds.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p>No roles assigned. Please assign roles in the Info tab first.</p>
+                    </div>
+                  ) : (
+                    selectedRoleIds.map(roleId => {
+                      const role = rolesData.find(r => r.id === roleId);
+                      const wage = roleWages[roleId];
+                      if (!role || !wage) return null;
+                      
+                      return (
+                        <Card key={roleId}>
+                          <CardHeader>
+                            <CardTitle className="text-lg">{role.name}</CardTitle>
+                            <CardDescription>Set wage rates for {role.name} role</CardDescription>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label htmlFor={`morning-rate-${roleId}`}>Morning Wage Rate (LE/hr)</Label>
+                                <Input
+                                  id={`morning-rate-${roleId}`}
+                                  type="number"
+                                  step="0.01"
+                                  value={wage.morning_wage_rate}
+                                  onChange={(e) => handleRoleWageChange(roleId, 'morning_wage_rate', parseFloat(e.target.value) || 0)}
+                                  className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                />
+                              </div>
+                              
+                              <div className="space-y-2">
+                                <Label htmlFor={`night-rate-${roleId}`}>Night Wage Rate (LE/hr)</Label>
+                                <Input
+                                  id={`night-rate-${roleId}`}
+                                  type="number"
+                                  step="0.01"
+                                  value={wage.night_wage_rate}
+                                  onChange={(e) => handleRoleWageChange(roleId, 'night_wage_rate', parseFloat(e.target.value) || 0)}
+                                  className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                />
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })
+                  )}
                   
                   <div className="flex justify-end space-x-2 pt-4">
                     <Button variant="outline" onClick={onClose}>
                       Cancel
                     </Button>
-                    <Button onClick={handleWageRatesSave} disabled={wageRatesMutation.isPending}>
+                    <Button onClick={handleWageRatesSave} disabled={wageRatesMutation.isPending || selectedRoleIds.length === 0}>
                       {wageRatesMutation.isPending ? 'Saving...' : 'Save Rates'}
                     </Button>
                   </div>
@@ -834,20 +1080,19 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="role">{t('role')} *</Label>
-              <Select value={formData.role} onValueChange={(value) => handleInputChange('role', value)}>
-                <SelectTrigger className={errors.role ? 'border-red-500' : ''}>
-                  <SelectValue placeholder="Select a role" />
+              <Label htmlFor="permission_level">Permission Level *</Label>
+              <Select value={permissionLevel} onValueChange={setPermissionLevel}>
+                <SelectTrigger className={errors.permission_level ? 'border-red-500' : ''}>
+                  <SelectValue placeholder="Select permission level" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableRoles.map((role) => (
-                    <SelectItem key={role} value={role}>
-                      {role}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="employee">Employee</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="owner">Owner</SelectItem>
                 </SelectContent>
               </Select>
-              {errors.role && <p className="text-sm text-red-500">{errors.role}</p>}
+              {errors.permission_level && <p className="text-sm text-red-500">{errors.permission_level}</p>}
+              <p className="text-xs text-muted-foreground">Controls access and permissions</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="hiring_date">{t('hiringDate')} *</Label>
@@ -860,6 +1105,33 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ employee, onClose }) => {
               />
               {errors.hiring_date && <p className="text-sm text-red-500">{errors.hiring_date}</p>}
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Roles *</Label>
+            <div className="border rounded-md p-4 space-y-2 max-h-48 overflow-y-auto">
+              {rolesData.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No roles available. Please create roles first.</p>
+              ) : (
+                rolesData.map((role) => (
+                  <div key={role.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`role-new-${role.id}`}
+                      checked={selectedRoleIds.includes(role.id)}
+                      onCheckedChange={() => handleRoleToggle(role.id)}
+                    />
+                    <Label
+                      htmlFor={`role-new-${role.id}`}
+                      className="text-sm font-normal cursor-pointer flex-1"
+                    >
+                      {role.name}
+                    </Label>
+                  </div>
+                ))
+              )}
+            </div>
+            {errors.roles && <p className="text-sm text-red-500">{errors.roles}</p>}
+            <p className="text-xs text-muted-foreground">Select one or more job roles for this employee</p>
           </div>
 
           <div className="space-y-2">

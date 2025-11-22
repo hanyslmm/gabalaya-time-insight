@@ -13,42 +13,82 @@ interface DashboardData {
   totalHours: number;
   totalPayroll: number;
   totalShifts: number;
+  averageHoursPerEmployee: number;
+  attendanceRate: number;
+  topPerformers: Array<{
+    name: string;
+    hours: number;
+    shifts: number;
+  }>;
+  recentActivity: Array<{
+    employee_name: string;
+    clock_in_date: string;
+    clock_in_time: string;
+    total_hours: number;
+  }>;
 }
 
-export const useDashboardData = (dateRange: DateRange, enabled: boolean = true) => {
+export const useDashboardData = (dateRange: DateRange, enabled: boolean = true, roleFilter: string = 'all') => {
   const { user } = useAuth();
   const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
+  
+  // Add logging to debug organization scoping
+  console.log('useDashboardData - activeOrganizationId:', activeOrganizationId);
+  console.log('useDashboardData - roleFilter:', roleFilter);
+  console.log('useDashboardData - user object:', { 
+    current_organization_id: (user as any)?.current_organization_id,
+    organization_id: user?.organization_id 
+  });
+  
   return useQuery({
-    queryKey: ['dashboard-data', format(dateRange.from, 'yyyy-MM-dd'), format(dateRange.to, 'yyyy-MM-dd'), activeOrganizationId],
+    queryKey: ['dashboard-data', format(dateRange.from, 'yyyy-MM-dd'), format(dateRange.to, 'yyyy-MM-dd'), activeOrganizationId, roleFilter],
     queryFn: async (): Promise<DashboardData> => {
       const fromDate = format(dateRange.from, 'yyyy-MM-dd');
       const toDate = format(dateRange.to, 'yyyy-MM-dd');
 
-      // Try the dashboard stats function first, fallback to direct query if it fails
+      console.log('useDashboardData - Fetching data for organization:', activeOrganizationId, 'from', fromDate, 'to', toDate);
+
+      // Skip RPC function - it's not organization-scoped in the latest migration
+      // Always use direct query to ensure strict organization filtering
       let stats: any = null;
       
-      try {
-        const { data, error } = await (supabase as any).rpc('get_dashboard_stats', {
-          from_date: fromDate,
-          to_date: toDate
-        });
-
-        if (!error && data) {
-          stats = data;
-        }
-      } catch (rpcError) {
-        console.warn('RPC function failed, falling back to direct query:', rpcError);
+      // STRICT ORGANIZATION SCOPING: Always use direct query with explicit organization filter
+      // Load employees for the current organization ONLY
+      if (!activeOrganizationId) {
+        console.warn('useDashboardData - No activeOrganizationId, returning empty stats');
+        return {
+          employeeCount: 0,
+          totalHours: 0,
+          totalPayroll: 0,
+          totalShifts: 0,
+          averageHoursPerEmployee: 0,
+          attendanceRate: 0,
+          topPerformers: [],
+          recentActivity: []
+        };
       }
 
-      // Fallback: Direct query if RPC function fails or returns no data
-      if (!stats) {
-        // Load employees to correlate legacy rows (organization_id is null)
-        const { data: employees } = await supabase
-          .from('employees')
-          .select('id, staff_id, full_name')
-          .eq('organization_id', activeOrganizationId);
+      // Load employees ONLY for the current organization, optionally filtered by role
+      let employeesQuery = supabase
+        .from('employees')
+        .select('id, staff_id, full_name, role')
+        .eq('organization_id', activeOrganizationId);
+      
+      // Apply role filter if not 'all'
+      if (roleFilter && roleFilter !== 'all') {
+        employeesQuery = employeesQuery.eq('role', roleFilter);
+      }
+      
+      const { data: employees, error: employeesError } = await employeesQuery;
+
+      if (employeesError) {
+        console.error('useDashboardData - Error loading employees:', employeesError);
+        throw employeesError;
+      }
 
         const employeeRows = employees || [];
+      console.log('useDashboardData - Found', employeeRows.length, 'employees for organization', activeOrganizationId);
+
         const employeeIds = employeeRows.map((e: any) => e.id);
         const employeeStaffIds = employeeRows.map((e: any) => e.staff_id).filter(Boolean);
         const employeeNames = employeeRows.map((e: any) => e.full_name).filter(Boolean);
@@ -56,56 +96,84 @@ export const useDashboardData = (dateRange: DateRange, enabled: boolean = true) 
         const applyDateFilter = (q: any) =>
           q.gte('clock_in_date', fromDate).lte('clock_in_date', toDate);
 
-        // Query A: current org
-        let queryOrg = supabase
-          .from('timesheet_entries')
-          .select(`
-            *,
-            employees!inner(morning_wage_rate, night_wage_rate)
-          `);
-        if (activeOrganizationId) queryOrg = queryOrg.eq('organization_id', activeOrganizationId);
-        queryOrg = applyDateFilter(queryOrg);
+      // Get employee IDs for role filtering
+      const employeeIdsForRole = roleFilter !== 'all' && employeeRows.length > 0
+        ? employeeRows.filter((emp: any) => emp.role === roleFilter).map((emp: any) => emp.id)
+        : employeeRows.map((emp: any) => emp.id);
 
-        // Query B: legacy rows with null organization
-        let queryLegacy = supabase
-          .from('timesheet_entries')
-          .select(`
-            *,
-            employees!inner(morning_wage_rate, night_wage_rate)
-          `)
-          .is('organization_id', null);
-        queryLegacy = applyDateFilter(queryLegacy);
-        if (employeeIds.length > 0) {
-          queryLegacy = queryLegacy.in('employee_id', employeeIds);
-        } else if (employeeStaffIds.length > 0 || employeeNames.length > 0) {
-          const orParts: string[] = [];
-          if (employeeStaffIds.length > 0) {
-            const staffVals = employeeStaffIds.map((v: string) => `"${v}"`).join(',');
-            orParts.push(`employee_name.in.(${staffVals})`);
-          }
-          if (employeeNames.length > 0) {
-            const nameVals = employeeNames.map((v: string) => `"${v}"`).join(',');
-            orParts.push(`employee_name.in.(${nameVals})`);
-          }
-          if (orParts.length > 0) {
-            queryLegacy = queryLegacy.or(orParts.join(','));
-          }
+      // STRICT QUERY: Only get timesheet entries for the current organization
+      // Use inner join with employees to ensure we only get entries for employees in this org
+      let queryOrg = supabase
+        .from('timesheet_entries')
+        .select(`
+          *,
+          employees!inner(id, morning_wage_rate, night_wage_rate, organization_id, role)
+        `)
+        .eq('organization_id', activeOrganizationId); // STRICT: Must match organization_id
+      
+      // Filter by employee IDs if role filter is applied
+      if (roleFilter !== 'all' && employeeIdsForRole.length > 0) {
+        queryOrg = queryOrg.in('employee_id', employeeIdsForRole);
+      }
+      
+      queryOrg = applyDateFilter(queryOrg);
+
+      // Execute query - this will ONLY return entries for the current organization
+      const resOrg = await queryOrg;
+      if (resOrg.error) {
+        console.error('useDashboardData - Error querying timesheet entries:', resOrg.error);
+        throw resOrg.error;
+      }
+      
+      const entries = resOrg.data || [];
+      console.log('useDashboardData - Found', entries.length, 'timesheet entries for organization', activeOrganizationId);
+      
+      // Additional validation: Filter out any entries that don't match organization_id or role (safety check)
+      const validEntries = entries.filter((entry: any) => {
+        // Check if entry has organization_id matching
+        if (entry.organization_id !== activeOrganizationId) {
+          console.warn('useDashboardData - Entry has mismatched organization_id:', entry.id, 'expected:', activeOrganizationId, 'got:', entry.organization_id);
+          return false;
         }
+        // Also check employee's organization_id if available
+        if (entry.employees && entry.employees.organization_id !== activeOrganizationId) {
+          console.warn('useDashboardData - Employee has mismatched organization_id:', entry.employee_id);
+          return false;
+        }
+        // Check role filter if specified
+        if (roleFilter !== 'all' && entry.employees && entry.employees.role !== roleFilter) {
+          return false;
+        }
+        return true;
+      });
+      
+      console.log('useDashboardData - Valid entries after filtering:', validEntries.length, 'out of', entries.length);
 
-        // STRICT FILTERING: Only use organization_id match
-        const resOrg = await queryOrg;
-        if (resOrg.error) throw resOrg.error;
-        const entries = resOrg.data || [];
-
-        // Calculate stats manually
-        const uniqueEmployees = new Set();
+      // Calculate stats manually using ONLY valid entries
+      // Count distinct employees who have at least one clock-in during the period
+      const uniqueEmployeeIds = new Set<string>(); // Use employee_id for accurate counting
+      const uniqueEmployeeNames = new Set<string>(); // Fallback for entries without employee_id
+      const employeeHoursMap = new Map<string, number>();
+      const employeeShiftsMap = new Map<string, number>();
         let totalHours = 0;
         let totalPayroll = 0;
-        let totalShifts = entries?.length || 0;
+      let totalShifts = validEntries?.length || 0;
 
-        entries?.forEach(entry => {
-          if (entry.employee_name) uniqueEmployees.add(entry.employee_name);
-          totalHours += entry.total_hours || 0;
+      validEntries?.forEach(entry => {
+        // Count unique employees: prefer employee_id, fallback to employee_name
+        if (entry.employee_id) {
+          uniqueEmployeeIds.add(entry.employee_id);
+        } else if (entry.employee_name) {
+          uniqueEmployeeNames.add(entry.employee_name);
+        }
+        
+        const empName = entry.employee_name || 'Unknown';
+        const hours = entry.total_hours || 0;
+        totalHours += hours;
+        
+        // Track per-employee stats
+        employeeHoursMap.set(empName, (employeeHoursMap.get(empName) || 0) + hours);
+        employeeShiftsMap.set(empName, (employeeShiftsMap.get(empName) || 0) + 1);
           
           // Calculate payroll
           if (entry.total_card_amount_split) {
@@ -121,27 +189,72 @@ export const useDashboardData = (dateRange: DateRange, enabled: boolean = true) 
           }
         });
 
-        console.log('Dashboard Stats - Direct calculation:', {
-          employeeCount: uniqueEmployees.size,
+      // Calculate employee count: employees with at least one clock-in during the period
+      // Use employee_id count first (more accurate), add unique names for entries without IDs
+      const employeeCount = uniqueEmployeeIds.size + uniqueEmployeeNames.size;
+      const averageHoursPerEmployee = employeeCount > 0 ? totalHours / employeeCount : 0;
+
+      // Calculate attendance rate (employees who worked at least one shift)
+      const totalEmployeesInOrg = employeeRows.length;
+      const attendanceRate = totalEmployeesInOrg > 0 
+        ? (employeeCount / totalEmployeesInOrg) * 100 
+        : 0;
+
+      // Get top performers (top 5 by hours)
+      const topPerformers = Array.from(employeeHoursMap.entries())
+        .map(([name, hours]) => ({
+          name,
+          hours,
+          shifts: employeeShiftsMap.get(name) || 0
+        }))
+        .sort((a, b) => b.hours - a.hours)
+        .slice(0, 5);
+
+      // Get recent activity (last 10 entries, sorted by date/time)
+      const recentActivity = validEntries
+        .sort((a, b) => {
+          const dateA = new Date(`${a.clock_in_date}T${a.clock_in_time || '00:00:00'}`);
+          const dateB = new Date(`${b.clock_in_date}T${b.clock_in_time || '00:00:00'}`);
+          return dateB.getTime() - dateA.getTime();
+        })
+        .slice(0, 10)
+        .map(entry => ({
+          employee_name: entry.employee_name || 'Unknown',
+          clock_in_date: entry.clock_in_date,
+          clock_in_time: entry.clock_in_time || '',
+          total_hours: entry.total_hours || 0
+        }));
+
+      console.log('useDashboardData - Final stats for organization', activeOrganizationId, ':', {
+        employeeCount: `${employeeCount} (${uniqueEmployeeIds.size} by ID, ${uniqueEmployeeNames.size} by name)`,
           totalHours,
           totalPayroll,
           totalShifts,
-          entriesFound: entries?.length || 0
+        averageHoursPerEmployee,
+        attendanceRate,
+        entriesFound: validEntries?.length || 0
         });
 
         stats = {
-          employeeCount: uniqueEmployees.size,
+        employeeCount,
           totalHours,
           totalPayroll,
-          totalShifts
-        };
-      }
+        totalShifts,
+        averageHoursPerEmployee,
+        attendanceRate,
+        topPerformers,
+        recentActivity
+      };
 
       return {
         employeeCount: stats?.employeeCount || 0,
         totalHours: stats?.totalHours || 0,
         totalPayroll: stats?.totalPayroll || 0,
-        totalShifts: stats?.totalShifts || 0
+        totalShifts: stats?.totalShifts || 0,
+        averageHoursPerEmployee: stats?.averageHoursPerEmployee || 0,
+        attendanceRate: stats?.attendanceRate || 0,
+        topPerformers: stats?.topPerformers || [],
+        recentActivity: stats?.recentActivity || []
       } as DashboardData;
     },
     enabled,

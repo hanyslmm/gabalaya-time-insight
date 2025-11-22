@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,8 +14,9 @@ import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
 import { 
   Users, Clock, DollarSign, TrendingUp, ShieldAlert, 
-  Activity, BarChart3, Calendar as CalendarIcon, Timer, Zap, 
-  ArrowUpRight, ArrowDownRight, RefreshCw, GitCompare
+  Activity, Calendar as CalendarIcon, 
+  ArrowUpRight, ArrowDownRight, RefreshCw, GitCompare, Building2,
+  Award, UserCheck
 } from 'lucide-react';
 import DashboardCharts from '@/components/DashboardCharts';
 import { useDashboardData } from '@/hooks/useDashboardData';
@@ -34,18 +37,55 @@ const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   
-  // Redirect admin users to Clock In/Out page (Dashboard is owner-only)
-  React.useEffect(() => {
-    if (user && user.role === 'admin') {
-      navigate('/clock-in-out', { replace: true });
+  // Get current organization name
+  const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
+  const { data: currentOrg } = useQuery({
+    queryKey: ['current-org-name', activeOrganizationId],
+    queryFn: async () => {
+      if (!activeOrganizationId) return null;
+      const { data, error } = await supabase
+        .from('organizations')
+        .select('name')
+        .eq('id', activeOrganizationId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!activeOrganizationId
+  });
+
+  // Fetch available roles
+  const { data: availableRoles = [] } = useQuery({
+    queryKey: ['employee-roles', activeOrganizationId],
+    enabled: !!activeOrganizationId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('employee_roles')
+        .select('name')
+        .eq('organization_id', activeOrganizationId)
+        .order('name');
+      
+      if (error) {
+        console.error('Failed to fetch roles:', error);
+        return [];
+      }
+      
+      // Add system roles
+      const allRoles = [
+        ...(data || []).map((r: any) => r.name),
+        'Employee', 'admin', 'owner'
+      ].filter((role, index, self) => self.indexOf(role) === index);
+      
+      return allRoles;
     }
-  }, [user, navigate]);
+  });
   
   // State management
   const [datePreset, setDatePreset] = useState<string>('current');
   const [customDateRange, setCustomDateRange] = useState<DateRange | null>(null);
   const [compareMode, setCompareMode] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<string>('all');
 
   // Calculate date ranges based on presets
   const getDateRangeForPreset = (preset: string): DateRange => {
@@ -96,15 +136,93 @@ const DashboardPage: React.FC = () => {
     return getDateRangeForPreset(datePreset);
   }, [datePreset, customDateRange]);
 
-  // Calculate previous period for comparison
+  // Calculate previous period for comparison - intelligently based on selected preset
   const previousPeriod = useMemo(() => {
+    const today = new Date();
+    
+    // If custom date range, calculate previous period by subtracting the same duration
+    if (customDateRange) {
     const daysDiff = Math.ceil((activePeriod.to.getTime() - activePeriod.from.getTime()) / (1000 * 60 * 60 * 24));
     const prevTo = new Date(activePeriod.from);
     prevTo.setDate(prevTo.getDate() - 1);
     const prevFrom = new Date(prevTo);
     prevFrom.setDate(prevFrom.getDate() - daysDiff);
     return { from: prevFrom, to: prevTo };
-  }, [activePeriod]);
+    }
+    
+    // Calculate previous equivalent period based on preset
+    switch (datePreset) {
+      case 'today':
+        // Today → Yesterday
+        const yesterday = subDays(today, 1);
+        return { from: startOfDay(yesterday), to: endOfDay(yesterday) };
+      
+      case 'yesterday':
+        // Yesterday → Day before yesterday
+        const dayBeforeYesterday = subDays(today, 2);
+        return { from: startOfDay(dayBeforeYesterday), to: endOfDay(dayBeforeYesterday) };
+      
+      case 'thisWeek':
+        // This week → Last week
+        const lastWeekStart = startOfWeek(subDays(today, 7));
+        const lastWeekEnd = endOfWeek(subDays(today, 7));
+        return { from: lastWeekStart, to: lastWeekEnd };
+      
+      case 'lastWeek':
+        // Last week → Week before last week
+        const weekBeforeLastStart = startOfWeek(subDays(today, 14));
+        const weekBeforeLastEnd = endOfWeek(subDays(today, 14));
+        return { from: weekBeforeLastStart, to: weekBeforeLastEnd };
+      
+      case 'thisMonth':
+        // This month → Last month
+        const lastMonth = subMonths(today, 1);
+        return { from: startOfMonth(lastMonth), to: endOfMonth(lastMonth) };
+      
+      case 'lastMonth':
+        // Last month → Month before last month
+        const monthBeforeLast = subMonths(today, 2);
+        return { from: startOfMonth(monthBeforeLast), to: endOfMonth(monthBeforeLast) };
+      
+      case 'last7Days':
+        // Last 7 days → Previous 7 days (7-14 days ago)
+        // Current: today-6 to today (7 days), Previous: today-13 to today-7 (7 days)
+        const prev7DaysEnd = subDays(today, 7);
+        const prev7DaysStart = subDays(prev7DaysEnd, 6);
+        return { from: prev7DaysStart, to: prev7DaysEnd };
+      
+      case 'last30Days':
+        // Last 30 days → Previous 30 days (30-60 days ago)
+        // Current: today-29 to today (30 days), Previous: today-59 to today-30 (30 days)
+        const prev30DaysEnd = subDays(today, 30);
+        const prev30DaysStart = subDays(prev30DaysEnd, 29);
+        return { from: prev30DaysStart, to: prev30DaysEnd };
+      
+      case 'thisYear':
+        // This year → Last year
+        const lastYear = today.getFullYear() - 1;
+        return { from: startOfYear(new Date(lastYear, 0, 1)), to: endOfYear(new Date(lastYear, 11, 31)) };
+      
+      case 'current':
+        // Current period (month to date) → Previous month (full month)
+        const prevMonth = subMonths(today, 1);
+        return { from: startOfMonth(prevMonth), to: endOfMonth(prevMonth) };
+      
+      case 'previous':
+        // Previous month → Month before previous month
+        const monthBeforePrevious = subMonths(today, 2);
+        return { from: startOfMonth(monthBeforePrevious), to: endOfMonth(monthBeforePrevious) };
+      
+      default:
+        // Default: subtract same duration
+        const daysDiff = Math.ceil((activePeriod.to.getTime() - activePeriod.from.getTime()) / (1000 * 60 * 60 * 24));
+        const prevTo = new Date(activePeriod.from);
+        prevTo.setDate(prevTo.getDate() - 1);
+        const prevFrom = new Date(prevTo);
+        prevFrom.setDate(prevFrom.getDate() - daysDiff);
+        return { from: prevFrom, to: prevTo };
+    }
+  }, [activePeriod, datePreset, customDateRange]);
 
   // Fetch data with auto-refresh
   const { 
@@ -112,12 +230,12 @@ const DashboardPage: React.FC = () => {
     isLoading: activeLoading,
     refetch: refetchActive,
     dataUpdatedAt: activeUpdatedAt
-  } = useDashboardData(activePeriod, true);
+  } = useDashboardData(activePeriod, true, selectedRole);
 
   const { 
     data: previousData,
     refetch: refetchPrevious
-  } = useDashboardData(previousPeriod, compareMode);
+  } = useDashboardData(previousPeriod, compareMode, selectedRole);
 
   // Auto-refresh every 30 seconds
   useEffect(() => {
@@ -191,6 +309,27 @@ const DashboardPage: React.FC = () => {
     return presetLabels[datePreset] || t('custom') || 'Custom';
   };
 
+  // Get previous period label for comparison
+  const getPreviousPeriodLabel = () => {
+    if (datePreset === 'custom' && previousPeriod) {
+      return `${format(previousPeriod.from, 'MMM dd')} - ${format(previousPeriod.to, 'MMM dd, yyyy')}`;
+    }
+    const previousPresetLabels: Record<string, string> = {
+      today: t('yesterday') || 'Yesterday',
+      yesterday: t('dayBeforeYesterday') || 'Day Before Yesterday',
+      thisWeek: t('lastWeek') || 'Last Week',
+      lastWeek: t('weekBeforeLast') || 'Week Before Last',
+      thisMonth: t('lastMonth') || 'Last Month',
+      lastMonth: t('monthBeforeLast') || 'Month Before Last',
+      last7Days: t('previous7Days') || 'Previous 7 Days',
+      last30Days: t('previous30Days') || 'Previous 30 Days',
+      thisYear: t('lastYear') || 'Last Year',
+      current: t('lastMonth') || 'Last Month',
+      previous: t('monthBeforeLast') || 'Month Before Last',
+    };
+    return previousPresetLabels[datePreset] || `${format(previousPeriod.from, 'MMM dd')} - ${format(previousPeriod.to, 'MMM dd, yyyy')}`;
+  };
+
   // Check if user is admin or owner - restrict dashboard access to admins and owners only
   if (!user || !['admin', 'owner'].includes(user.role)) {
     return (
@@ -214,46 +353,12 @@ const DashboardPage: React.FC = () => {
     );
   }
 
-  const quickActions = [
-    { 
-      title: t('viewTimesheets'), 
-      description: t('manageEmployeeTimeRecords'), 
-      icon: Timer, 
-      action: () => navigate('/timesheets'), 
-      color: 'from-blue-500 to-blue-600',
-      shortcut: 'T'
-    },
-    { 
-      title: t('employeeMonitor'), 
-      description: t('liveAttendanceTracking'), 
-      icon: Activity, 
-      action: () => navigate('/monitor'), 
-      color: 'from-green-500 to-green-600',
-      shortcut: 'M'
-    },
-    { 
-      title: t('manageTeam'), 
-      description: t('addEditEmployees'), 
-      icon: Users, 
-      action: () => navigate('/employees'), 
-      color: 'from-purple-500 to-purple-600',
-      shortcut: 'E'
-    },
-    { 
-      title: t('reportsAnalytics'), 
-      description: t('exportPayrollData'), 
-      icon: BarChart3, 
-      action: () => navigate('/timesheets'), 
-      color: 'from-orange-500 to-orange-600',
-      shortcut: 'R'
-    },
-  ];
 
   const stats = [
     {
       title: t('totalEmployees'),
       value: activeLoading ? '...' : Math.round(activeData?.employeeCount || 0),
-      description: t('activeStaffMembers'),
+      description: t('employeesWithClockIns') || 'Employees with clock-ins in period',
       icon: Users,
       color: 'from-blue-500 to-blue-600',
       bgColor: 'bg-blue-50 dark:bg-blue-950/20',
@@ -263,7 +368,7 @@ const DashboardPage: React.FC = () => {
     {
       title: `${getPeriodLabel()} ${t('hours')}`,
       value: activeLoading ? '...' : (activeData?.totalHours?.toFixed(1) || '0.0'),
-      description: t('hoursWorked'),
+      description: `${t('hoursWorked')} • Avg: ${activeData?.averageHoursPerEmployee?.toFixed(1) || '0.0'}h/emp`,
       icon: Clock,
       color: 'from-green-500 to-green-600',
       bgColor: 'bg-green-50 dark:bg-green-950/20',
@@ -279,6 +384,16 @@ const DashboardPage: React.FC = () => {
       bgColor: 'bg-purple-50 dark:bg-purple-950/20',
       textColor: 'text-purple-700 dark:text-purple-400',
       change: compareMode ? getPercentageChange(activeData?.totalPayroll || 0, previousData?.totalPayroll || 0) : 0,
+    },
+    {
+      title: t('attendanceRate'),
+      value: activeLoading ? '...' : `${(activeData?.attendanceRate || 0).toFixed(1)}%`,
+      description: t('employeesWithShifts'),
+      icon: UserCheck,
+      color: 'from-emerald-500 to-emerald-600',
+      bgColor: 'bg-emerald-50 dark:bg-emerald-950/20',
+      textColor: 'text-emerald-700 dark:text-emerald-400',
+      change: compareMode ? getPercentageChange(activeData?.attendanceRate || 0, previousData?.attendanceRate || 0) : 0,
     },
     {
       title: `${getPeriodLabel()} ${t('shifts')}`,
@@ -300,16 +415,25 @@ const DashboardPage: React.FC = () => {
           <div className="relative z-10">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
               <div className="space-y-2">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   <h1 className="text-2xl sm:text-4xl font-bold bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
                     {t('dashboard') || 'Dashboard'}
                   </h1>
                   <Badge variant="secondary" className="animate-pulse">
                     {t('live')}
                   </Badge>
+                  {currentOrg && (
+                    <Badge variant="outline" className="flex items-center gap-1.5">
+                      <Building2 className="h-3 w-3" />
+                      {currentOrg.name}
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-base sm:text-lg text-muted-foreground max-w-2xl">
-                  {t('realTimeInsights')}
+                  {currentOrg 
+                    ? `${t('realTimeInsights')} • ${currentOrg.name}`
+                    : t('realTimeInsights')
+                  }
                 </p>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
                   <div className="flex items-center gap-1">
@@ -333,6 +457,22 @@ const DashboardPage: React.FC = () => {
               
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">
                 <div className="flex items-center gap-2 flex-wrap">
+                  {/* Role Filter */}
+                  <Select value={selectedRole} onValueChange={setSelectedRole}>
+                    <SelectTrigger className="w-44 bg-background/80 backdrop-blur-sm border-border/50">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <SelectValue placeholder={t('filterByRole') || 'Filter by Role'} />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t('allRoles') || 'All Roles'}</SelectItem>
+                      {availableRoles.map((role) => (
+                        <SelectItem key={role} value={role}>{role}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
                   {/* Enhanced Date Range Selection */}
                   <Select value={datePreset} onValueChange={handlePresetChange}>
                     <SelectTrigger className="w-44 bg-background/80 backdrop-blur-sm border-border/50">
@@ -431,18 +571,26 @@ const DashboardPage: React.FC = () => {
                   <GitCompare className="h-5 w-5 text-primary" />
                   {t('periodComparison') || 'Period Comparison'}
                 </CardTitle>
+                <p className="text-sm text-muted-foreground mt-2">
+                  {getPeriodLabel()} vs {getPreviousPeriodLabel()}
+                </p>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                   {stats.map((stat, index) => {
                     const currentValue = stat.value;
-                    const previousValue = index === 0 
-                      ? Math.round(previousData?.employeeCount || 0)
-                      : index === 1
-                      ? (previousData?.totalHours?.toFixed(1) || '0.0')
-                      : index === 2
-                      ? `${(previousData?.totalPayroll?.toFixed(0) || '0')} LE`
-                      : Math.round(previousData?.totalShifts || 0);
+                    let previousValue: string | number = '';
+                    if (index === 0) {
+                      previousValue = Math.round(previousData?.employeeCount || 0);
+                    } else if (index === 1) {
+                      previousValue = (previousData?.totalHours?.toFixed(1) || '0.0');
+                    } else if (index === 2) {
+                      previousValue = `${(previousData?.totalPayroll?.toFixed(0) || '0')} LE`;
+                    } else if (index === 3) {
+                      previousValue = `${(previousData?.attendanceRate || 0).toFixed(1)}%`;
+                    } else {
+                      previousValue = Math.round(previousData?.totalShifts || 0);
+                    }
                     
                     return (
                       <div key={index} className="p-4 rounded-lg border border-border/50 bg-background/50">
@@ -450,11 +598,11 @@ const DashboardPage: React.FC = () => {
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="text-lg font-bold">{currentValue}</div>
-                            <div className="text-sm text-muted-foreground">{t('current') || 'Current'}</div>
+                            <div className="text-xs text-muted-foreground">{getPeriodLabel()}</div>
                           </div>
                           <div className="text-right">
                             <div className="text-lg font-bold text-muted-foreground">{previousValue}</div>
-                            <div className="text-sm text-muted-foreground">{t('previous') || 'Previous'}</div>
+                            <div className="text-xs text-muted-foreground">{getPreviousPeriodLabel()}</div>
                           </div>
                         </div>
                         {stat.change !== 0 && (
@@ -477,7 +625,7 @@ const DashboardPage: React.FC = () => {
         )}
 
         {/* Enhanced Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6 mb-8">
           {stats.map((stat, index) => (
             <Card 
               key={index}
@@ -517,7 +665,7 @@ const DashboardPage: React.FC = () => {
                 <p className="text-sm text-muted-foreground">{stat.description}</p>
                 {stat.change !== 0 && compareMode && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    {t('vsPreviousPeriod') || 'vs Previous Period'}
+                    vs {getPreviousPeriodLabel()}
                   </p>
                 )}
               </CardContent>
@@ -529,60 +677,155 @@ const DashboardPage: React.FC = () => {
           ))}
         </div>
 
-        {/* Quick Actions - Modern Card Grid */}
-        <Card className="mb-8 border-0 shadow-lg bg-gradient-to-br from-card to-card/90 backdrop-blur-sm">
+        {/* Strategic Analytics */}
+        <DashboardCharts
+          timePeriod="month"
+          dateRange={activePeriod}
+          roleFilter={selectedRole}
+        />
+
+        {/* Top Performers & Recent Activity */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Top Performers */}
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-card/90 backdrop-blur-sm">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-xl font-bold flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-primary" />
-                  {t('quickActions')}
+                    <Award className="h-5 w-5 text-primary" />
+                    {t('topPerformers') || 'Top Performers'}
                 </CardTitle>
-                <p className="text-muted-foreground mt-1">{t('streamlineWorkflow')}</p>
+                  <p className="text-muted-foreground mt-1 text-sm">
+                    {t('topEmployeesByHours') || 'Top 5 employees by hours worked'}
+                  </p>
               </div>
               <Badge variant="outline" className="text-xs">
-                4 {t('actions')}
+                  {getPeriodLabel()}
               </Badge>
             </div>
           </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {quickActions.map((action, index) => (
-                <Button
-                  key={index}
-                  variant="ghost"
-                  className="group h-auto min-h-[120px] p-4 flex flex-col items-center justify-center space-y-3 hover:bg-transparent transition-all duration-300 text-center relative overflow-hidden border border-border/50 hover:border-primary/30 rounded-2xl"
-                  onClick={action.action}
-                >
-                  {/* Background gradient on hover */}
-                  <div className={`absolute inset-0 bg-gradient-to-br ${action.color} opacity-0 group-hover:opacity-5 transition-opacity duration-300 rounded-2xl`} />
-                  
-                  <div className={`relative z-10 p-3 rounded-2xl bg-gradient-to-br ${action.color} text-white shadow-lg group-hover:shadow-xl transition-all duration-300`}>
-                    <action.icon className="h-6 w-6" />
+            <CardContent>
+              {activeLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="animate-pulse flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-muted" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-muted rounded w-3/4" />
+                        <div className="h-3 bg-muted rounded w-1/2" />
                   </div>
-                  
-                  <div className="relative z-10 space-y-1 text-center w-full">
-                    <div className="font-semibold text-sm leading-tight text-foreground group-hover:text-primary transition-colors duration-300">
-                      {action.title}
                     </div>
-                    <div className="text-xs text-muted-foreground leading-tight">
-                      {action.description}
+                  ))}
+                </div>
+              ) : activeData?.topPerformers && activeData.topPerformers.length > 0 ? (
+                <div className="space-y-3">
+                  {activeData.topPerformers.map((performer, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-4 p-3 rounded-lg border border-border/50 hover:border-primary/30 transition-all bg-background/50"
+                    >
+                      <div className={`flex items-center justify-center h-10 w-10 rounded-full font-bold text-sm ${
+                        index === 0 ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white' :
+                        index === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-500 text-white' :
+                        index === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-600 text-white' :
+                        'bg-muted text-muted-foreground'
+                      }`}>
+                        {index + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-sm truncate">{performer.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {performer.hours.toFixed(1)}h • {performer.shifts} {t('shifts') || 'shifts'}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-medium text-primary">
+                          {performer.hours.toFixed(1)}h
+                        </div>
+                      </div>
                     </div>
-                    <Badge variant="secondary" className="text-[10px] mt-2">
-                      {action.shortcut}
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Award className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">{t('noDataAvailable') || 'No data available for this period'}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Recent Activity */}
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-card/90 backdrop-blur-sm">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-xl font-bold flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-primary" />
+                    {t('recentActivity') || 'Recent Activity'}
+                  </CardTitle>
+                  <p className="text-muted-foreground mt-1 text-sm">
+                    {t('latestClockIns') || 'Latest clock-ins and shifts'}
+                  </p>
+                </div>
+                <Badge variant="outline" className="text-xs">
+                  {activeData?.recentActivity?.length || 0}
                     </Badge>
                   </div>
-                </Button>
+            </CardHeader>
+            <CardContent>
+              {activeLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="animate-pulse flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-muted" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-muted rounded w-3/4" />
+                        <div className="h-3 bg-muted rounded w-1/2" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : activeData?.recentActivity && activeData.recentActivity.length > 0 ? (
+                <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                  {activeData.recentActivity.map((activity, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-4 p-3 rounded-lg border border-border/50 hover:border-primary/30 transition-all bg-background/50"
+                    >
+                      <div className="flex items-center justify-center h-10 w-10 rounded-full bg-primary/10 text-primary">
+                        <Clock className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-sm truncate">{activity.employee_name}</div>
+                        <div className="text-xs text-muted-foreground flex items-center gap-2">
+                          <CalendarIcon className="h-3 w-3" />
+                          {format(new Date(activity.clock_in_date), 'MMM dd, yyyy')}
+                          {activity.clock_in_time && (
+                            <>
+                              <span>•</span>
+                              <span>{activity.clock_in_time.split('.')[0]}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-medium text-green-600 dark:text-green-400">
+                          {activity.total_hours.toFixed(1)}h
+                        </div>
+                      </div>
+                    </div>
               ))}
             </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Activity className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">{t('noRecentActivity') || 'No recent activity'}</p>
+                </div>
+              )}
           </CardContent>
         </Card>
-
-        {/* Unified Analytics */}
-        <DashboardCharts
-          timePeriod="month"
-          dateRange={activePeriod}
-        />
+        </div>
       </div>
     </PullToRefresh>
   );

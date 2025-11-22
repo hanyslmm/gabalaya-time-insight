@@ -28,7 +28,9 @@ interface Employee {
   id: string;
   staff_id: string;
   full_name: string;
-  role: string;
+  role: string; // Legacy field, kept for backward compatibility
+  permission_level?: string;
+  roles?: string[]; // Array of role names from employee_role_assignments
   hiring_date: string;
   organization_id: string;
   email?: string;
@@ -117,9 +119,44 @@ const EmployeesPage: React.FC = () => {
       const adminUserIds = new Set(adminUsers.map(admin => admin.id));
       
       // Mark employees as admin users if they exist in admin_users table
-      const result = (employeeData || []).map((emp: any) => ({
+      const employeesWithAdminFlag = (employeeData || []).map((emp: any) => ({
         ...emp,
         is_admin_user: adminUserIds.has(emp.id)
+      })) as (Employee & { is_admin_user?: boolean })[];
+
+      // Fetch roles for all employees
+      const employeeIdsForRoles = employeesWithAdminFlag.map(emp => emp.id);
+      let rolesMap: Record<string, string[]> = {};
+      
+      if (employeeIdsForRoles.length > 0) {
+        const { data: roleAssignments } = await supabase
+          .from('employee_role_assignments')
+          .select(`
+            employee_id,
+            employee_roles!inner(name)
+          `)
+          .eq('is_active', true)
+          .in('employee_id', employeeIdsForRoles);
+        
+        if (roleAssignments) {
+          roleAssignments.forEach((assignment: any) => {
+            const empId = assignment.employee_id;
+            const roleName = assignment.employee_roles?.name;
+            if (empId && roleName) {
+              if (!rolesMap[empId]) {
+                rolesMap[empId] = [];
+              }
+              rolesMap[empId].push(roleName);
+            }
+          });
+        }
+      }
+
+      // Add roles to each employee
+      const result = employeesWithAdminFlag.map((emp: any) => ({
+        ...emp,
+        roles: rolesMap[emp.id] || [],
+        permission_level: emp.permission_level || 'employee'
       })) as (Employee & { is_admin_user?: boolean })[];
       
       console.log('🔍 Final result to return:', result);
@@ -189,7 +226,10 @@ const EmployeesPage: React.FC = () => {
   // Unified list: regular employees + admin users in a single view
   const unifiedEmployees: Employee[] = useMemo(() => {
     const activeOrgId = (user as any)?.current_organization_id || user?.organization_id;
-    const regular = (employees || []) as Employee[];
+    const regular = (employees || []).map((emp: any) => ({
+      ...emp,
+      roles: emp.roles || []
+    })) as Employee[];
     const adminsProjected: Employee[] = (adminUsers || []).map((admin: any) => ({
       id: admin.id,
       staff_id: admin.username,
@@ -206,11 +246,14 @@ const EmployeesPage: React.FC = () => {
     return [...regular, ...adminsProjected];
   }, [employees, adminUsers, user]);
 
-  const filteredEmployees = unifiedEmployees?.filter(employee =>
-    employee.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.staff_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.role.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  const filteredEmployees = unifiedEmployees?.filter(employee => {
+    const searchLower = searchTerm.toLowerCase();
+    const matchesName = employee.full_name.toLowerCase().includes(searchLower);
+    const matchesStaffId = employee.staff_id.toLowerCase().includes(searchLower);
+    const matchesRole = employee.role?.toLowerCase().includes(searchLower) || false;
+    const matchesRoles = employee.roles?.some(role => role.toLowerCase().includes(searchLower)) || false;
+    return matchesName || matchesStaffId || matchesRole || matchesRoles;
+  }) || [];
 
   // Pagination logic
   const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
@@ -327,7 +370,19 @@ const EmployeesPage: React.FC = () => {
                 </div>
                         </TableCell>
                         <TableCell className="text-muted-foreground">{employee.staff_id}</TableCell>
-                        <TableCell>{employee.role}</TableCell>
+                        <TableCell>
+                          {employee.roles && employee.roles.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {employee.roles.map((role, idx) => (
+                                <span key={idx} className="inline-flex items-center px-2 py-1 rounded-md bg-secondary text-secondary-foreground text-xs">
+                                  {role}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">{employee.role || '—'}</span>
+                          )}
+                        </TableCell>
                         <TableCell>{new Date(employee.hiring_date).toLocaleDateString()}</TableCell>
                         <TableCell className="text-green-600 dark:text-green-400 font-medium">
                           LE {employee.morning_wage_rate?.toFixed(2) || '17.00'}
