@@ -60,6 +60,30 @@ export const subscribeToOnlineStatus = (callback: (isOnline: boolean) => void): 
   };
 };
 
+// Dev-only helper: fully unregister any existing service workers and clear caches
+export const unregisterServiceWorkersDev = async (): Promise<void> => {
+  if ('serviceWorker' in navigator) {
+    try {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for (const r of regs) {
+        await r.unregister();
+      }
+    } catch (err) {
+      console.warn('SW unregister failed:', err);
+    }
+  }
+  if ('caches' in window) {
+    try {
+      const keys = await caches.keys();
+      for (const k of keys) {
+        await caches.delete(k);
+      }
+    } catch (err) {
+      console.warn('Cache clear failed:', err);
+    }
+  }
+};
+
 // IndexedDB utilities for offline storage
 export const openDB = (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
