@@ -10,9 +10,11 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, Save, Settings, Clock, Shield, Timer } from 'lucide-react';
+import { MessageCircle, Save, Settings, Clock, Shield, Timer, Trophy, Coins, Sparkles } from 'lucide-react';
 import { COMMON_TIMEZONES, clearTimezoneCache } from '@/utils/timezoneUtils';
 import { useAuth } from '@/hooks/useAuth';
+import PointsCatalogManagement from '@/components/PointsCatalogManagement';
+import PointsLevelsManagement from '@/components/PointsLevelsManagement';
 
 const CompanySettingsPage: React.FC = () => {
   const { toast } = useToast();
@@ -28,6 +30,12 @@ const CompanySettingsPage: React.FC = () => {
   const [workingHoursWindowEnabled, setWorkingHoursWindowEnabled] = useState(true);
   const [workingHoursStartTime, setWorkingHoursStartTime] = useState('08:00');
   const [workingHoursEndTime, setWorkingHoursEndTime] = useState('01:00');
+  
+  // Points System state
+  const [isPointsSystemActive, setIsPointsSystemActive] = useState(false);
+  const [pointValue, setPointValue] = useState(5);
+  const [pointsBudget, setPointsBudget] = useState(0);
+  const [topUpAmount, setTopUpAmount] = useState('');
 
   // Fetch all company settings in one query
   const { data: currentSettings, isLoading } = useQuery({
@@ -68,6 +76,36 @@ const CompanySettingsPage: React.FC = () => {
         working_hours_window_enabled: false,
         working_hours_start_time: '08:00:00',
         working_hours_end_time: '01:00:00'
+      };
+    }
+  });
+
+  // Fetch organization data (including points system settings)
+  const { data: organizationData, isLoading: isLoadingOrg } = useQuery({
+    queryKey: ['organization', activeOrganizationId],
+    enabled: !!activeOrganizationId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('organizations')
+        .select('is_points_system_active, points_budget, point_value')
+        .eq('id', activeOrganizationId)
+        .single();
+      
+      if (error) {
+        // If columns don't exist yet, return defaults
+        if (error.message?.includes('does not exist')) {
+          return {
+            is_points_system_active: false,
+            points_budget: 0,
+            point_value: 5.00
+          };
+        }
+        throw error;
+      }
+      return (data as any) || {
+        is_points_system_active: false,
+        points_budget: 0,
+        point_value: 5.00
       };
     }
   });
@@ -164,7 +202,142 @@ const CompanySettingsPage: React.FC = () => {
     }
   }, [currentSettings]);
 
-  if (isLoading) {
+  // Effect to update points system state when organization data is fetched
+  React.useEffect(() => {
+    if (organizationData && !('error' in organizationData)) {
+      const orgData = organizationData as any;
+      setIsPointsSystemActive(orgData.is_points_system_active ?? false);
+      setPointValue(Number(orgData.point_value) || 5);
+      setPointsBudget(orgData.points_budget || 0);
+    }
+  }, [organizationData]);
+
+  // Points System mutations
+  const updatePointsSystemMutation = useMutation({
+    mutationFn: async (updates: {
+      is_points_system_active?: boolean;
+      point_value?: number;
+      points_budget?: number;
+    }) => {
+      const { data, error } = await supabase
+        .from('organizations')
+        .update(updates as any)
+        .eq('id', activeOrganizationId)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organization', activeOrganizationId] });
+      toast({
+        title: "Points System Updated",
+        description: "Points system settings have been saved successfully.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update points system settings.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const topUpBudgetMutation = useMutation({
+    mutationFn: async (additionalPoints: number) => {
+      const { data, error } = await supabase.rpc('top_up_points_budget' as any, {
+        p_organization_id: activeOrganizationId,
+        p_additional_points: additionalPoints
+      });
+      
+      if (error) throw error;
+      const result = data as any;
+      if (!result?.success) {
+        throw new Error(result?.error || 'Failed to top up budget');
+      }
+      return result;
+    },
+    onSuccess: (data: any) => {
+      const amount = topUpAmount;
+      setTopUpAmount('');
+      queryClient.invalidateQueries({ queryKey: ['organization', activeOrganizationId] });
+      toast({
+        title: "Budget Topped Up",
+        description: `Added ${amount} points. New budget: ${data.new_budget} points.`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to top up budget.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const seedCatalogMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc('seed_points_catalog' as any, {
+        p_organization_id: activeOrganizationId
+      });
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['points-catalog', activeOrganizationId] });
+      toast({
+        title: "Catalog Seeded",
+        description: "Default points catalog has been created successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to seed catalog.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handlePointsSystemToggle = async (enabled: boolean) => {
+    setIsPointsSystemActive(enabled);
+    updatePointsSystemMutation.mutate({ is_points_system_active: enabled });
+    
+    // If enabling for the first time, seed the catalog
+    if (enabled && organizationData && !('error' in organizationData)) {
+      const orgData = organizationData as any;
+      if (!orgData.is_points_system_active) {
+        setTimeout(() => {
+          seedCatalogMutation.mutate();
+        }, 500);
+      }
+    }
+  };
+
+  const handleSavePointsConfig = () => {
+    updatePointsSystemMutation.mutate({
+      point_value: pointValue,
+      points_budget: pointsBudget
+    });
+  };
+
+  const handleTopUp = () => {
+    const amount = parseInt(topUpAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        title: "Invalid Amount",
+        description: "Please enter a valid positive number.",
+        variant: "destructive",
+      });
+      return;
+    }
+    topUpBudgetMutation.mutate(amount);
+  };
+
+  if (isLoading || isLoadingOrg) {
     return (
       <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
@@ -499,6 +672,149 @@ const CompanySettingsPage: React.FC = () => {
                 {saveMutation.isPending ? 'Saving...' : 'Save All Settings'}
               </Button>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Champions Points System Configuration */}
+        <Card className="mt-6 bg-gradient-to-br from-card via-card to-yellow-500/5 border-yellow-500/20 shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-3">
+              <div className="p-2 bg-yellow-500/10 rounded-lg">
+                <Trophy className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+              </div>
+              Champions Points System
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Label htmlFor="points-system-enabled">
+                  Enable Points System
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Activate gamified points system with monetary rewards for employees
+                </p>
+              </div>
+              <Switch
+                id="points-system-enabled"
+                checked={isPointsSystemActive}
+                onCheckedChange={handlePointsSystemToggle}
+                disabled={updatePointsSystemMutation.isPending}
+              />
+            </div>
+
+            {isPointsSystemActive && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="point-value">
+                      Point Value (EGP)
+                    </Label>
+                    <Input
+                      id="point-value"
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={pointValue}
+                      onChange={(e) => setPointValue(parseFloat(e.target.value) || 5)}
+                      placeholder="5.00"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Monetary value of 1 point in EGP (default: 5 EGP)
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="points-budget">
+                      Initial Points Budget
+                    </Label>
+                    <Input
+                      id="points-budget"
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={pointsBudget}
+                      onChange={(e) => setPointsBudget(parseInt(e.target.value) || 0)}
+                      placeholder="0"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Monthly points budget (managers spend from this)
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-muted/50 border border-border p-4 rounded-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <h4 className="font-medium text-sm text-foreground mb-1">
+                        Current Budget Status
+                      </h4>
+                      <p className="text-2xl font-bold text-primary">
+                        {pointsBudget} <span className="text-sm font-normal text-muted-foreground">points</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        ≈ {pointsBudget * pointValue} EGP available
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={topUpAmount}
+                        onChange={(e) => setTopUpAmount(e.target.value)}
+                        placeholder="Amount"
+                        className="w-24"
+                      />
+                      <Button
+                        onClick={handleTopUp}
+                        disabled={topUpBudgetMutation.isPending || !topUpAmount}
+                        size="sm"
+                        variant="outline"
+                      >
+                        <Coins className="h-4 w-4 mr-1" />
+                        Top Up
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-4 rounded-lg">
+                  <h4 className="font-medium text-sm text-foreground mb-2 flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                    Points System Rules:
+                  </h4>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• 1 Point = {pointValue} EGP (configurable)</li>
+                    <li>• Managers cannot award positive points if budget is empty</li>
+                    <li>• Deducting points (penalties) does NOT refund the budget</li>
+                    <li>• Points are tracked per employee with full transaction history</li>
+                    <li>• Employees can see their total points and potential bonus</li>
+                  </ul>
+                </div>
+
+                <div className="flex justify-end gap-4">
+                  <Button
+                    onClick={handleSavePointsConfig}
+                    disabled={updatePointsSystemMutation.isPending}
+                    className="bg-primary hover:bg-primary/90"
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    {updatePointsSystemMutation.isPending ? 'Saving...' : 'Save Points Configuration'}
+                  </Button>
+                </div>
+
+                {/* Points Catalog Management */}
+                <div className="mt-6 pt-6 border-t">
+                  <PointsCatalogManagement />
+                </div>
+
+                {/* Points Levels Management */}
+                <div className="mt-6 pt-6 border-t">
+                  <PointsLevelsManagement />
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>

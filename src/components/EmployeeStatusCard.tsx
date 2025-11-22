@@ -1,14 +1,18 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Clock, MapPin, User, LogOut } from 'lucide-react';
+import { Clock, MapPin, User, LogOut, Trophy } from 'lucide-react';
 import ProfileAvatar from './ProfileAvatar';
 import { useCompanyTimezone } from '@/hooks/useCompanyTimezone';
+import { useEmployeePoints } from '@/hooks/useEmployeePoints';
+import PointsAdjustmentDialog from './PointsAdjustmentDialog';
+import { cn } from '@/lib/utils';
 
 interface EmployeeStatus {
   employee_name: string;
+  employee_id?: string | null;
   clock_in_time: string;
   clock_in_date: string;
   clock_in_location?: string;
@@ -37,18 +41,67 @@ export const EmployeeStatusCard: React.FC<EmployeeStatusCardProps> = ({
   isProcessing = false
 }) => {
   const { formatDate, formatTimeAMPM } = useCompanyTimezone();
+  const [pointsDialogOpen, setPointsDialogOpen] = useState(false);
+  
+  // Fetch employee points if employee_id is available
+  const { data: pointsData } = useEmployeePoints(status.employee_id);
+  
+  const getPointsBadgeColor = (points: number) => {
+    if (points >= 100) return 'bg-yellow-500 text-yellow-950'; // Gold
+    if (points >= 50) return 'bg-gray-400 text-gray-950'; // Silver
+    if (points >= 25) return 'bg-amber-600 text-amber-950'; // Bronze
+    return 'bg-blue-500 text-blue-950'; // Default
+  };
+
+  const getPointsBadgeIcon = (points: number) => {
+    if (points >= 100) return '🏆'; // Legend
+    if (points >= 50) return '🥇'; // Champion
+    if (points >= 25) return '⭐'; // Rising Star
+    return '🎯'; // Starter
+  };
+
   return (
     <Card className="transition-all hover:shadow-md">
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-3">
             <ProfileAvatar employeeName={status.employee_name} size="sm" />
-            <h3 className="font-semibold text-lg">{status.employee_name}</h3>
+            <div>
+              <h3 className="font-semibold text-lg">{status.employee_name}</h3>
+              {pointsData && pointsData.isPointsSystemActive && (
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge 
+                    className={cn(
+                      "text-xs font-bold px-2 py-0.5",
+                      getPointsBadgeColor(pointsData.totalPoints)
+                    )}
+                  >
+                    <span className="mr-1">{getPointsBadgeIcon(pointsData.totalPoints)}</span>
+                    {pointsData.totalPoints} pts
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {pointsData.level}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex items-center space-x-2">
             <Badge variant={status.is_active ? "default" : "secondary"}>
               {status.is_active ? 'Active' : 'Completed'}
             </Badge>
+            {isAdmin && status.is_active && pointsData && pointsData.isPointsSystemActive && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPointsDialogOpen(true)}
+                className="h-8 px-3"
+                title="Award Points"
+              >
+                <Trophy className="h-3 w-3 mr-1 text-yellow-600 dark:text-yellow-400" />
+                Points
+              </Button>
+            )}
             {isAdmin && status.is_active && onForceClockout && (
               <Button
                 variant="destructive"
@@ -127,6 +180,16 @@ export const EmployeeStatusCard: React.FC<EmployeeStatusCardProps> = ({
           </div>
         )}
       </CardContent>
+      
+      {/* Points Adjustment Dialog */}
+      {status.employee_id && (
+        <PointsAdjustmentDialog
+          open={pointsDialogOpen}
+          onOpenChange={setPointsDialogOpen}
+          employeeId={status.employee_id}
+          employeeName={status.employee_name}
+        />
+      )}
     </Card>
   );
 };

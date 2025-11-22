@@ -28,7 +28,8 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  ClipboardList
+  ClipboardList,
+  Trophy
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -130,6 +131,13 @@ const Layout = () => {
       href: '/task-management',
       icon: ClipboardList,
       description: t('taskManagementDescription'),
+      roles: ['admin', 'owner']
+    },
+    {
+      name: 'Points Management',
+      href: '/points-management',
+      icon: Trophy,
+      description: 'Award and manage employee points',
       roles: ['admin', 'owner']
     },
     {

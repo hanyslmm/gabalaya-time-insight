@@ -6,6 +6,7 @@ import { EmployeeStatusCard } from './EmployeeStatusCard';
 
 interface EmployeeStatus {
   employee_name: string;
+  employee_id?: string | null;
   clock_in_time: string;
   clock_in_date: string;
   clock_in_location?: string;

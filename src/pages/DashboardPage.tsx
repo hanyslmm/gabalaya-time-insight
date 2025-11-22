@@ -24,6 +24,7 @@ import PullToRefresh from '@/components/PullToRefresh';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import GlobalSearch from '@/components/GlobalSearch';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import EmployeePointsCard from '@/components/EmployeePointsCard';
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subMonths, startOfYear, endOfYear } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -621,6 +622,13 @@ const DashboardPage: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
+          </div>
+        )}
+
+        {/* Employee Points Card - Only for employees when points system is active */}
+        {user?.role === 'employee' && (
+          <div className="mb-8">
+            <EmployeePointsCard />
           </div>
         )}
 

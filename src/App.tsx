@@ -7,6 +7,7 @@ import Layout from '@/components/Layout';
 import LoginPage from '@/pages/LoginPage';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import NotFound from '@/pages/NotFound';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { Suspense, lazy, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import './i18n';
@@ -25,6 +26,7 @@ const CompanySettingsPage = lazy(() => import('@/pages/CompanySettingsPage'));
 const OrganizationManagement = lazy(() => import('@/components/OrganizationManagement'));
 const TaskManagementPage = lazy(() => import('@/pages/TaskManagementPage'));
 const WorkRegulationsPage = lazy(() => import('@/pages/WorkRegulationsPage'));
+const PointsManagementPage = lazy(() => import('@/pages/PointsManagementPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -53,11 +55,12 @@ function App() {
   }, [i18n.language]);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Router>
-          <div className="min-h-screen w-full bg-background overflow-x-hidden">
-            <Routes>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <Router>
+            <div className="min-h-screen w-full bg-background overflow-x-hidden">
+              <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route
                 path="/"
@@ -128,14 +131,20 @@ function App() {
                     <WorkRegulationsPage />
                   </Suspense>
                 } />
+                <Route path="points-management" element={
+                  <Suspense fallback={<PageLoader />}>
+                    <PointsManagementPage />
+                  </Suspense>
+                } />
               </Route>
               <Route path="*" element={<NotFound />} />
-            </Routes>
-          </div>
-          <Toaster />
-        </Router>
-      </AuthProvider>
-    </QueryClientProvider>
+              </Routes>
+            </div>
+            <Toaster />
+          </Router>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

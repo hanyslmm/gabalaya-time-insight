@@ -12,13 +12,17 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Clock, LogIn, LogOut, MapPin, AlertCircle, RefreshCw, Users, Eye, EyeOff, Coffee, Target, Zap, Calendar, Timer, UserPlus, Shield, ClipboardList } from 'lucide-react';
+import { Clock, LogIn, LogOut, MapPin, AlertCircle, RefreshCw, Users, Eye, EyeOff, Coffee, Target, Zap, Calendar, Timer, UserPlus, Shield, ClipboardList, Trophy } from 'lucide-react';
 import { format, differenceInMinutes, startOfDay, addHours } from 'date-fns';
 import { toast } from 'sonner';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import { getCurrentCompanyTime, getTodayInCompanyTimezone, validateTimezone, parseCompanyDateTime } from '@/utils/timezoneUtils';
 import { getTimezoneAbbreviation, formatTimeToAMPM } from '@/utils/timeFormatter';
 import ShiftTasksModal from '@/components/ShiftTasksModal';
+import PointsAdjustmentDialog from '@/components/PointsAdjustmentDialog';
+import EmployeePointsCard from '@/components/EmployeePointsCard';
+import { useEmployeePoints } from '@/hooks/useEmployeePoints';
+import { cn } from '@/lib/utils';
 
 // Defines the structure for a clock-in/out entry
 interface ClockEntry {
@@ -88,6 +92,10 @@ const ClockInOutPage: React.FC = () => {
   const [shiftTasks, setShiftTasks] = useState<any[]>([]);
   const [currentTimesheetEntryId, setCurrentTimesheetEntryId] = useState<string | null>(null);
   const [showShiftTasksModal, setShowShiftTasksModal] = useState(false);
+  
+  // Points adjustment dialog state
+  const [pointsDialogOpen, setPointsDialogOpen] = useState(false);
+  const [selectedEmployeeForPoints, setSelectedEmployeeForPoints] = useState<{id: string; name: string} | null>(null);
 
   // Simplified loading timeout - just one timeout to prevent infinite loading
   useEffect(() => {
@@ -1408,12 +1416,32 @@ const ClockInOutPage: React.FC = () => {
                               <Clock className="h-3 w-3" />
                               <span>Started at {formatCompanyTimeAMPM(member.clock_in_date, member.clock_in_time)}</span>
                             </div>
+                            {/* Points Badge - Hidden to prevent employees from seeing each other's points */}
+                            {/* Future feature: Can be re-enabled if needed */}
+                            {/* {member.employee_id && <EmployeePointsBadge employeeId={member.employee_id} />} */}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge variant="outline" className="bg-success/10 text-success border-success/30 font-semibold">
                             ⏱️ {formatDuration(member.duration_minutes)}
                           </Badge>
+                          {/* Admin/Owner: Award Points Button - Hidden for now, use Points Management page instead */}
+                          {/* Future feature: Can be re-enabled if needed */}
+                          {/* {user && ['admin', 'owner'].includes(user.role) && member.employee_id && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedEmployeeForPoints({ id: member.employee_id!, name: member.employee_name });
+                                setPointsDialogOpen(true);
+                              }}
+                              className="h-8 px-3"
+                              title="Award Points"
+                            >
+                              <Trophy className="h-3 w-3 mr-1 text-yellow-600 dark:text-yellow-400" />
+                              Points
+                            </Button>
+                          )} */}
                           {user && ['admin', 'owner'].includes(user.role) && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -1656,6 +1684,12 @@ const ClockInOutPage: React.FC = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Employee Points Card - Only for employees when points system is active */}
+        {/* Positioned at the bottom of the page */}
+        {user?.role === 'employee' && (
+          <EmployeePointsCard />
+        )}
       </div>
 
       {/* Confirm Clock-Out Modal */}
@@ -1748,6 +1782,59 @@ const ClockInOutPage: React.FC = () => {
           organizationId={(user as any)?.current_organization_id || user?.organization_id || ''}
         />
       )}
+
+      {/* Points Adjustment Dialog */}
+      {selectedEmployeeForPoints && (
+        <PointsAdjustmentDialog
+          open={pointsDialogOpen}
+          onOpenChange={(open) => {
+            setPointsDialogOpen(open);
+            if (!open) setSelectedEmployeeForPoints(null);
+          }}
+          employeeId={selectedEmployeeForPoints.id}
+          employeeName={selectedEmployeeForPoints.name}
+        />
+      )}
+    </div>
+  );
+};
+
+// Helper component for employee points badge
+const EmployeePointsBadge: React.FC<{ employeeId: string }> = ({ employeeId }) => {
+  const { data: pointsData } = useEmployeePoints(employeeId);
+  
+  if (!pointsData || !pointsData.isPointsSystemActive) {
+    return null;
+  }
+
+  const getPointsBadgeColor = (points: number) => {
+    if (points >= 100) return 'bg-yellow-500 text-yellow-950'; // Gold
+    if (points >= 50) return 'bg-gray-400 text-gray-950'; // Silver
+    if (points >= 25) return 'bg-amber-600 text-amber-950'; // Bronze
+    return 'bg-blue-500 text-blue-950'; // Default
+  };
+
+  const getPointsBadgeIcon = (points: number) => {
+    if (points >= 100) return '🏆'; // Legend
+    if (points >= 50) return '🥇'; // Champion
+    if (points >= 25) return '⭐'; // Rising Star
+    return '🎯'; // Starter
+  };
+
+  return (
+    <div className="flex items-center gap-2 mt-1">
+      <Badge 
+        className={cn(
+          "text-xs font-bold px-2 py-0.5",
+          getPointsBadgeColor(pointsData.totalPoints)
+        )}
+      >
+        <span className="mr-1">{getPointsBadgeIcon(pointsData.totalPoints)}</span>
+        {pointsData.totalPoints} pts
+      </Badge>
+      <span className="text-xs text-muted-foreground">
+        {pointsData.level}
+      </span>
     </div>
   );
 };
