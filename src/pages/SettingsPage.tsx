@@ -313,11 +313,12 @@ const SettingsPage: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <h4 className="font-medium">{t('version')}</h4>
-                  <p className="text-sm text-muted-foreground">3.1.0</p>
+                  <p className="text-sm text-muted-foreground">3.1.1</p>
                 </div>
                 <div>
                   <h4 className="font-medium">{t('recentUpdates')}</h4>
                   <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-5">
+                    <li>⚡ Optimized Data Fetching v3.1.1: Implemented Realtime-First strategy with Polling Fallback in Clock In/Out page. Reduces database load by ~50% when Realtime is active, with automatic fallback to polling if Realtime fails. Includes feature flag for quick rollback and comprehensive debug logging.</li>
                     <li>📊 Enhanced Attendance Report Export v3.1: Complete redesign of Excel exports with payroll-style grouping by employee, separate morning/night wage rate columns for audit clarity, AM/PM time formatting, organization name and payroll period headers, configurable highlighting for shifts exceeding working hours threshold, and integrated Points System data (points earned, point value, cash tips) when enabled.</li>
                     <li>🏆 Champions Points System v3.0: Complete gamified points system with customizable levels, monetary rewards (1 Point = 5 EGP), budget management, points catalog, timesheet linking, and employee engagement features. Includes simplified level management with inline editing.</li>
                     <li>📝 Work Regulations Editor: Enhanced editor with character limits, improved text editing experience, focus preservation, and better UX for adding/editing items and sections</li>
