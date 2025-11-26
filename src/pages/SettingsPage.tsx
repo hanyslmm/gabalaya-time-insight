@@ -313,11 +313,13 @@ const SettingsPage: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <h4 className="font-medium">{t('version')}</h4>
-                  <p className="text-sm text-muted-foreground">3.1.2</p>
+                  <p className="text-sm text-muted-foreground">3.2.0</p>
                 </div>
                 <div>
                   <h4 className="font-medium">{t('recentUpdates')}</h4>
                   <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-5">
+                    <li>🏆 My Points Page v3.2.0: New employee-facing page with gamified progress, catalog viewer, and personal points history. Accessible via sidebar and mobile navigation. Employees can view only their own points.</li>
+                    <li>🎛️ Award Points UX v3.2.0: Catalog selection moved to grouped dropdown, RTL-friendly alignment, and type filter (Add/Deduct). Added award points action in Team Activity on Clock In/Out.</li>
                     <li>⚡ Optimized Dependency Stability v3.1.2: Refactored `ClockInOutPage` to use stable primitive dependencies for data fetching hooks. This prevents unnecessary re-initialization of Realtime subscriptions and reduces client-side processing overhead during minor state updates.</li>
                     <li>⚡ Optimized Data Fetching v3.1.1: Implemented Realtime-First strategy with Polling Fallback in Clock In/Out page. Reduces database load by ~50% when Realtime is active, with automatic fallback to polling if Realtime fails. Includes feature flag for quick rollback and comprehensive debug logging.</li>
                     <li>📊 Enhanced Attendance Report Export v3.1: Complete redesign of Excel exports with payroll-style grouping by employee, separate morning/night wage rate columns for audit clarity, AM/PM time formatting, organization name and payroll period headers, configurable highlighting for shifts exceeding working hours threshold, and integrated Points System data (points earned, point value, cash tips) when enabled.</li>

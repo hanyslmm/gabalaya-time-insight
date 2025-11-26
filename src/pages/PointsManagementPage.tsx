@@ -10,11 +10,12 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Trophy, Search, TrendingUp, Award, AlertCircle, Calendar, Clock } from 'lucide-react';
+import { Trophy, Search, TrendingUp, Award, AlertCircle, Calendar, Clock, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import ProfileAvatar from '@/components/ProfileAvatar';
 import PointsAdjustmentDialog from '@/components/PointsAdjustmentDialog';
+import PointsLogEditDialog from '@/components/PointsLogEditDialog';
 import { useEmployeePoints, useOrganizationPointsBudget } from '@/hooks/useEmployeePoints';
 import { cn } from '@/lib/utils';
 
@@ -53,8 +54,10 @@ const PointsManagementPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState<{id: string; name: string} | null>(null);
   const [pointsDialogOpen, setPointsDialogOpen] = useState(false);
+  const [editLogDialogOpen, setEditLogDialogOpen] = useState(false);
   const [selectedTimesheetEntry, setSelectedTimesheetEntry] = useState<string | null>(null);
   const [showTimesheetSelector, setShowTimesheetSelector] = useState(false);
+  const [selectedLogForEdit, setSelectedLogForEdit] = useState<PointsLogEntry | null>(null);
 
   // Check if points system is active
   const { data: orgData } = useQuery({
@@ -269,6 +272,7 @@ const PointsManagementPage: React.FC = () => {
                     <TableHead>{t('occurrenceDate')}</TableHead>
                     <TableHead>{t('awardedBy')}</TableHead>
                     <TableHead>{t('date')}</TableHead>
+                    {(user?.role === 'admin' || user?.role === 'owner') && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -297,6 +301,17 @@ const PointsManagementPage: React.FC = () => {
                       <TableCell className="text-muted-foreground text-sm">
                         {format(new Date(entry.created_at), 'MMM dd, HH:mm')}
                       </TableCell>
+                      {(user?.role === 'admin' || user?.role === 'owner') && (
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => { setSelectedLogForEdit(entry); setEditLogDialogOpen(true); }}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -320,6 +335,21 @@ const PointsManagementPage: React.FC = () => {
           employeeId={selectedEmployee.id}
           employeeName={selectedEmployee.name}
           timesheetEntryId={selectedTimesheetEntry || undefined}
+        />
+      )}
+
+      {selectedLogForEdit && (
+        <PointsLogEditDialog
+          open={editLogDialogOpen}
+          onOpenChange={(open) => {
+            setEditLogDialogOpen(open);
+            if (!open) setSelectedLogForEdit(null);
+          }}
+          logId={selectedLogForEdit.id}
+          initialPoints={selectedLogForEdit.points}
+          initialReason={selectedLogForEdit.reason}
+          initialOccurrenceDate={selectedLogForEdit.occurrence_date}
+          initialNotes={undefined}
         />
       )}
     </div>

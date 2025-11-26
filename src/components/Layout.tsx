@@ -105,6 +105,13 @@ const Layout = () => {
       roles: ['admin', 'employee', 'owner']
     },
     {
+      name: 'My Points',
+      href: '/my-points',
+      icon: Trophy,
+      description: 'View your points, progress, and catalog',
+      roles: ['admin', 'employee', 'owner']
+    },
+    {
       name: t('employees'),
       href: '/employees',
       icon: Users,

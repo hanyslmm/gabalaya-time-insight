@@ -99,6 +99,7 @@ const ClockInOutPage: React.FC = () => {
   // Points adjustment dialog state
   const [pointsDialogOpen, setPointsDialogOpen] = useState(false);
   const [selectedEmployeeForPoints, setSelectedEmployeeForPoints] = useState<{ id: string; name: string } | null>(null);
+  const [selectedTimesheetEntryForPoints, setSelectedTimesheetEntryForPoints] = useState<string | null>(null);
 
   // Ref for polling interval (for optimized polling strategy)
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -1537,7 +1538,35 @@ const ClockInOutPage: React.FC = () => {
                                   {t('actions')}
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
+                          <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={async () => {
+                                    try {
+                                      if (!user || !['admin','owner'].includes(user.role)) return;
+                                      const timesheetId = member.entry_id;
+                                      let employeeId = member.employee_id || null;
+                                      if (!employeeId && timesheetId) {
+                                        const { data } = await supabase
+                                          .from('timesheet_entries')
+                                          .select('employee_id')
+                                          .eq('id', timesheetId)
+                                          .single();
+                                        employeeId = data?.employee_id || null;
+                                      }
+                                      if (!employeeId) {
+                                        toast.error('Employee id not found for this shift');
+                                        return;
+                                      }
+                                      setSelectedEmployeeForPoints({ id: employeeId, name: member.employee_name });
+                                      setSelectedTimesheetEntryForPoints(timesheetId || null);
+                                      setPointsDialogOpen(true);
+                                    } catch (e: any) {
+                                      toast.error(e?.message || 'Failed to open points dialog');
+                                    }
+                                  }}
+                                >
+                                  {t('awardPoints')}
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => openEditClockInDialog(member)}>
                                   {t('editClockIn')}
                                 </DropdownMenuItem>
@@ -1877,10 +1906,14 @@ const ClockInOutPage: React.FC = () => {
           open={pointsDialogOpen}
           onOpenChange={(open) => {
             setPointsDialogOpen(open);
-            if (!open) setSelectedEmployeeForPoints(null);
+            if (!open) {
+              setSelectedEmployeeForPoints(null);
+              setSelectedTimesheetEntryForPoints(null);
+            }
           }}
           employeeId={selectedEmployeeForPoints.id}
           employeeName={selectedEmployeeForPoints.name}
+          timesheetEntryId={selectedTimesheetEntryForPoints || undefined}
         />
       )}
     </div>

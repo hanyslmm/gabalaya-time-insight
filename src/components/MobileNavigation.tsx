@@ -12,6 +12,7 @@ import {
   BarChart3,
   User,
   Calendar,
+  Trophy,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { vibrate } from '@/utils/pwa';
@@ -55,6 +56,12 @@ const MobileNavigation: React.FC = () => {
       shortName: 'Time',
       href: '/my-timesheet',
       icon: Calendar
+    },
+    {
+      name: 'My Points',
+      shortName: 'Points',
+      href: '/my-points',
+      icon: Trophy
     },
     ...(isAdmin ? [
       {

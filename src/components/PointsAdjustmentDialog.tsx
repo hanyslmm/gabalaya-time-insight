@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel, SelectSeparator } from '@/components/ui/select';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Card, CardContent } from '@/components/ui/card';
@@ -56,6 +56,7 @@ const PointsAdjustmentDialog: React.FC<PointsAdjustmentDialogProps> = ({
   const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id;
 
   const [selectedCatalogItem, setSelectedCatalogItem] = useState<string>('');
+  const [typeFilter, setTypeFilter] = useState<'reward' | 'penalty'>('reward');
   const [customReason, setCustomReason] = useState('');
   const [occurrenceDate, setOccurrenceDate] = useState<Date>(new Date());
   const [notes, setNotes] = useState('');
@@ -166,9 +167,7 @@ const PointsAdjustmentDialog: React.FC<PointsAdjustmentDialogProps> = ({
   });
 
   const selectedItem = catalogItems.find(item => item.id === selectedCatalogItem);
-  const pointsToAward = useCustomReason && customPoints 
-    ? parseInt(customPoints) 
-    : selectedItem?.points || 0;
+  const pointsToAward = selectedItem?.points || 0;
 
   const awardPointsMutation = useMutation({
     mutationFn: async () => {
@@ -176,16 +175,12 @@ const PointsAdjustmentDialog: React.FC<PointsAdjustmentDialogProps> = ({
         throw new Error('Please select an occurrence date');
       }
 
-      const reason = useCustomReason ? customReason.trim() : (selectedItem?.label || '');
+      const reason = selectedItem?.label || '';
       if (!reason) {
         throw new Error('Please select a reason or enter a custom reason');
       }
 
-      if (useCustomReason && !customPoints) {
-        throw new Error('Please enter points value for custom reason');
-      }
-
-      const pointsValue = useCustomReason ? parseInt(customPoints) : (selectedItem?.points || 0);
+      const pointsValue = selectedItem?.points || 0;
       if (isNaN(pointsValue) || pointsValue === 0) {
         throw new Error('Points value must be a non-zero number');
       }
@@ -200,7 +195,7 @@ const PointsAdjustmentDialog: React.FC<PointsAdjustmentDialogProps> = ({
         p_points: pointsValue,
         p_reason: reason,
         p_occurrence_date: format(occurrenceDate, 'yyyy-MM-dd'),
-        p_catalog_item_id: useCustomReason ? null : selectedCatalogItem || null,
+        p_catalog_item_id: selectedCatalogItem || null,
         p_notes: notes.trim() || null,
         p_timesheet_entry_id: timesheetEntryId || null
       });
@@ -447,143 +442,94 @@ const PointsAdjustmentDialog: React.FC<PointsAdjustmentDialogProps> = ({
             </Popover>
           </div>
 
-          {/* Custom Reason Toggle */}
-          <div className="flex items-center justify-between">
-            <Label>{t('useCustomReason')}</Label>
-            <Button
-              type="button"
-              variant={useCustomReason ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setUseCustomReason(!useCustomReason);
-                  setSelectedCatalogItem('');
-                  setCustomReason('');
-                  setCustomPoints('');
-              }}
-            >
-              {useCustomReason ? t('usingCustom') : t('useCatalog')}
-            </Button>
+          {/* Type Filter (Add / Deduct) */}
+          <div className="space-y-2">
+            <Label>{t('type') || 'Type'}</Label>
+            <Select value={typeFilter} onValueChange={(v: 'reward' | 'penalty') => {
+              setTypeFilter(v);
+              if (selectedItem && selectedItem.category !== v) {
+                setSelectedCatalogItem('');
+              }
+            }}>
+              <SelectTrigger className="h-10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="reward">
+                  <div className="flex items-center justify-between w-full rtl:flex-row-reverse gap-3">
+                    <span>{t('add') || 'Add (Rewards)'}</span>
+                    <Badge variant="outline" className="bg-green-50 text-green-700 rounded-full px-2">+</Badge>
+                  </div>
+                </SelectItem>
+                <SelectItem value="penalty">
+                  <div className="flex items-center justify-between w-full rtl:flex-row-reverse gap-3">
+                    <span>{t('deduct') || 'Deduct (Penalties)'}</span>
+                    <Badge variant="outline" className="bg-red-50 text-red-700 rounded-full px-2">−</Badge>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          {useCustomReason ? (
-            /* Custom Reason Form */
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="custom-reason">{t('reason')} *</Label>
-                <Input
-                  id="custom-reason"
-                  value={customReason}
-                  onChange={(e) => setCustomReason(e.target.value)}
-                  placeholder={t('customReason')}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="custom-points">{t('points')} *</Label>
-                <Input
-                  id="custom-points"
-                  type="number"
-                  value={customPoints}
-                  onChange={(e) => setCustomPoints(e.target.value)}
-                  placeholder={t('enterPointsValue')}
-                  required
-                />
-                <p className="text-xs text-muted-foreground">
-                  {t('positiveForRewards')}
-                </p>
-              </div>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t('selectFromCatalog')}</Label>
+              {catalogItems.length === 0 ? (
+                <div className="text-sm text-muted-foreground p-4 border rounded-lg bg-muted/50">
+                  {t('noActiveCatalogItems')}
+                </div>
+              ) : (
+                <Select
+                  value={selectedCatalogItem || 'none'}
+                  onValueChange={(v) => setSelectedCatalogItem(v === 'none' ? '' : v)}
+                >
+                  <SelectTrigger className="h-12 text-base">
+                    <SelectValue placeholder={t('selectFromCatalog')} />
+                  </SelectTrigger>
+                  <SelectContent className="min-w-[28rem] max-h-[22rem] p-2">
+                    {typeFilter === 'reward' ? (
+                      <SelectGroup>
+                        <SelectLabel className="flex items-center gap-2">
+                          <Sparkles className="h-4 w-4 text-green-600" /> {t('rewards')}
+                        </SelectLabel>
+                        {rewards.map((item) => (
+                          <SelectItem key={item.id} value={item.id}>
+                            <div className="flex items-center justify-between w-full rtl:flex-row-reverse gap-3 text-[15px] leading-relaxed py-1">
+                              <span className="truncate mr-2 rtl:mr-0 rtl:ml-2">{item.label}</span>
+                              <Badge variant="outline" className="bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 rounded-full px-2 ml-3 rtl:ml-0 rtl:mr-3">
+                                +{item.points}
+                              </Badge>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ) : (
+                      <SelectGroup>
+                        <SelectLabel className="flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4 text-red-600" /> {t('penalties')}
+                        </SelectLabel>
+                        {penalties.map((item) => (
+                          <SelectItem key={item.id} value={item.id}>
+                            <div className="flex items-center justify-between w-full rtl:flex-row-reverse gap-3 text-[15px] leading-relaxed py-1">
+                              <span className="truncate mr-2 rtl:mr-0 rtl:ml-2">{item.label}</span>
+                              <Badge variant="outline" className="bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-full px-2 ml-3 rtl:ml-0 rtl:mr-3">
+                                {item.points}
+                              </Badge>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
-          ) : (
-            /* Catalog Selection */
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>{t('selectFromCatalog')}</Label>
-                {catalogItems.length === 0 ? (
-                  <div className="text-sm text-muted-foreground p-4 border rounded-lg bg-muted/50">
-                    {t('noActiveCatalogItems')}
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {/* Rewards Section */}
-              {rewards.length > 0 && (
-                <div>
-                        <Label className="text-sm font-semibold mb-2 block flex items-center gap-2">
-                          <Sparkles className="h-4 w-4 text-green-600" />
-                          {t('rewards')}
-                        </Label>
-                        <div className="grid gap-2">
-                    {rewards.map((item) => (
-                      <Card
-                        key={item.id}
-                        className={cn(
-                          "cursor-pointer transition-all hover:shadow-md",
-                                selectedCatalogItem === item.id && "ring-2 ring-primary"
-                        )}
-                        onClick={() => setSelectedCatalogItem(item.id)}
-                      >
-                        <CardContent className="p-3">
-                          <div className="flex items-center justify-between">
-                                  <div className="flex-1">
-                                    <div className="font-medium">{item.label}</div>
-                                    {item.description && (
-                                      <div className="text-xs text-muted-foreground mt-1">
-                                        {item.description}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <Badge variant="outline" className="bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 ml-2 rtl:ml-0 rtl:mr-2">
-                                  +{item.points}
-                                </Badge>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-                    {/* Penalties Section */}
-              {penalties.length > 0 && (
-                <div>
-                        <Label className="text-sm font-semibold mb-2 block flex items-center gap-2">
-                          <AlertCircle className="h-4 w-4 text-red-600" />
-                          {t('penalties')}
-                        </Label>
-                        <div className="grid gap-2">
-                    {penalties.map((item) => (
-                      <Card
-                        key={item.id}
-                        className={cn(
-                          "cursor-pointer transition-all hover:shadow-md",
-                                selectedCatalogItem === item.id && "ring-2 ring-primary"
-                        )}
-                        onClick={() => setSelectedCatalogItem(item.id)}
-                      >
-                        <CardContent className="p-3">
-                          <div className="flex items-center justify-between">
-                                  <div className="flex-1">
-                                    <div className="font-medium">{item.label}</div>
-                                    {item.description && (
-                                      <div className="text-xs text-muted-foreground mt-1">
-                                        {item.description}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <Badge variant="outline" className="bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 ml-2">
-                                  {item.points}
-                                </Badge>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
-                </div>
-              )}
+            {selectedItem && (
+              <div className="text-xs text-muted-foreground">
+                {selectedItem.description || ''}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Notes */}
           <div className="space-y-2">
@@ -625,7 +571,7 @@ const PointsAdjustmentDialog: React.FC<PointsAdjustmentDialogProps> = ({
             </Button>
             <Button
               type="submit"
-              disabled={awardPointsMutation.isPending || !occurrenceDate || (!useCustomReason && !selectedCatalogItem) || (useCustomReason && (!customReason || !customPoints))}
+              disabled={awardPointsMutation.isPending || !occurrenceDate || !selectedCatalogItem}
             >
               {awardPointsMutation.isPending ? t('processing') : `${t('awardPoints')} ${pointsToAward > 0 ? '+' : ''}${pointsToAward} ${t('points')}`}
             </Button>

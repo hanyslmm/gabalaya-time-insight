@@ -27,6 +27,7 @@ const OrganizationManagement = lazy(() => import('@/components/OrganizationManag
 const TaskManagementPage = lazy(() => import('@/pages/TaskManagementPage'));
 const WorkRegulationsPage = lazy(() => import('@/pages/WorkRegulationsPage'));
 const PointsManagementPage = lazy(() => import('@/pages/PointsManagementPage'));
+const MyPointsPage = lazy(() => import('@/pages/MyPointsPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -134,6 +135,11 @@ function App() {
                 <Route path="points-management" element={
                   <Suspense fallback={<PageLoader />}>
                     <PointsManagementPage />
+                  </Suspense>
+                } />
+                <Route path="my-points" element={
+                  <Suspense fallback={<PageLoader />}>
+                    <MyPointsPage />
                   </Suspense>
                 } />
               </Route>
