@@ -58,8 +58,8 @@ const MobileNavigation: React.FC = () => {
       icon: Calendar
     },
     {
-      name: 'My Points',
-      shortName: 'Points',
+      name: t('myPoints'),
+      shortName: t('points'),
       href: '/my-points',
       icon: Trophy
     },

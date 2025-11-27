@@ -607,6 +607,16 @@
   "insufficientBudget": "ميزانية غير كافية. تحتاج {amount} نقاط إضافية.",
   "rewards": "المكافآت",
   "penalties": "الجزاءات",
+  "myPoints": "نقاطي",
+  "pointsProgressOverview": "عرض النقاط، التقدم، والكتالوج",
+  "yourProgress": "تقدمك",
+  "pointsCatalog": "كتالوج النقاط",
+  "nextLevelProgress": "التقدم نحو المستوى التالي",
+  "targetPoints": "نقاط الهدف",
+  "pointsEarned": "نقاط مكتسبة",
+  "pointsLast30": "نقاط آخر 30 يوم",
+  "activeDays30": "أيام نشاط خلال 30 يوم",
+  "keepGoing": "استمر! إنجازك يقترب من المستوى التالي.",
   "pointsToAward": "النقاط الممنوحة",
   "pointsToDeduct": "النقاط المخصومة",
   "remainingBudgetAfter": "الميزانية المتبقية بعد: {amount} نقاط",
@@ -635,6 +645,6 @@
   "totalScore": "النتيجة الإجمالية",
   "progressToNextLevel": "التقدم إلى المستوى التالي",
   "maxLevelReached": "تم الوصول إلى المستوى الأقصى!",
-  "noPointsActivityYet": "لا يوجد نشاط نقاط حتى الآن"
+  "noPointsActivityYet": "لا يوجد نشاط نقاط حتى الآن",
+  "pointsManagementNavDescription": "منح وإدارة نقاط الموظفين"
 }
-

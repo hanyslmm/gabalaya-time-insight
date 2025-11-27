@@ -36,17 +36,18 @@ import { toast } from 'sonner';
 import { handleSingleClick } from '@/utils/clickHandler';
 
 const Layout = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  
+  const isRtl = i18n.dir() === 'rtl';
+
   console.log('Layout: Rendering with user:', user, 'location:', location.pathname);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
-  
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -69,7 +70,7 @@ const Layout = () => {
   const closeMobileSidebar = () => {
     setSidebarOpen(false);
   };
-  
+
   // Enhanced click handler for navigation links (prevents double-clicks on desktop)
   const handleNavClick = React.useCallback((e: React.MouseEvent) => {
     if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
@@ -105,10 +106,10 @@ const Layout = () => {
       roles: ['admin', 'employee', 'owner']
     },
     {
-      name: 'My Points',
+      name: t('myPoints'),
       href: '/my-points',
       icon: Trophy,
-      description: 'View your points, progress, and catalog',
+      description: t('pointsProgressOverview'),
       roles: ['admin', 'employee', 'owner']
     },
     {
@@ -141,10 +142,10 @@ const Layout = () => {
       roles: ['admin', 'owner']
     },
     {
-      name: 'Points Management',
+      name: t('pointsManagement'),
       href: '/points-management',
       icon: Trophy,
-      description: 'Award and manage employee points',
+      description: t('pointsManagementNavDescription'),
       roles: ['admin', 'owner']
     },
     {
@@ -192,7 +193,7 @@ const Layout = () => {
     return location.pathname === path ||
       (path !== '/dashboard' && location.pathname.startsWith(path));
   };
-  
+
   const getInitials = (fullName) => {
     if (!fullName) return 'U';
     return fullName
@@ -214,9 +215,9 @@ const Layout = () => {
 
       {/* Left Sidebar */}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 flex flex-col bg-card border-r border-border transition-all duration-300 ease-in-out shadow-sm",
+        "fixed inset-y-0 start-0 z-50 flex flex-col bg-card border-e border-border transition-all duration-300 ease-in-out shadow-sm",
         "lg:relative lg:translate-x-0",
-        sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
+        sidebarOpen ? "translate-x-0" : (isRtl ? "translate-x-full" : "-translate-x-full") + " lg:translate-x-0",
         sidebarCollapsed ? "lg:w-16" : "lg:w-64",
         "w-64"
       )}>
@@ -234,7 +235,7 @@ const Layout = () => {
               <p className="text-xs text-muted-foreground">{t('hrmSystem')}</p>
             </div>
           </div>
-          
+
           {/* Desktop Collapse Toggle */}
           <Button
             variant="ghost"
@@ -280,9 +281,9 @@ const Layout = () => {
                   "flex-shrink-0 h-5 w-5 transition-colors duration-200",
                   isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
                 )} />
-                
+
                 <div className={cn(
-                  "ml-3 min-w-0 flex-1 transition-all duration-200",
+                  "ms-3 min-w-0 flex-1 transition-all duration-200",
                   sidebarCollapsed ? "lg:opacity-0 lg:w-0 lg:overflow-hidden" : "opacity-100"
                 )}>
                   <p className={cn(
@@ -298,9 +299,9 @@ const Layout = () => {
                     {item.description}
                   </p>
                 </div>
-                
+
                 {isActive && !sidebarCollapsed && (
-                  <div className="hidden lg:block w-1 h-5 bg-primary-foreground rounded-full ml-auto" />
+                  <div className="hidden lg:block w-1 h-5 bg-primary-foreground rounded-full ms-auto" />
                 )}
               </Link>
             );
@@ -319,25 +320,25 @@ const Layout = () => {
               isOwner
                 ? "border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-950"
                 : isAdmin
-                ? "border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950"
-                : "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950"
+                  ? "border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950"
+                  : "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950"
             )}>
               <div className="flex items-center justify-center gap-2">
                 <Shield className={cn(
                   "h-4 w-4",
-                  isOwner 
-                    ? "text-purple-600 dark:text-purple-400" 
-                    : isAdmin 
-                    ? "text-orange-600 dark:text-orange-400" 
-                    : "text-blue-600 dark:text-blue-400"
+                  isOwner
+                    ? "text-purple-600 dark:text-purple-400"
+                    : isAdmin
+                      ? "text-orange-600 dark:text-orange-400"
+                      : "text-blue-600 dark:text-blue-400"
                 )} />
                 <span className={cn(
                   "text-sm font-medium capitalize",
-                  isOwner 
-                    ? "text-purple-600 dark:text-purple-400" 
-                    : isAdmin 
-                    ? "text-orange-600 dark:text-orange-400" 
-                    : "text-blue-600 dark:text-blue-400"
+                  isOwner
+                    ? "text-purple-600 dark:text-purple-400"
+                    : isAdmin
+                      ? "text-orange-600 dark:text-orange-400"
+                      : "text-blue-600 dark:text-blue-400"
                 )}>
                   {user?.role}
                 </span>
@@ -361,7 +362,7 @@ const Layout = () => {
                   </AvatarFallback>
                 </Avatar>
                 <div className={cn(
-                  "ml-3 text-left min-w-0 flex-1 transition-all duration-200",
+                  "ms-3 text-start min-w-0 flex-1 transition-all duration-200",
                   sidebarCollapsed ? "lg:opacity-0 lg:w-0 lg:overflow-hidden" : "opacity-100"
                 )}>
                   <p className="text-sm font-medium truncate">{user?.full_name || user?.username}</p>
@@ -377,7 +378,7 @@ const Layout = () => {
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link to="/profile" className="mobile-touch-target mobile-focus-ring">
-                  <User className="h-4 w-4 mr-2" />
+                  <User className="h-4 w-4 me-2" />
                   <span>{t('profile')}</span>
                 </Link>
               </DropdownMenuItem>
@@ -386,12 +387,12 @@ const Layout = () => {
                 onClick={handleLogout}
                 className="text-destructive focus:text-destructive mobile-touch-target mobile-focus-ring"
               >
-                <LogOut className="h-4 w-4 mr-2" />
+                <LogOut className="h-4 w-4 me-2" />
                 <span>{t('logout')}</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          
+
           {/* Version Display */}
           <div className={cn(
             "mt-4 pt-4 border-t border-border/50",
@@ -423,7 +424,7 @@ const Layout = () => {
             <div className="flex-1 px-4 lg:px-0">
               {/* Title now handled by MobileHeader component in each page */}
             </div>
-            
+
             {/* Right Section */}
             <div className="flex items-center gap-2">
               {/* Global Search - Desktop Only */}

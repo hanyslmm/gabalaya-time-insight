@@ -607,7 +607,16 @@
   "insufficientBudget": "Insufficient budget. Need {amount} more points.",
   "rewards": "Rewards",
   "penalties": "Penalties",
-  "pointsToAward": "Points to Award",
+  "myPoints": "My Points",
+  "pointsProgressOverview": "Points, progress, and catalog",
+  "yourProgress": "Your Progress",
+  "pointsCatalog": "Points Catalog",
+  "nextLevelProgress": "Next Level Progress",
+  "targetPoints": "Target Points",
+  "pointsEarned": "Points Earned",
+  "pointsLast30": "Points (last 30 days)",
+  "activeDays30": "Active Days (30d)",
+  "keepGoing": "Keep going! You're close to the next level.""pointsToAward": "Points to Award",
   "pointsToDeduct": "Points to Deduct",
   "remainingBudgetAfter": "Remaining budget after: {amount} points",
   "processing": "Processing...",
@@ -635,6 +644,6 @@
   "totalScore": "Total Score",
   "progressToNextLevel": "Progress to Next Level",
   "maxLevelReached": "Maximum level reached!",
-  "noPointsActivityYet": "No points activity yet"
+  "noPointsActivityYet": "No points activity yet",
+  "pointsManagementNavDescription": "Award and manage employee points"
 }
-
