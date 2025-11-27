@@ -12,9 +12,9 @@ import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
-import { 
-  Users, Clock, DollarSign, TrendingUp, ShieldAlert, 
-  Activity, Calendar as CalendarIcon, 
+import {
+  Users, Clock, DollarSign, TrendingUp, ShieldAlert,
+  Activity, Calendar as CalendarIcon,
   ArrowUpRight, ArrowDownRight, RefreshCw, GitCompare, Building2,
   Award, UserCheck
 } from 'lucide-react';
@@ -37,7 +37,7 @@ const DashboardPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  
+
   // Get current organization name
   const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
   const { data: currentOrg } = useQuery({
@@ -65,22 +65,22 @@ const DashboardPage: React.FC = () => {
         .select('name')
         .eq('organization_id', activeOrganizationId)
         .order('name');
-      
+
       if (error) {
         console.error('Failed to fetch roles:', error);
         return [];
       }
-      
+
       // Add system roles
       const allRoles = [
         ...(data || []).map((r: any) => r.name),
         'Employee', 'admin', 'owner'
       ].filter((role, index, self) => self.indexOf(role) === index);
-      
+
       return allRoles;
     }
   });
-  
+
   // State management
   const [datePreset, setDatePreset] = useState<string>('current');
   const [customDateRange, setCustomDateRange] = useState<DateRange | null>(null);
@@ -91,7 +91,7 @@ const DashboardPage: React.FC = () => {
   // Calculate date ranges based on presets
   const getDateRangeForPreset = (preset: string): DateRange => {
     const today = new Date();
-    
+
     switch (preset) {
       case 'today':
         return { from: startOfDay(today), to: endOfDay(today) };
@@ -140,80 +140,80 @@ const DashboardPage: React.FC = () => {
   // Calculate previous period for comparison - intelligently based on selected preset
   const previousPeriod = useMemo(() => {
     const today = new Date();
-    
+
     // If custom date range, calculate previous period by subtracting the same duration
     if (customDateRange) {
-    const daysDiff = Math.ceil((activePeriod.to.getTime() - activePeriod.from.getTime()) / (1000 * 60 * 60 * 24));
-    const prevTo = new Date(activePeriod.from);
-    prevTo.setDate(prevTo.getDate() - 1);
-    const prevFrom = new Date(prevTo);
-    prevFrom.setDate(prevFrom.getDate() - daysDiff);
-    return { from: prevFrom, to: prevTo };
+      const daysDiff = Math.ceil((activePeriod.to.getTime() - activePeriod.from.getTime()) / (1000 * 60 * 60 * 24));
+      const prevTo = new Date(activePeriod.from);
+      prevTo.setDate(prevTo.getDate() - 1);
+      const prevFrom = new Date(prevTo);
+      prevFrom.setDate(prevFrom.getDate() - daysDiff);
+      return { from: prevFrom, to: prevTo };
     }
-    
+
     // Calculate previous equivalent period based on preset
     switch (datePreset) {
       case 'today':
         // Today → Yesterday
         const yesterday = subDays(today, 1);
         return { from: startOfDay(yesterday), to: endOfDay(yesterday) };
-      
+
       case 'yesterday':
         // Yesterday → Day before yesterday
         const dayBeforeYesterday = subDays(today, 2);
         return { from: startOfDay(dayBeforeYesterday), to: endOfDay(dayBeforeYesterday) };
-      
+
       case 'thisWeek':
         // This week → Last week
         const lastWeekStart = startOfWeek(subDays(today, 7));
         const lastWeekEnd = endOfWeek(subDays(today, 7));
         return { from: lastWeekStart, to: lastWeekEnd };
-      
+
       case 'lastWeek':
         // Last week → Week before last week
         const weekBeforeLastStart = startOfWeek(subDays(today, 14));
         const weekBeforeLastEnd = endOfWeek(subDays(today, 14));
         return { from: weekBeforeLastStart, to: weekBeforeLastEnd };
-      
+
       case 'thisMonth':
         // This month → Last month
         const lastMonth = subMonths(today, 1);
         return { from: startOfMonth(lastMonth), to: endOfMonth(lastMonth) };
-      
+
       case 'lastMonth':
         // Last month → Month before last month
         const monthBeforeLast = subMonths(today, 2);
         return { from: startOfMonth(monthBeforeLast), to: endOfMonth(monthBeforeLast) };
-      
+
       case 'last7Days':
         // Last 7 days → Previous 7 days (7-14 days ago)
         // Current: today-6 to today (7 days), Previous: today-13 to today-7 (7 days)
         const prev7DaysEnd = subDays(today, 7);
         const prev7DaysStart = subDays(prev7DaysEnd, 6);
         return { from: prev7DaysStart, to: prev7DaysEnd };
-      
+
       case 'last30Days':
         // Last 30 days → Previous 30 days (30-60 days ago)
         // Current: today-29 to today (30 days), Previous: today-59 to today-30 (30 days)
         const prev30DaysEnd = subDays(today, 30);
         const prev30DaysStart = subDays(prev30DaysEnd, 29);
         return { from: prev30DaysStart, to: prev30DaysEnd };
-      
+
       case 'thisYear':
         // This year → Last year
         const lastYear = today.getFullYear() - 1;
         return { from: startOfYear(new Date(lastYear, 0, 1)), to: endOfYear(new Date(lastYear, 11, 31)) };
-      
+
       case 'current':
         // Current period (month to date) → Previous month (full month)
         const prevMonth = subMonths(today, 1);
         return { from: startOfMonth(prevMonth), to: endOfMonth(prevMonth) };
-      
+
       case 'previous':
         // Previous month → Month before previous month
         const monthBeforePrevious = subMonths(today, 2);
         return { from: startOfMonth(monthBeforePrevious), to: endOfMonth(monthBeforePrevious) };
-      
+
       default:
         // Default: subtract same duration
         const daysDiff = Math.ceil((activePeriod.to.getTime() - activePeriod.from.getTime()) / (1000 * 60 * 60 * 24));
@@ -226,14 +226,14 @@ const DashboardPage: React.FC = () => {
   }, [activePeriod, datePreset, customDateRange]);
 
   // Fetch data with auto-refresh
-  const { 
-    data: activeData, 
+  const {
+    data: activeData,
     isLoading: activeLoading,
     refetch: refetchActive,
     dataUpdatedAt: activeUpdatedAt
   } = useDashboardData(activePeriod, true, selectedRole);
 
-  const { 
+  const {
     data: previousData,
     refetch: refetchPrevious
   } = useDashboardData(previousPeriod, compareMode, selectedRole);
@@ -340,7 +340,7 @@ const DashboardPage: React.FC = () => {
           <AlertDescription>
             {t('accessDenied')}
             <div className="mt-4">
-              <Button 
+              <Button
                 onClick={() => navigate('/clock-in-out')}
                 variant="outline"
                 size="sm"
@@ -431,7 +431,7 @@ const DashboardPage: React.FC = () => {
                   )}
                 </div>
                 <p className="text-base sm:text-lg text-muted-foreground max-w-2xl">
-                  {currentOrg 
+                  {currentOrg
                     ? `${t('realTimeInsights')} • ${currentOrg.name}`
                     : t('realTimeInsights')
                   }
@@ -455,7 +455,7 @@ const DashboardPage: React.FC = () => {
                   )}
                 </div>
               </div>
-              
+
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">
                 <div className="flex items-center gap-2 flex-wrap">
                   {/* Role Filter */}
@@ -501,11 +501,11 @@ const DashboardPage: React.FC = () => {
                         <Button
                           variant="outline"
                           className={cn(
-                            "w-[240px] justify-start text-left font-normal bg-background/80 backdrop-blur-sm border-border/50",
+                            "w-[240px] justify-start text-start font-normal bg-background/80 backdrop-blur-sm border-border/50",
                             !customDateRange && "text-muted-foreground"
                           )}
                         >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          <CalendarIcon className="me-2 h-4 w-4" />
                           {customDateRange ? (
                             <>
                               {format(customDateRange.from, 'MMM dd, yyyy')} - {format(customDateRange.to, 'MMM dd, yyyy')}
@@ -534,7 +534,7 @@ const DashboardPage: React.FC = () => {
                     onClick={() => setCompareMode(!compareMode)}
                     className="bg-background/80 backdrop-blur-sm border-border/50"
                   >
-                    <GitCompare className="h-4 w-4 mr-2" />
+                    <GitCompare className="h-4 w-4 me-2" />
                     {t('compare') || 'Compare'}
                   </Button>
 
@@ -557,10 +557,10 @@ const DashboardPage: React.FC = () => {
               </div>
             </div>
           </div>
-          
+
           {/* Decorative background elements */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-primary/10 to-transparent rounded-full -translate-y-32 translate-x-32" />
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-secondary/10 to-transparent rounded-full translate-y-24 -translate-x-24" />
+          <div className="absolute top-0 end-0 w-64 h-64 bg-gradient-to-br from-primary/10 to-transparent rounded-full -translate-y-32 translate-x-32" />
+          <div className="absolute bottom-0 start-0 w-48 h-48 bg-gradient-to-tr from-secondary/10 to-transparent rounded-full translate-y-24 -translate-x-24" />
         </div>
 
         {/* Comparison Mode Stats */}
@@ -592,7 +592,7 @@ const DashboardPage: React.FC = () => {
                     } else {
                       previousValue = Math.round(previousData?.totalShifts || 0);
                     }
-                    
+
                     return (
                       <div key={index} className="p-4 rounded-lg border border-border/50 bg-background/50">
                         <div className="text-sm text-muted-foreground mb-2">{stat.title}</div>
@@ -601,17 +601,16 @@ const DashboardPage: React.FC = () => {
                             <div className="text-lg font-bold">{currentValue}</div>
                             <div className="text-xs text-muted-foreground">{getPeriodLabel()}</div>
                           </div>
-                          <div className="text-right">
+                          <div className="text-end">
                             <div className="text-lg font-bold text-muted-foreground">{previousValue}</div>
                             <div className="text-xs text-muted-foreground">{getPreviousPeriodLabel()}</div>
                           </div>
                         </div>
                         {stat.change !== 0 && (
-                          <div className={`mt-2 text-xs font-medium flex items-center gap-1 ${
-                            stat.change > 0 
-                              ? 'text-green-600 dark:text-green-400' 
-                              : 'text-red-600 dark:text-red-400'
-                          }`}>
+                          <div className={`mt-2 text-xs font-medium flex items-center gap-1 ${stat.change > 0
+                            ? 'text-green-600 dark:text-green-400'
+                            : 'text-red-600 dark:text-red-400'
+                            }`}>
                             {stat.change > 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
                             {Math.abs(stat.change).toFixed(1)}% {t('change') || 'change'}
                           </div>
@@ -635,13 +634,13 @@ const DashboardPage: React.FC = () => {
         {/* Enhanced Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6 mb-8">
           {stats.map((stat, index) => (
-            <Card 
+            <Card
               key={index}
               className="group relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-500 cursor-pointer bg-gradient-to-br from-card to-card/90 backdrop-blur-sm"
             >
               {/* Gradient overlay */}
               <div className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-0 group-hover:opacity-5 transition-opacity duration-500`} />
-              
+
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 relative z-10">
                 <div className="space-y-1">
                   <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
@@ -652,11 +651,10 @@ const DashboardPage: React.FC = () => {
                       {stat.value}
                     </span>
                     {stat.change !== 0 && (
-                      <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-                        stat.change > 0 
-                          ? 'bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400' 
-                          : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
-                      }`}>
+                      <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${stat.change > 0
+                        ? 'bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400'
+                        : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
+                        }`}>
                         {stat.change > 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
                         {Math.abs(stat.change).toFixed(1)}%
                       </div>
@@ -668,7 +666,7 @@ const DashboardPage: React.FC = () => {
                   <stat.icon className="h-6 w-6" />
                 </div>
               </CardHeader>
-              
+
               <CardContent className="pt-0 relative z-10">
                 <p className="text-sm text-muted-foreground">{stat.description}</p>
                 {stat.change !== 0 && compareMode && (
@@ -679,8 +677,8 @@ const DashboardPage: React.FC = () => {
               </CardContent>
 
               {/* Animated border */}
-              <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-transparent via-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" 
-                   style={{ background: `linear-gradient(90deg, transparent, ${stat.color.split(' ')[1]}/0.2, transparent)` }} />
+              <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-transparent via-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                style={{ background: `linear-gradient(90deg, transparent, ${stat.color.split(' ')[1]}/0.2, transparent)` }} />
             </Card>
           ))}
         </div>
@@ -696,22 +694,22 @@ const DashboardPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Top Performers */}
           <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-card/90 backdrop-blur-sm">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-xl font-bold flex items-center gap-2">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-xl font-bold flex items-center gap-2">
                     <Award className="h-5 w-5 text-primary" />
                     {t('topPerformers') || 'Top Performers'}
-                </CardTitle>
+                  </CardTitle>
                   <p className="text-muted-foreground mt-1 text-sm">
                     {t('topEmployeesByHours') || 'Top 5 employees by hours worked'}
                   </p>
-              </div>
-              <Badge variant="outline" className="text-xs">
+                </div>
+                <Badge variant="outline" className="text-xs">
                   {getPeriodLabel()}
-              </Badge>
-            </div>
-          </CardHeader>
+                </Badge>
+              </div>
+            </CardHeader>
             <CardContent>
               {activeLoading ? (
                 <div className="space-y-3">
@@ -721,7 +719,7 @@ const DashboardPage: React.FC = () => {
                       <div className="flex-1 space-y-2">
                         <div className="h-4 bg-muted rounded w-3/4" />
                         <div className="h-3 bg-muted rounded w-1/2" />
-                  </div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -732,12 +730,11 @@ const DashboardPage: React.FC = () => {
                       key={index}
                       className="flex items-center gap-4 p-3 rounded-lg border border-border/50 hover:border-primary/30 transition-all bg-background/50"
                     >
-                      <div className={`flex items-center justify-center h-10 w-10 rounded-full font-bold text-sm ${
-                        index === 0 ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white' :
+                      <div className={`flex items-center justify-center h-10 w-10 rounded-full font-bold text-sm ${index === 0 ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white' :
                         index === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-500 text-white' :
-                        index === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-600 text-white' :
-                        'bg-muted text-muted-foreground'
-                      }`}>
+                          index === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-600 text-white' :
+                            'bg-muted text-muted-foreground'
+                        }`}>
                         {index + 1}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -746,7 +743,7 @@ const DashboardPage: React.FC = () => {
                           {performer.hours.toFixed(1)}h • {performer.shifts} {t('shifts') || 'shifts'}
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-end">
                         <div className="text-sm font-medium text-primary">
                           {performer.hours.toFixed(1)}h
                         </div>
@@ -778,8 +775,8 @@ const DashboardPage: React.FC = () => {
                 </div>
                 <Badge variant="outline" className="text-xs">
                   {activeData?.recentActivity?.length || 0}
-                    </Badge>
-                  </div>
+                </Badge>
+              </div>
             </CardHeader>
             <CardContent>
               {activeLoading ? (
@@ -823,16 +820,16 @@ const DashboardPage: React.FC = () => {
                         </div>
                       </div>
                     </div>
-              ))}
-            </div>
+                  ))}
+                </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <Activity className="h-12 w-12 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">{t('noRecentActivity') || 'No recent activity'}</p>
                 </div>
               )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </PullToRefresh>

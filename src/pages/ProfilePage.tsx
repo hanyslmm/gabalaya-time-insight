@@ -65,11 +65,11 @@ const ProfilePage: React.FC = () => {
           role: user.role,
           full_name: user.full_name
         });
-        
+
         // Try querying by ID first (more reliable)
         let adminData = null;
         let adminError = null;
-        
+
         if (user.id) {
           const result = await supabase
             .from('admin_users')
@@ -79,13 +79,13 @@ const ProfilePage: React.FC = () => {
           adminData = result.data;
           adminError = result.error;
         }
-        
+
         // Fallback to username if ID query didn't work
         if (!adminData && !adminError && user.username) {
           const result = await supabase
-          .from('admin_users')
-          .select('*')
-          .eq('username', user.username)
+            .from('admin_users')
+            .select('*')
+            .eq('username', user.username)
             .maybeSingle();
           adminData = result.data;
           adminError = result.error;
@@ -103,7 +103,7 @@ const ProfilePage: React.FC = () => {
           setLoading(false);
           return;
         }
-        
+
         if (adminData) {
           console.log('Admin/owner data loaded:', adminData);
           setEmployee({
@@ -111,7 +111,7 @@ const ProfilePage: React.FC = () => {
             staff_id: adminData.username,
             full_name: adminData.full_name || user.full_name || adminData.username,
             email: null,
-            phone_number: null, 
+            phone_number: null,
             role: adminData.role,
             hiring_date: adminData.created_at?.split('T')[0] || ''
           });
@@ -130,7 +130,7 @@ const ProfilePage: React.FC = () => {
             staff_id: user.username,
             full_name: user.full_name || user.username,
             email: null,
-            phone_number: null, 
+            phone_number: null,
             role: user.role,
             hiring_date: ''
           });
@@ -254,7 +254,7 @@ const ProfilePage: React.FC = () => {
       });
 
       toast.success(user?.role === 'admin' || user?.role === 'owner'
-        ? 'Password updated successfully' 
+        ? 'Password updated successfully'
         : `Password format noted. Employee passwords follow the format: ${user?.username}123`
       );
 
@@ -301,8 +301,8 @@ const ProfilePage: React.FC = () => {
 
   return (
     <MobilePageWrapper>
-      <MobileHeader 
-        title={t('profile')} 
+      <MobileHeader
+        title={t('profile')}
         subtitle={t('manageAccountInfo')}
       />
 
@@ -320,7 +320,7 @@ const ProfilePage: React.FC = () => {
                 <h2 className="text-2xl font-bold text-foreground truncate">{employee.full_name}</h2>
                 <p className="text-muted-foreground font-mono text-sm mt-1">{employee.staff_id}</p>
                 <Badge variant={employee.role === 'admin' ? 'destructive' : 'secondary'} className="mt-2">
-                  <Shield className="h-3 w-3 mr-1" />
+                  <Shield className="h-3 w-3 me-1" />
                   {employee.role.toUpperCase()}
                 </Badge>
               </div>
@@ -414,7 +414,7 @@ const ProfilePage: React.FC = () => {
                 disabled={saving}
                 className="w-full"
               >
-                <Save className="h-4 w-4 mr-2" />
+                <Save className="h-4 w-4 me-2" />
                 {saving ? t('saving') : t('saveChanges')}
               </Button>
             </CardContent>
@@ -463,7 +463,7 @@ const ProfilePage: React.FC = () => {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="absolute right-0 top-0 h-full px-3"
+                    className="absolute end-0 top-0 h-full px-3"
                     onClick={() => setShowPasswords(prev => ({ ...prev, current: !prev.current }))}
                   >
                     {showPasswords.current ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -528,7 +528,7 @@ const ProfilePage: React.FC = () => {
               className="w-full"
               variant="secondary"
             >
-              <Lock className="h-4 w-4 mr-2" />
+              <Lock className="h-4 w-4 me-2" />
               {changingPassword ? t('changingPassword') : t('changePassword')}
             </Button>
           </CardContent>

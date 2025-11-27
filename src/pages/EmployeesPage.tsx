@@ -75,7 +75,7 @@ const EmployeesPage: React.FC = () => {
         .select('*')
         .eq('status', 'active')
         .order('created_at', { ascending: false });
-      
+
       let employeeQuery = query;
 
       if (activeOrganizationId) {
@@ -88,12 +88,12 @@ const EmployeesPage: React.FC = () => {
       });
 
       const { data: employeeData, error: employeeError } = await employeeQuery;
-      
+
       console.log('🔍 Query completed!');
       console.log('🔍 Error:', employeeError);
       console.log('🔍 Data count:', employeeData?.length);
       console.log('🔍 Raw data:', employeeData);
-      
+
       if (employeeError) {
         console.error('❌ EmployeesPage: Error fetching employees:', employeeError);
         throw employeeError;
@@ -106,7 +106,7 @@ const EmployeesPage: React.FC = () => {
       // Check which employees are also admin users
       const employeeIds = (employeeData || []).map((emp: any) => emp.id);
       let adminUsers: any[] = [];
-      
+
       if (employeeIds.length > 0) {
         const { data: adminData } = await supabase
           .from('admin_users')
@@ -114,10 +114,10 @@ const EmployeesPage: React.FC = () => {
           .in('id', employeeIds);
         adminUsers = adminData || [];
       }
-      
+
       // Create a set of admin user IDs for quick lookup
       const adminUserIds = new Set(adminUsers.map(admin => admin.id));
-      
+
       // Mark employees as admin users if they exist in admin_users table
       const employeesWithAdminFlag = (employeeData || []).map((emp: any) => ({
         ...emp,
@@ -127,7 +127,7 @@ const EmployeesPage: React.FC = () => {
       // Fetch roles for all employees
       const employeeIdsForRoles = employeesWithAdminFlag.map(emp => emp.id);
       let rolesMap: Record<string, string[]> = {};
-      
+
       if (employeeIdsForRoles.length > 0) {
         const { data: roleAssignments } = await supabase
           .from('employee_role_assignments')
@@ -137,7 +137,7 @@ const EmployeesPage: React.FC = () => {
           `)
           .eq('is_active', true)
           .in('employee_id', employeeIdsForRoles);
-        
+
         if (roleAssignments) {
           roleAssignments.forEach((assignment: any) => {
             const empId = assignment.employee_id;
@@ -158,18 +158,18 @@ const EmployeesPage: React.FC = () => {
         roles: rolesMap[emp.id] || [],
         permission_level: emp.permission_level || 'employee'
       })) as (Employee & { is_admin_user?: boolean })[];
-      
+
       console.log('🔍 Final result to return:', result);
       return result;
     }
   });
 
   // Debug log when employees data changes
-  console.log('🔍 EMPLOYEES STATE:', { 
-    employees, 
-    count: employees?.length, 
-    isLoading, 
-    error: employeesError 
+  console.log('🔍 EMPLOYEES STATE:', {
+    employees,
+    count: employees?.length,
+    isLoading,
+    error: employeesError
   });
 
   const { data: adminUsers } = useQuery({
@@ -188,7 +188,7 @@ const EmployeesPage: React.FC = () => {
       }
 
       const { data: adminData, error: adminError } = await adminQuery;
-      
+
       if (adminError) throw adminError;
 
       return adminData || [];
@@ -211,7 +211,7 @@ const EmployeesPage: React.FC = () => {
         .from('employees')
         .delete()
         .eq('id', employee.id);
-      
+
       if (error) throw error;
     },
     onSuccess: () => {
@@ -355,7 +355,7 @@ const EmployeesPage: React.FC = () => {
                       <TableHead>{t('nightRate')}</TableHead>
                       <TableHead>{t('email')}</TableHead>
                       <TableHead>{t('phone')}</TableHead>
-                      <TableHead className="text-right">{t('actions')}</TableHead>
+                      <TableHead className="text-end">{t('actions')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -364,10 +364,10 @@ const EmployeesPage: React.FC = () => {
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
                             <span>{employee.full_name}</span>
-                  {employee.is_admin_user && (
+                            {employee.is_admin_user && (
                               <Lock className="h-4 w-4 text-destructive" title={t('administrator')} />
-                  )}
-                </div>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-muted-foreground">{employee.staff_id}</TableCell>
                         <TableCell>
@@ -392,34 +392,34 @@ const EmployeesPage: React.FC = () => {
                         </TableCell>
                         <TableCell className="text-muted-foreground">{employee.email || '—'}</TableCell>
                         <TableCell className="text-muted-foreground">{employee.phone_number || '—'}</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-end">
                           <div className="flex justify-end gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleEdit(employee)}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(employee)}
                               title={t('editEmployee')}
-                    className="h-8 w-8 p-0"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
+                              className="h-8 w-8 p-0"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               onClick={() => handleViewStats(employee)}
                               title={t('viewStatistics')}
-                      className="h-8 w-8 p-0"
-                    >
+                              className="h-8 w-8 p-0"
+                            >
                               <BarChart3 className="h-4 w-4" />
-                  </Button>
-                </div>
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
-                  </div>
-                  
+              </div>
+
               {/* Pagination */}
               {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-4">
@@ -429,7 +429,7 @@ const EmployeesPage: React.FC = () => {
                   <Pagination>
                     <PaginationContent>
                       <PaginationItem>
-                        <PaginationPrevious 
+                        <PaginationPrevious
                           onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                           className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
                         />
@@ -458,7 +458,7 @@ const EmployeesPage: React.FC = () => {
                         );
                       })}
                       <PaginationItem>
-                        <PaginationNext 
+                        <PaginationNext
                           onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
                           className={currentPage === totalPages || totalPages === 0 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
                         />
@@ -469,8 +469,8 @@ const EmployeesPage: React.FC = () => {
               )}
             </>
           )}
-            </CardContent>
-          </Card>
+        </CardContent>
+      </Card>
 
       {showForm && (
         <EmployeeForm

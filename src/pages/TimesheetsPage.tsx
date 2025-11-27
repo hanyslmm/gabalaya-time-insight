@@ -37,7 +37,7 @@ const TimesheetsPage: React.FC = () => {
   const [showNewEntryDialog, setShowNewEntryDialog] = useState(false);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
-  
+
   // Default to today's date range
   const [dateRange, setDateRange] = useState<DateRange>(() => {
     const today = new Date();
@@ -177,7 +177,7 @@ const TimesheetsPage: React.FC = () => {
           // All employees in current org
           if (allEmployeeIds.length > 0) {
             queryLegacy = queryLegacy.in('employee_id', allEmployeeIds);
-        } else if (allStaffIds.length > 0) {
+          } else if (allStaffIds.length > 0) {
             // Fallback matching by names/staff ids
             const orParts: string[] = [];
             if (allStaffIds.length > 0) {
@@ -224,32 +224,32 @@ const TimesheetsPage: React.FC = () => {
   // Filter timesheets data to match the same filtering logic as TimesheetTable
   const filteredTimesheets = useMemo(() => {
     if (!timesheets || timesheets.length === 0) return [];
-    
+
     return timesheets.filter(entry => {
       try {
         // Employee filter - enhanced to work with both employee_id and employee_name
         if (selectedEmployee && selectedEmployee !== 'all') {
           const entryEmployeeId = entry.employee_id;
           const entryEmployeeName = entry.employee_name;
-          
+
           // Check both employee_id and employee_name for match
           const matchesEmployeeId = entryEmployeeId === selectedEmployee;
           const matchesEmployeeName = entryEmployeeName === selectedEmployee;
-          
+
           if (!matchesEmployeeId && !matchesEmployeeName) {
             return false;
           }
         }
-        
+
         // Date range filter with proper inclusive boundaries
         if (dateRange && dateRange.from && dateRange.to) {
           try {
             const entryDate = parseISO(entry.clock_in_date);
             const fromDate = startOfDay(dateRange.from);
             const toDate = endOfDay(dateRange.to);
-            
+
             const isWithinRange = isWithinInterval(entryDate, { start: fromDate, end: toDate });
-            
+
             if (!isWithinRange) {
               return false;
             }
@@ -269,7 +269,7 @@ const TimesheetsPage: React.FC = () => {
 
   // Process filtered timesheets with virtual hours for active employees (admin/owner only)
   const [processedTimesheets, setProcessedTimesheets] = useState([]);
-  
+
   useEffect(() => {
     const processVirtualHours = async () => {
       if (!filteredTimesheets || filteredTimesheets.length === 0) {
@@ -279,7 +279,7 @@ const TimesheetsPage: React.FC = () => {
 
       // Only calculate virtual hours for admin/owner users
       const isAdminOrOwner = user?.role === 'admin' || user?.role === 'owner';
-      
+
       if (!isAdminOrOwner || !combinedWageSettings || !combinedWageSettings.morning_wage_rate) {
         setProcessedTimesheets(filteredTimesheets);
         return;
@@ -334,7 +334,7 @@ const TimesheetsPage: React.FC = () => {
 
   // Calculate filter stats
   const totalEntries = filteredTimesheets?.length || 0;
-  const selectedEmployeeName = selectedEmployee === 'all' ? t('allEmployees') : 
+  const selectedEmployeeName = selectedEmployee === 'all' ? t('allEmployees') :
     employees?.find(emp => emp.id === selectedEmployee)?.full_name || t('unknownEmployee');
 
   const hasActiveFilters = selectedEmployee !== 'all' || (dateRange && dateRange.from && dateRange.to);
@@ -348,7 +348,7 @@ const TimesheetsPage: React.FC = () => {
             {error.message || t('errorOccurred')}
           </div>
           <Button onClick={handleRefresh} variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
+            <RefreshCw className="h-4 w-4 me-2" />
             {t('retry')}
           </Button>
         </div>
@@ -358,38 +358,38 @@ const TimesheetsPage: React.FC = () => {
 
   return (
     <MobilePageWrapper>
-      <MobileHeader 
+      <MobileHeader
         title={t('timesheets')}
         subtitle={`${totalEntries} ${t('totalEntries')}`}
-         actions={
-           <div className="flex items-center gap-1 sm:gap-2">
-             <Button onClick={handleRefresh} size="sm" variant="outline" className="h-7 sm:h-9">
-               <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
-             </Button>
-             {(user?.role === 'admin' || user?.role === 'owner') && (
-               <Button
-                 onClick={() => setShowNewEntryDialog(true)}
-                 className="h-7 sm:h-9"
-                 size="sm"
-               >
-                 <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
-                 <span className="hidden sm:inline ml-1">{t('addEntry')}</span>
-               </Button>
-             )}
-             <Button
-               onClick={() => setShowUpload(true)}
-               variant="secondary"
-               className="h-7 sm:h-9"
-               size="sm"
-             >
-               <Upload className="h-3 w-3 sm:h-4 sm:w-4" />
-               <span className="hidden sm:inline ml-1">{t('import')}</span>
-             </Button>
-              <TimesheetExport 
-                selectedRows={selectedRows}
-              />
-           </div>
-         }
+        actions={
+          <div className="flex items-center gap-1 sm:gap-2">
+            <Button onClick={handleRefresh} size="sm" variant="outline" className="h-7 sm:h-9">
+              <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
+            </Button>
+            {(user?.role === 'admin' || user?.role === 'owner') && (
+              <Button
+                onClick={() => setShowNewEntryDialog(true)}
+                className="h-7 sm:h-9"
+                size="sm"
+              >
+                <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline ms-1">{t('addEntry')}</span>
+              </Button>
+            )}
+            <Button
+              onClick={() => setShowUpload(true)}
+              variant="secondary"
+              className="h-7 sm:h-9"
+              size="sm"
+            >
+              <Upload className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline ms-1">{t('import')}</span>
+            </Button>
+            <TimesheetExport
+              selectedRows={selectedRows}
+            />
+          </div>
+        }
       />
 
       <MobileSection>
@@ -407,7 +407,7 @@ const TimesheetsPage: React.FC = () => {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <UIButton size="sm" variant="outline" className="h-7 sm:h-8">
-                <Globe2 className="h-3.5 w-3.5 mr-1" /> {timezone || 'Africa/Cairo'}
+                <Globe2 className="h-3.5 w-3.5 me-1" /> {timezone || 'Africa/Cairo'}
               </UIButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-64">
@@ -429,10 +429,10 @@ const TimesheetsPage: React.FC = () => {
           dateRange={dateRange}
           onDateRangeChange={handleDateRangeChange}
           payPeriodEndDay={endDay}
-          onPayPeriodEndDayChange={() => {}} // Read-only, configured in Settings
+          onPayPeriodEndDayChange={() => { }} // Read-only, configured in Settings
           payPeriodMode={mode}
         />
-        
+
         {/* Employee Filter - Only show for admins */}
         {(user?.role === 'admin' || user?.role === 'owner') && (
           <Card>
@@ -462,9 +462,9 @@ const TimesheetsPage: React.FC = () => {
                     onClick={clearAllFilters}
                     variant="outline"
                     size="sm"
-                    className="ml-4"
+                    className="ms-4"
                   >
-                    <Filter className="h-4 w-4 mr-2" />
+                    <Filter className="h-4 w-4 me-2" />
                     {t('clearFilters')}
                   </Button>
                 )}
@@ -500,7 +500,7 @@ const TimesheetsPage: React.FC = () => {
                   const end = Math.min(aEnd, bEnd);
                   return Math.max(0, end - start);
                 };
-                
+
                 // Simple calculation: 6 AM - 5 PM = morning, 5 PM - 6 AM = night
                 const totalMorningHours = processedTimesheets.reduce((sum, entry) => {
                   // Use virtual morning hours if available (for active employees)
@@ -514,7 +514,7 @@ const TimesheetsPage: React.FC = () => {
                     let shiftStart = timeToMinutes(entry.clock_in_time);
                     let shiftEnd = timeToMinutes(entry.clock_out_time);
                     if (shiftEnd < shiftStart) shiftEnd += 24 * 60;
-                    
+
                     // Morning: 6 AM (360 min) to 5 PM (1020 min)
                     const morningStart = 360; // 6 AM
                     const morningEnd = 1020; // 5 PM
@@ -536,7 +536,7 @@ const TimesheetsPage: React.FC = () => {
                     let shiftStart = timeToMinutes(entry.clock_in_time);
                     let shiftEnd = timeToMinutes(entry.clock_out_time);
                     if (shiftEnd < shiftStart) shiftEnd += 24 * 60;
-                    
+
                     // Night: 5 PM (1020 min) to 6 AM next day (1440 min + 360 min)
                     const nightStart = 1020; // 5 PM
                     const nightEnd = 1440 + 360; // 6 AM next day
@@ -547,12 +547,12 @@ const TimesheetsPage: React.FC = () => {
                 }, 0);
 
                 const unassignedHours = Math.max(0, totalHours - (totalMorningHours + totalNightHours));
-                
+
                 // Calculate percentages
                 const morningPercentage = totalHours > 0 ? (totalMorningHours / totalHours) * 100 : 0;
                 const nightPercentage = totalHours > 0 ? (totalNightHours / totalHours) * 100 : 0;
                 const totalEntries = processedTimesheets.length;
-                
+
                 return (
                   <>
                     {/* Total Entries */}
@@ -599,7 +599,7 @@ const TimesheetsPage: React.FC = () => {
                 );
               })()}
             </div>
-            
+
             {/* Visual Breakdown Bar */}
             <div className="mt-4">
               <div className="text-xs text-muted-foreground mb-2">{t('hoursDistribution')}</div>
@@ -675,7 +675,7 @@ const TimesheetsPage: React.FC = () => {
                     }
                     return sum;
                   }, 0);
-                  
+
                   const calculatedTotalHours = processedTimesheets.reduce((sum, entry) => {
                     // Use virtual total hours if available (for active employees), otherwise use actual hours
                     const hours = entry.virtual_total_hours !== undefined ? entry.virtual_total_hours : (entry.total_hours || 0);
@@ -683,15 +683,15 @@ const TimesheetsPage: React.FC = () => {
                   }, 0);
                   const barMorningPercentage = calculatedTotalHours > 0 ? (calculatedMorningHours / calculatedTotalHours) * 100 : 0;
                   const barNightPercentage = calculatedTotalHours > 0 ? (calculatedNightHours / calculatedTotalHours) * 100 : 0;
-                  
+
                   return (
                     <div className="flex h-full">
-                      <div 
+                      <div
                         className="bg-orange-500 h-full transition-all duration-300"
                         style={{ width: `${barMorningPercentage}%` }}
                         title={`Morning: ${barMorningPercentage.toFixed(1)}%`}
                       />
-                      <div 
+                      <div
                         className="bg-purple-500 h-full transition-all duration-300"
                         style={{ width: `${barNightPercentage}%` }}
                         title={`Night: ${barNightPercentage.toFixed(1)}%`}
@@ -739,8 +739,8 @@ const TimesheetsPage: React.FC = () => {
               <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
             </div>
           ) : (
-            <TimesheetTable 
-              data={processedTimesheets || []} 
+            <TimesheetTable
+              data={processedTimesheets || []}
               selectedRows={selectedRows}
               onSelectionChange={setSelectedRows}
               onDataChange={refetch}

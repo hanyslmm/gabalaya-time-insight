@@ -63,12 +63,12 @@ const EmployeePointsCard: React.FC = () => {
     enabled: !!employeeId && !!activeOrganizationId && !!pointsData,
     queryFn: async () => {
       if (!employeeId || !activeOrganizationId || !pointsData) return { nextThreshold: 25, currentMin: 0 };
-      
+
       // Get next level threshold
       const { data: nextThreshold, error: nextError } = await supabase.rpc('get_next_level_threshold' as any, {
         p_employee_id: employeeId
       });
-      
+
       // Get current level's min_points from points_levels table
       let currentMin = 0;
       if (pointsData.level) {
@@ -79,7 +79,7 @@ const EmployeePointsCard: React.FC = () => {
           .eq('level_name', pointsData.level)
           .eq('is_active', true)
           .maybeSingle();
-        
+
         if (!levelError && levelData) {
           currentMin = levelData.min_points || 0;
         } else {
@@ -91,7 +91,7 @@ const EmployeePointsCard: React.FC = () => {
           else currentMin = 0;
         }
       }
-      
+
       return {
         nextThreshold: (nextError ? 25 : (nextThreshold || 25)),
         currentMin
@@ -129,7 +129,7 @@ const EmployeePointsCard: React.FC = () => {
         console.log('=== EmployeePointsCard: Direct Query Debug ===');
         console.log('Looking for points with employee_id:', employeeId);
         console.log('User object:', user);
-        
+
         // Query 1: Try with the employeeId (user.id)
         const { data: data1, error: error1 } = await (supabase as any)
           .from('employee_points_log')
@@ -137,17 +137,17 @@ const EmployeePointsCard: React.FC = () => {
           .eq('employee_id', employeeId)
           .eq('organization_id', activeOrganizationId)
           .limit(10);
-        
+
         console.log('Query 1 (by user.id):', { employeeId, data: data1, error: error1, count: data1?.length });
         if (data1) console.table(data1);
-        
+
         // Query 2: Try to find ANY points for this organization to see employee_id values
         const { data: data2, error: error2 } = await (supabase as any)
           .from('employee_points_log')
           .select('employee_id, points, reason, created_at')
           .eq('organization_id', activeOrganizationId)
           .limit(20);
-        
+
         console.log('Query 2 (all for org):', { data: data2, error: error2, count: data2?.length });
         if (data2 && data2.length > 0) {
           console.log('All employee_id values in points log:');
@@ -155,7 +155,7 @@ const EmployeePointsCard: React.FC = () => {
           const uniqueIds = [...new Set(data2.map((e: any) => e.employee_id))];
           console.log('Unique employee_ids:', uniqueIds);
         }
-        
+
         // Query 3: Check employee table for this user
         const { data: data3, error: error3 } = await supabase
           .from('employees')
@@ -163,10 +163,10 @@ const EmployeePointsCard: React.FC = () => {
           .eq('organization_id', activeOrganizationId)
           .or(`id.eq.${user.id},staff_id.eq.${user.username}`)
           .limit(5);
-        
+
         console.log('Query 3 (employees table):', { data: data3, error: error3 });
         if (data3) console.table(data3);
-        
+
         if (data1 && data1.length > 0) {
           const sum = data1.reduce((acc: number, entry: any) => acc + (entry.points || 0), 0);
           console.log('EmployeePointsCard: Sum from direct query:', sum);
@@ -244,10 +244,10 @@ const EmployeePointsCard: React.FC = () => {
   const getLevelRanges = () => {
     const threshold = levelProgressData?.nextThreshold || 25;
     const currentMin = levelProgressData?.currentMin || 0;
-    
-    return { 
-      current: currentMin, 
-      next: threshold, 
+
+    return {
+      current: currentMin,
+      next: threshold,
       label: pointsData?.level || 'Starter',
       pointsRemaining: Math.max(0, threshold - totalPoints)
     };
@@ -374,9 +374,14 @@ const EmployeePointsCard: React.FC = () => {
               <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
               <span className="text-xs text-muted-foreground">{t('potentialBonus')}</span>
             </div>
-            <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-              {bonusEGP.toFixed(2)} {t('currencySymbol')}
-            </p>
+            <div className="flex flex-wrap items-baseline gap-1">
+              <span className="text-2xl font-bold text-green-600 dark:text-green-400">
+                {bonusEGP.toFixed(2)}
+              </span>
+              <span className="text-sm font-medium text-green-600/80 dark:text-green-400/80 break-all">
+                {t('currencySymbol')}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -390,12 +395,12 @@ const EmployeePointsCard: React.FC = () => {
               {totalPoints}/{levelRange.next} {t('points')}
             </span>
           </div>
-          <Progress 
-            value={Math.min(progress, 100)} 
+          <Progress
+            value={Math.min(progress, 100)}
             className="h-3 bg-background/50"
           />
           <p className="text-xs text-muted-foreground mt-1">
-            {levelRange.next - totalPoints > 0 
+            {levelRange.next - totalPoints > 0
               ? `${levelRange.next - totalPoints} ${t('points')} until ${getLevelTranslation(levelRange.label)}`
               : t('maxLevelReached') || 'Maximum level reached!'
             }
@@ -423,11 +428,11 @@ const EmployeePointsCard: React.FC = () => {
                       <p className="text-sm font-medium text-foreground truncate">
                         {entry.reason}
                       </p>
-                      <Badge 
+                      <Badge
                         variant="outline"
                         className={cn(
                           "text-xs font-bold shrink-0",
-                          entry.points > 0 
+                          entry.points > 0
                             ? "bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 border-green-300"
                             : "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 border-red-300"
                         )}

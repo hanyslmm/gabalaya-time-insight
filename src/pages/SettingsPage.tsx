@@ -161,7 +161,7 @@ const SettingsPage: React.FC = () => {
 
       <Tabs defaultValue="company" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="company"><Building2 className="h-4 w-4 mr-1" /> {t('company')}</TabsTrigger>
+          <TabsTrigger value="company"><Building2 className="h-4 w-4 me-1" /> {t('company')}</TabsTrigger>
           <TabsTrigger value="payroll">{t('payrollPolicies')}</TabsTrigger>
           <TabsTrigger value="roles">{t('rolesPermissions')}</TabsTrigger>
           <TabsTrigger value="system">{t('system')}</TabsTrigger>
@@ -184,7 +184,7 @@ const SettingsPage: React.FC = () => {
                 </div>
                 <div className="flex justify-end">
                   <Button onClick={handleSaveCompany} disabled={saveMutation.isPending || !message.trim()}>
-                    <Save className="h-4 w-4 mr-2" />
+                    <Save className="h-4 w-4 me-2" />
                     {saveMutation.isPending ? t('saving') : t('save')}
                   </Button>
                 </div>
@@ -263,7 +263,7 @@ const SettingsPage: React.FC = () => {
 
                 <div className="flex justify-end">
                   <Button onClick={handleSaveCompany} disabled={saveMutation.isPending}>
-                    <Save className="h-4 w-4 mr-2" />
+                    <Save className="h-4 w-4 me-2" />
                     {saveMutation.isPending ? t('saving') : t('saveAll')}
                   </Button>
                 </div>
@@ -317,7 +317,7 @@ const SettingsPage: React.FC = () => {
                 </div>
                 <div>
                   <h4 className="font-medium">{t('recentUpdates')}</h4>
-                  <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-5">
+                  <ul className="text-sm text-muted-foreground space-y-1 list-disc ps-5">
                     <li>🏆 My Points Page v3.3.0: Revamped employee-facing page with motivational header, next-level progress targets, 30-day insights, and RTL-friendly layout. Catalog and personal history presented clearly. Employees only view their own points.</li>
                     <li>🎛️ Award Points UX v3.3.0: Grouped dropdown selector, Arabic/RTL alignment improvements, and Add/Deduct type filter. "Award Points" action added to Team Activity on Clock In/Out.</li>
                     <li>🌐 Arabic Translations v3.3.0: Completed translation keys for My Points, navigation labels, and history table headers; sidebar and mobile navigation now reflect Arabic language setting.</li>

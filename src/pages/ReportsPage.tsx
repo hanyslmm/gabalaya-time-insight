@@ -40,7 +40,7 @@ type ViewType = 'overview' | 'attendance' | 'payroll' | 'analytics';
 
 const ReportsPage: React.FC = () => {
   console.log('ReportsPage: Component rendering...');
-  
+
   // Hooks at top level
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -54,21 +54,21 @@ const ReportsPage: React.FC = () => {
   const [showExportDialog, setShowExportDialog] = useState<boolean>(false);
   const [maxWorkingHours, setMaxWorkingHours] = useState<number>(6);
   const [highlightLongShifts, setHighlightLongShifts] = useState<boolean>(true);
-  
+
   // Date range state - default to current pay period from settings
   const [dateRange, setDateRange] = useState<DateRange>(() => calculatePayPeriod(0));
   const [comparisonDateRange, setComparisonDateRange] = useState<DateRange | null>(null);
-  
+
   // Recalculate on settings change (mode/endDay)
   React.useEffect(() => {
     const newRange = calculatePayPeriod(0);
     setDateRange(newRange);
   }, [mode, endDay]);
-  
+
   const activeOrganizationId = (user as any)?.current_organization_id || user?.organization_id || null;
-  
+
   console.log('ReportsPage: User:', user?.username, 'Org:', activeOrganizationId);
-  
+
   // Query 1: Employees (with wage rates and roles)
   const { data: employees, isLoading: employeesLoading, error: employeesError } = useQuery({
     queryKey: ['employees-final', activeOrganizationId],
@@ -81,7 +81,7 @@ const ReportsPage: React.FC = () => {
       return data || [];
     }
   });
-  
+
   // Query for available roles
   const { data: availableRoles = [] } = useQuery({
     queryKey: ['employee-roles', activeOrganizationId],
@@ -92,18 +92,18 @@ const ReportsPage: React.FC = () => {
         .select('name')
         .eq('organization_id', activeOrganizationId)
         .order('name');
-      
+
       if (error) {
         console.error('Failed to fetch roles:', error);
         return [];
       }
-      
+
       // Add system roles
       const allRoles = [
         ...(data || []).map((r: any) => r.name),
         'Employee', 'admin', 'owner'
       ].filter((role, index, self) => self.indexOf(role) === index);
-      
+
       return allRoles;
     }
   });
@@ -117,7 +117,7 @@ const ReportsPage: React.FC = () => {
           .from('wage_settings')
           .select('*')
           .eq('organization_id', activeOrganizationId);
-        
+
         const { data } = await query.maybeSingle();
         if (data) return data;
       }
@@ -156,12 +156,12 @@ const ReportsPage: React.FC = () => {
         .select('is_points_system_active, point_value, name')
         .eq('id', activeOrganizationId)
         .single();
-      
+
       if (error) {
         console.error('Error fetching points system status:', error);
         return { isPointsSystemActive: false, pointValue: 5, organizationName: '' };
       }
-      
+
       return {
         isPointsSystemActive: (data as any)?.is_points_system_active || false,
         pointValue: Number((data as any)?.point_value) || 5,
@@ -174,9 +174,9 @@ const ReportsPage: React.FC = () => {
   const { data: rawTimesheetData, isLoading: timesheetLoading, error: timesheetError } = useQuery({
     queryKey: ['timesheet-final', dateRange, activeOrganizationId, employees?.length, mode, endDay],
     queryFn: async (): Promise<any[]> => {
-        const fromDate = format(dateRange.from, 'yyyy-MM-dd');
-        const toDate = format(dateRange.to, 'yyyy-MM-dd');
-        
+      const fromDate = format(dateRange.from, 'yyyy-MM-dd');
+      const toDate = format(dateRange.to, 'yyyy-MM-dd');
+
       const applyDateFilter = (q: any) => {
         return q
           .gte('clock_in_date', fromDate)
@@ -211,7 +211,7 @@ const ReportsPage: React.FC = () => {
         .select('*')
         .is('organization_id', null);
       queryLegacy = applyDateFilter(queryLegacy);
-      
+
       if (employeeIds.length > 0) {
         queryLegacy = queryLegacy.in('employee_id', employeeIds);
       } else if (employeeStaffIds.length > 0 || employeeNames.length > 0) {
@@ -243,7 +243,7 @@ const ReportsPage: React.FC = () => {
         }
       }
 
-      return [ ...(resOrg.data || []), ...legacyData ];
+      return [...(resOrg.data || []), ...legacyData];
     },
     enabled: !!(dateRange?.from && dateRange?.to && employees !== undefined)
   });
@@ -251,156 +251,156 @@ const ReportsPage: React.FC = () => {
   // Process attendance report with advanced filtering
   const attendanceReport = useMemo(() => {
     if (!rawTimesheetData || !employees || !wageSettings) return [];
-    
-      const employeeMap = new Map();
-      const employeeRoleMap = new Map(); // Map employee name/id to their role
-      const employeeWageMap = new Map(); // Map employee name/id to their wage rates
-      const employeeIdMap = new Map(); // Map employee name/id to their id
-      
-      employees.forEach(emp => {
-        if (emp.staff_id) {
-          employeeMap.set(emp.staff_id, emp.full_name);
-          employeeRoleMap.set(emp.staff_id, emp.role);
-          employeeIdMap.set(emp.staff_id, emp.id);
-          employeeWageMap.set(emp.staff_id, {
-            morning: emp.morning_wage_rate || wageSettings?.morning_wage_rate || 17,
-            night: emp.night_wage_rate || wageSettings?.night_wage_rate || 20
-          });
-        }
-        if (emp.full_name) {
-          employeeMap.set(emp.full_name, emp.full_name);
-          employeeRoleMap.set(emp.full_name, emp.role);
-          employeeIdMap.set(emp.full_name, emp.id);
-          employeeWageMap.set(emp.full_name, {
-            morning: emp.morning_wage_rate || wageSettings?.morning_wage_rate || 17,
-            night: emp.night_wage_rate || wageSettings?.night_wage_rate || 20
-          });
-        }
-        if (emp.id) {
-          employeeMap.set(emp.id, emp.full_name);
-          employeeRoleMap.set(emp.id, emp.role);
-          employeeIdMap.set(emp.id, emp.id);
-          employeeWageMap.set(emp.id, {
-            morning: emp.morning_wage_rate || wageSettings?.morning_wage_rate || 17,
-            night: emp.night_wage_rate || wageSettings?.night_wage_rate || 20
-          });
-        }
-      });
+
+    const employeeMap = new Map();
+    const employeeRoleMap = new Map(); // Map employee name/id to their role
+    const employeeWageMap = new Map(); // Map employee name/id to their wage rates
+    const employeeIdMap = new Map(); // Map employee name/id to their id
+
+    employees.forEach(emp => {
+      if (emp.staff_id) {
+        employeeMap.set(emp.staff_id, emp.full_name);
+        employeeRoleMap.set(emp.staff_id, emp.role);
+        employeeIdMap.set(emp.staff_id, emp.id);
+        employeeWageMap.set(emp.staff_id, {
+          morning: emp.morning_wage_rate || wageSettings?.morning_wage_rate || 17,
+          night: emp.night_wage_rate || wageSettings?.night_wage_rate || 20
+        });
+      }
+      if (emp.full_name) {
+        employeeMap.set(emp.full_name, emp.full_name);
+        employeeRoleMap.set(emp.full_name, emp.role);
+        employeeIdMap.set(emp.full_name, emp.id);
+        employeeWageMap.set(emp.full_name, {
+          morning: emp.morning_wage_rate || wageSettings?.morning_wage_rate || 17,
+          night: emp.night_wage_rate || wageSettings?.night_wage_rate || 20
+        });
+      }
+      if (emp.id) {
+        employeeMap.set(emp.id, emp.full_name);
+        employeeRoleMap.set(emp.id, emp.role);
+        employeeIdMap.set(emp.id, emp.id);
+        employeeWageMap.set(emp.id, {
+          morning: emp.morning_wage_rate || wageSettings?.morning_wage_rate || 17,
+          night: emp.night_wage_rate || wageSettings?.night_wage_rate || 20
+        });
+      }
+    });
 
     return rawTimesheetData.filter(entry => {
       // Only include entries for employees that actually exist in the current organization
-      const entryEmployeeId = employeeIdMap.get(entry.employee_name) || 
-                              employeeIdMap.get(entry.employee_id) ||
-                              employees.find(emp => 
-                                emp.full_name === entry.employee_name ||
-                                emp.staff_id === entry.employee_name ||
-                                emp.id === entry.employee_id
-                              )?.id;
-      
-      const hasValidEmployee = employeeMap.has(entry.employee_name) || 
-                               employeeMap.has(entry.employee_id) || 
-                               employees.some(emp => 
-                                 emp.full_name === entry.employee_name ||
-                                 emp.staff_id === entry.employee_name ||
-                                 emp.id === entry.employee_id
-                               );
-      
+      const entryEmployeeId = employeeIdMap.get(entry.employee_name) ||
+        employeeIdMap.get(entry.employee_id) ||
+        employees.find(emp =>
+          emp.full_name === entry.employee_name ||
+          emp.staff_id === entry.employee_name ||
+          emp.id === entry.employee_id
+        )?.id;
+
+      const hasValidEmployee = employeeMap.has(entry.employee_name) ||
+        employeeMap.has(entry.employee_id) ||
+        employees.some(emp =>
+          emp.full_name === entry.employee_name ||
+          emp.staff_id === entry.employee_name ||
+          emp.id === entry.employee_id
+        );
+
       if (!hasValidEmployee) return false;
-      
+
       // Apply employee filter (multi-select)
       if (selectedEmployeeIds.length > 0 && entryEmployeeId && !selectedEmployeeIds.includes(entryEmployeeId)) {
         return false;
       }
-      
+
       // Apply search filter
       if (searchTerm.trim()) {
-        const displayName = employeeMap.get(entry.employee_name) || 
-                           employeeMap.get(entry.employee_id) || 
-                           entry.employee_name || '';
+        const displayName = employeeMap.get(entry.employee_name) ||
+          employeeMap.get(entry.employee_id) ||
+          entry.employee_name || '';
         if (!displayName.toLowerCase().includes(searchTerm.toLowerCase()) &&
-            !entry.clock_in_date?.includes(searchTerm)) {
+          !entry.clock_in_date?.includes(searchTerm)) {
           return false;
         }
       }
-      
+
       // Apply role filter
       if (selectedRole !== 'all') {
-        const employeeRole = employeeRoleMap.get(entry.employee_name) || 
-                            employeeRoleMap.get(entry.employee_id) ||
-                            employees.find(emp => 
-                              emp.full_name === entry.employee_name ||
-                              emp.staff_id === entry.employee_name ||
-                              emp.id === entry.employee_id
-                            )?.role;
-        
+        const employeeRole = employeeRoleMap.get(entry.employee_name) ||
+          employeeRoleMap.get(entry.employee_id) ||
+          employees.find(emp =>
+            emp.full_name === entry.employee_name ||
+            emp.staff_id === entry.employee_name ||
+            emp.id === entry.employee_id
+          )?.role;
+
         if (employeeRole !== selectedRole) {
           return false;
         }
       }
-      
+
       return true;
     }).map(entry => {
-        let morningHours = entry.morning_hours || 0;
-        let nightHours = entry.night_hours || 0;
-        // Use the original total_hours from database (same as MyTimesheetPage)
-        let totalHours = entry.total_hours || 0;
+      let morningHours = entry.morning_hours || 0;
+      let nightHours = entry.night_hours || 0;
+      // Use the original total_hours from database (same as MyTimesheetPage)
+      let totalHours = entry.total_hours || 0;
 
-        // Only recalculate morning/night split if not already stored, but preserve original total_hours
-        if (entry.clock_in_time && entry.clock_out_time && (morningHours === 0 && nightHours === 0)) {
-          const clean = (t: string) => (t || '00:00:00').split('.')[0];
-          const toMinutes = (t: string) => {
-            const [h, m, s] = clean(t).split(':').map((v) => parseInt(v, 10) || 0);
-            return (h % 24) * 60 + (m % 60) + Math.floor((s % 60) / 60);
-          };
-          const overlap = (aStart: number, aEnd: number, bStart: number, bEnd: number) => {
-            const start = Math.max(aStart, bStart);
-            const end = Math.min(aEnd, bEnd);
-            return Math.max(0, end - start);
-          };
+      // Only recalculate morning/night split if not already stored, but preserve original total_hours
+      if (entry.clock_in_time && entry.clock_out_time && (morningHours === 0 && nightHours === 0)) {
+        const clean = (t: string) => (t || '00:00:00').split('.')[0];
+        const toMinutes = (t: string) => {
+          const [h, m, s] = clean(t).split(':').map((v) => parseInt(v, 10) || 0);
+          return (h % 24) * 60 + (m % 60) + Math.floor((s % 60) / 60);
+        };
+        const overlap = (aStart: number, aEnd: number, bStart: number, bEnd: number) => {
+          const start = Math.max(aStart, bStart);
+          const end = Math.min(aEnd, bEnd);
+          return Math.max(0, end - start);
+        };
 
-          let shiftStart = toMinutes(entry.clock_in_time);
-          let shiftEnd = toMinutes(entry.clock_out_time);
-          if (shiftEnd < shiftStart) shiftEnd += 24 * 60;
+        let shiftStart = toMinutes(entry.clock_in_time);
+        let shiftEnd = toMinutes(entry.clock_out_time);
+        if (shiftEnd < shiftStart) shiftEnd += 24 * 60;
 
-          // Morning: 6 AM (360 min) to 5 PM (1020 min)
-          const morningStart = 360; // 6 AM
-          const morningEnd = 1020; // 5 PM
-          const morningMinutes = overlap(shiftStart, shiftEnd, morningStart, morningEnd);
+        // Morning: 6 AM (360 min) to 5 PM (1020 min)
+        const morningStart = 360; // 6 AM
+        const morningEnd = 1020; // 5 PM
+        const morningMinutes = overlap(shiftStart, shiftEnd, morningStart, morningEnd);
 
-          // Night: 5 PM (1020 min) to 6 AM next day (1440 min + 360 min)
-          const nightStart = 1020; // 5 PM
-          const nightEnd = 1440 + 360; // 6 AM next day
-          const nightMinutes = overlap(shiftStart, shiftEnd, nightStart, nightEnd);
+        // Night: 5 PM (1020 min) to 6 AM next day (1440 min + 360 min)
+        const nightStart = 1020; // 5 PM
+        const nightEnd = 1440 + 360; // 6 AM next day
+        const nightMinutes = overlap(shiftStart, shiftEnd, nightStart, nightEnd);
 
-          morningHours = Math.max(0, parseFloat((morningMinutes / 60).toFixed(2)));
-          nightHours = Math.max(0, parseFloat((nightMinutes / 60).toFixed(2)));
-          // DO NOT overwrite totalHours - keep the original database value
-        } else if (morningHours === 0 && nightHours === 0 && totalHours > 0) {
-          morningHours = totalHours;
-        }
+        morningHours = Math.max(0, parseFloat((morningMinutes / 60).toFixed(2)));
+        nightHours = Math.max(0, parseFloat((nightMinutes / 60).toFixed(2)));
+        // DO NOT overwrite totalHours - keep the original database value
+      } else if (morningHours === 0 && nightHours === 0 && totalHours > 0) {
+        morningHours = totalHours;
+      }
 
-        const displayName = employeeMap.get(entry.employee_name) || 
-                           employeeMap.get(entry.employee_id) || 
-                           entry.employee_name || 'Unknown Employee';
+      const displayName = employeeMap.get(entry.employee_name) ||
+        employeeMap.get(entry.employee_id) ||
+        entry.employee_name || 'Unknown Employee';
 
       // Calculate amount for individual entries using EMPLOYEE-SPECIFIC wage rates
       const storedAmount = entry.total_card_amount_split || entry.total_card_amount_flat || 0;
       let calculatedAmount = 0;
-      
+
       if (storedAmount > 0) {
         calculatedAmount = storedAmount;
       } else {
         // Get employee-specific wage rates (fallback to global rates)
-        const employeeWages = employeeWageMap.get(entry.employee_name) || 
-                             employeeWageMap.get(entry.employee_id) || 
-                             employeeWageMap.get(displayName) || 
-                             { morning: wageSettings?.morning_wage_rate || 17, night: wageSettings?.night_wage_rate || 20 };
-        
+        const employeeWages = employeeWageMap.get(entry.employee_name) ||
+          employeeWageMap.get(entry.employee_id) ||
+          employeeWageMap.get(displayName) ||
+          { morning: wageSettings?.morning_wage_rate || 17, night: wageSettings?.night_wage_rate || 20 };
+
         const morningRate = employeeWages.morning;
         const nightRate = employeeWages.night;
-        
+
         console.log(`💰 Calculating for ${displayName}: morning=${morningRate}, night=${nightRate}`);
-        
+
         if (morningHours > 0 || nightHours > 0) {
           // Use split calculation
           calculatedAmount = (morningHours * morningRate) + (nightHours * nightRate);
@@ -410,58 +410,58 @@ const ReportsPage: React.FC = () => {
         }
       }
 
-        // Get employee-specific wage rates for export
-        const employeeWages = employeeWageMap.get(entry.employee_name) || 
-                             employeeWageMap.get(entry.employee_id) || 
-                             employeeWageMap.get(displayName) || 
-                             { morning: wageSettings?.morning_wage_rate || 17, night: wageSettings?.night_wage_rate || 20 };
+      // Get employee-specific wage rates for export
+      const employeeWages = employeeWageMap.get(entry.employee_name) ||
+        employeeWageMap.get(entry.employee_id) ||
+        employeeWageMap.get(displayName) ||
+        { morning: wageSettings?.morning_wage_rate || 17, night: wageSettings?.night_wage_rate || 20 };
 
-        return {
-          ...entry,
-          display_name: displayName,
-          total_hours: morningHours + nightHours, // Use calculated total (morning + night) for consistency
-          calculated_morning_hours: Math.max(0, morningHours),
-          calculated_night_hours: Math.max(0, nightHours),
-          total_card_amount_flat: Math.round(calculatedAmount),
-          calculated_amount: Math.round(calculatedAmount),
-          morning_wage_rate: employeeWages.morning,
-          night_wage_rate: employeeWages.night
-        };
-      });
+      return {
+        ...entry,
+        display_name: displayName,
+        total_hours: morningHours + nightHours, // Use calculated total (morning + night) for consistency
+        calculated_morning_hours: Math.max(0, morningHours),
+        calculated_night_hours: Math.max(0, nightHours),
+        total_card_amount_flat: Math.round(calculatedAmount),
+        calculated_amount: Math.round(calculatedAmount),
+        morning_wage_rate: employeeWages.morning,
+        night_wage_rate: employeeWages.night
+      };
+    });
   }, [rawTimesheetData, employees, wageSettings, workingHoursSettings, selectedRole, selectedEmployeeIds, searchTerm]);
 
   // Calculate payroll summary - using employee-specific rates from attendanceReport
   const payrollSummary = useMemo(() => {
     if (!attendanceReport.length) return [];
-    
-      const grouped = attendanceReport.reduce((acc, entry) => {
-        const key = entry.display_name || entry.employee_name || 'Unknown';
-        if (!acc[key]) {
-          acc[key] = {
-            employee_name: key,
-            total_hours: 0,
-            morning_hours: 0,
-            night_hours: 0,
-            shifts: 0,
-            total_flat_amount: 0,
-            total_split_amount: 0
-          };
-        }
 
-        acc[key].total_hours += entry.total_hours || 0;
-        acc[key].morning_hours += entry.calculated_morning_hours || 0;
-        acc[key].night_hours += entry.calculated_night_hours || 0;
-        acc[key].shifts += 1;
-        
-        // Use the already-calculated amount from attendanceReport 
-        // (which already uses employee-specific wage rates)
-        const calculatedAmount = entry.calculated_amount || 0;
-        
-        acc[key].total_flat_amount += calculatedAmount;
-        acc[key].total_split_amount += calculatedAmount;
+    const grouped = attendanceReport.reduce((acc, entry) => {
+      const key = entry.display_name || entry.employee_name || 'Unknown';
+      if (!acc[key]) {
+        acc[key] = {
+          employee_name: key,
+          total_hours: 0,
+          morning_hours: 0,
+          night_hours: 0,
+          shifts: 0,
+          total_flat_amount: 0,
+          total_split_amount: 0
+        };
+      }
 
-        return acc;
-      }, {} as any);
+      acc[key].total_hours += entry.total_hours || 0;
+      acc[key].morning_hours += entry.calculated_morning_hours || 0;
+      acc[key].night_hours += entry.calculated_night_hours || 0;
+      acc[key].shifts += 1;
+
+      // Use the already-calculated amount from attendanceReport 
+      // (which already uses employee-specific wage rates)
+      const calculatedAmount = entry.calculated_amount || 0;
+
+      acc[key].total_flat_amount += calculatedAmount;
+      acc[key].total_split_amount += calculatedAmount;
+
+      return acc;
+    }, {} as any);
 
     return Object.values(grouped);
   }, [attendanceReport]);
@@ -471,7 +471,7 @@ const ReportsPage: React.FC = () => {
     const totalHours = attendanceReport.reduce((sum, entry) => sum + (entry.total_hours || 0), 0);
     const totalAmount = attendanceReport.reduce((sum, entry) => sum + (entry.calculated_amount || entry.total_card_amount_flat || 0), 0);
     const totalEmployees = new Set(attendanceReport.map(entry => entry.display_name)).size;
-    
+
     return {
       totalShifts: attendanceReport.length,
       totalHours: totalHours,
@@ -516,7 +516,7 @@ const ReportsPage: React.FC = () => {
         return;
     }
     setDateRange(newRange);
-    
+
     // Auto-set comparison period if enabled
     if (comparePeriod) {
       const daysDiff = Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24));
@@ -530,12 +530,12 @@ const ReportsPage: React.FC = () => {
   // Comparison metrics
   const comparisonMetrics = useMemo(() => {
     if (!comparePeriod || !comparisonDateRange) return null;
-    
+
     // Calculate comparison period metrics (simplified - would need separate query in production)
     const currentTotalHours = keyMetrics.totalHours;
     const currentTotalAmount = keyMetrics.totalAmount;
     const currentTotalShifts = keyMetrics.totalShifts;
-    
+
     // For now, return mock comparison (in production, fetch comparison period data)
     return {
       totalHours: currentTotalHours * 0.9, // Mock: 10% decrease
@@ -553,7 +553,7 @@ const ReportsPage: React.FC = () => {
     const pointValue = pointsSystemData?.pointValue || 5;
     const organizationName = pointsSystemData?.organizationName || '';
     const filename = `Attendance_Report_${format(new Date(), 'yyyy-MM-dd')}`;
-    
+
     // Append organization name to filename if available
     let finalFilename = filename;
     if (organizationName) {
@@ -561,9 +561,9 @@ const ReportsPage: React.FC = () => {
       const sanitizedOrgName = organizationName.replace(/[^a-zA-Z0-9]/g, '_');
       finalFilename = `Attendance_Report_${sanitizedOrgName}_${format(new Date(), 'yyyy-MM-dd')}`;
     }
-    
+
     const maxHours = highlightLongShifts ? maxWorkingHours : 999; // Disable highlighting if unchecked
-    
+
     exportAttendanceReportToExcel(
       attendanceReport,
       `${finalFilename}.xlsx`,
@@ -700,8 +700,8 @@ const ReportsPage: React.FC = () => {
 
   return (
     <MobilePageWrapper>
-      <MobileHeader 
-        title={t('reports')} 
+      <MobileHeader
+        title={t('reports')}
         subtitle={currentView === 'overview' ? `${attendanceReport.length} ${t('entries')} • ${formatDateRange()}` : ''}
       />
 
@@ -710,10 +710,10 @@ const ReportsPage: React.FC = () => {
           dateRange={dateRange}
           onDateRangeChange={setDateRange}
           payPeriodEndDay={endDay}
-          onPayPeriodEndDayChange={() => {}} // Read-only, configured in Settings
+          onPayPeriodEndDayChange={() => { }} // Read-only, configured in Settings
           payPeriodMode={mode}
         />
-        
+
 
         {/* Advanced Filters */}
         <div className="mt-4 bg-gradient-to-br from-card to-card/50 rounded-xl border-2 border-border/50 shadow-lg p-5 space-y-4">
@@ -730,7 +730,7 @@ const ReportsPage: React.FC = () => {
                 }}
                 className="text-xs"
               >
-                <X className="h-3 w-3 mr-1" />
+                <X className="h-3 w-3 me-1" />
                 {t('clearFilters') || 'Clear All'}
               </Button>
             )}
@@ -753,12 +753,12 @@ const ReportsPage: React.FC = () => {
           <div className="space-y-2">
             <Label>{t('search') || 'Search'}</Label>
             <div className="relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute start-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder={t('searchByNameOrDate') || 'Search by employee name or date...'}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8"
+                className="ps-8"
               />
             </div>
           </div>
@@ -825,7 +825,7 @@ const ReportsPage: React.FC = () => {
                           <div className={`flex items-center gap-1 text-xs ${comparisonMetrics.hoursChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                             {comparisonMetrics.hoursChange >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
                             {Math.abs(comparisonMetrics.hoursChange).toFixed(1)}%
-                    </div>
+                          </div>
                         )}
                       </div>
                       {comparisonMetrics && (
@@ -850,7 +850,7 @@ const ReportsPage: React.FC = () => {
                           <div className={`flex items-center gap-1 text-xs ${comparisonMetrics.shiftsChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                             {comparisonMetrics.shiftsChange >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
                             {Math.abs(comparisonMetrics.shiftsChange).toFixed(1)}%
-                    </div>
+                          </div>
                         )}
                       </div>
                       {comparisonMetrics && (
@@ -887,7 +887,7 @@ const ReportsPage: React.FC = () => {
                           <div className={`flex items-center gap-1 text-xs ${comparisonMetrics.amountChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                             {comparisonMetrics.amountChange >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
                             {Math.abs(comparisonMetrics.amountChange).toFixed(1)}%
-                    </div>
+                          </div>
                         )}
                       </div>
                       {comparisonMetrics && (
@@ -909,14 +909,14 @@ const ReportsPage: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="justify-between h-auto p-4"
                     onClick={() => setCurrentView('attendance')}
                   >
                     <div className="flex items-center gap-3">
                       <Users className="h-5 w-5 text-primary" />
-                      <div className="text-left">
+                      <div className="text-start">
                         <p className="font-medium">{t('viewAttendance')}</p>
                         <p className="text-sm text-muted-foreground">{t('detailedTimesheetRecords')}</p>
                       </div>
@@ -924,14 +924,14 @@ const ReportsPage: React.FC = () => {
                     <ChevronRight className="h-4 w-4" />
                   </Button>
 
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="justify-between h-auto p-4"
                     onClick={() => setCurrentView('payroll')}
                   >
                     <div className="flex items-center gap-3">
                       <FileSpreadsheet className="h-5 w-5 text-green-600 dark:text-green-400" />
-                      <div className="text-left">
+                      <div className="text-start">
                         <p className="font-medium">{t('payrollSummary')}</p>
                         <p className="text-sm text-muted-foreground">{t('employeeWageCalculations')}</p>
                       </div>
@@ -939,14 +939,14 @@ const ReportsPage: React.FC = () => {
                     <ChevronRight className="h-4 w-4" />
                   </Button>
 
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="justify-between h-auto p-4"
                     onClick={() => setCurrentView('analytics')}
                   >
                     <div className="flex items-center gap-3">
                       <TrendingUp className="h-5 w-5 text-purple-600" />
-                      <div className="text-left">
+                      <div className="text-start">
                         <p className="font-medium">{t('analytics')}</p>
                         <p className="text-sm text-muted-foreground">{t('chartsAndInsights')}</p>
                       </div>
@@ -962,12 +962,12 @@ const ReportsPage: React.FC = () => {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-lg">{t('recentActivity')}</CardTitle>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     size="sm"
                     onClick={() => setCurrentView('attendance')}
                   >
-                    {t('viewAll')} <ChevronRight className="h-4 w-4 ml-1" />
+                    {t('viewAll')} <ChevronRight className="h-4 w-4 ms-1" />
                   </Button>
                 </CardHeader>
                 <CardContent>
@@ -981,7 +981,7 @@ const ReportsPage: React.FC = () => {
                             <p className="text-sm text-muted-foreground">{entry.clock_in_date}</p>
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-end">
                           <p className="font-medium">{entry.total_hours?.toFixed(1)}h</p>
                           <Badge variant="secondary" className="text-xs font-medium text-green-600 dark:text-green-400">
                             {entry.calculated_amount || entry.total_card_amount_flat || 0} LE
@@ -1001,9 +1001,9 @@ const ReportsPage: React.FC = () => {
             <CardHeader className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setCurrentView('overview')}
                     className="hover:bg-primary/10"
                   >
@@ -1018,12 +1018,12 @@ const ReportsPage: React.FC = () => {
                 </div>
                 <Popover>
                   <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={attendanceReport.length === 0}
-                >
-                  <Download className="h-4 w-4 mr-2" />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={attendanceReport.length === 0}
+                    >
+                      <Download className="h-4 w-4 me-2" />
                       {t('export') || 'Export'}
                     </Button>
                   </PopoverTrigger>
@@ -1046,9 +1046,9 @@ const ReportsPage: React.FC = () => {
                         size="sm"
                         disabled={attendanceReport.length === 0}
                       >
-                        <Download className="h-4 w-4 mr-2" />
+                        <Download className="h-4 w-4 me-2" />
                         {t('exportAttendance') || 'Export Attendance'}
-                </Button>
+                      </Button>
                     </div>
                   </PopoverContent>
                 </Popover>
@@ -1105,9 +1105,9 @@ const ReportsPage: React.FC = () => {
             <CardHeader className="bg-gradient-to-r from-green-500/10 via-green-500/5 to-transparent border-b">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setCurrentView('overview')}
                     className="hover:bg-green-500/10"
                   >
@@ -1122,12 +1122,12 @@ const ReportsPage: React.FC = () => {
                 </div>
                 <Popover>
                   <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={payrollSummary.length === 0}
-                >
-                  <Download className="h-4 w-4 mr-2" />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={payrollSummary.length === 0}
+                    >
+                      <Download className="h-4 w-4 me-2" />
                       {t('export') || 'Export'}
                     </Button>
                   </PopoverTrigger>
@@ -1150,9 +1150,9 @@ const ReportsPage: React.FC = () => {
                         size="sm"
                         disabled={payrollSummary.length === 0}
                       >
-                        <Download className="h-4 w-4 mr-2" />
+                        <Download className="h-4 w-4 me-2" />
                         {t('exportPayroll') || 'Export Payroll'}
-                </Button>
+                      </Button>
                     </div>
                   </PopoverContent>
                 </Popover>
@@ -1200,17 +1200,17 @@ const ReportsPage: React.FC = () => {
         {currentView === 'analytics' && (
           <div>
             <div className="flex items-center gap-2 mb-6">
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setCurrentView('overview')}
               >
                 {t('back')}
               </Button>
               <h2 className="text-xl font-semibold">{t('analyticsDashboard')}</h2>
             </div>
-          <HRAnalytics dateRange={dateRange} />
-                    </div>
+            <HRAnalytics dateRange={dateRange} />
+          </div>
         )}
       </MobileSection>
 
@@ -1238,7 +1238,7 @@ const ReportsPage: React.FC = () => {
                 </Label>
               </div>
               {highlightLongShifts && (
-                <div className="ml-6 space-y-2">
+                <div className="ms-6 space-y-2">
                   <Label htmlFor="maxWorkingHours">Maximum Working Hours (hours)</Label>
                   <Input
                     id="maxWorkingHours"
